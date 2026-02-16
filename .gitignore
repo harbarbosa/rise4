@@ -1,0 +1,26 @@
+# Rise CRM
+/writable/
+!/writable/index.html
+!/writable/.htaccess
+
+# Logs & cache
+/writable/logs/
+/writable/cache/
+/writable/debugbar/
+
+# Uploads
+/writable/uploads/
+
+# Sessions
+/writable/session/
+
+# Mailbox attachments
+/plugins/Mailbox/files/
+
+# Plugin and language stray logs
+/plugins/*.log
+/app/Language/portuguese/*.log
+
+# OS
+.DS_Store
+Thumbs.db

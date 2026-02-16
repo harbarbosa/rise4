@@ -1,0 +1,35 @@
+<div id="page-content" class="page-wrapper clearfix">
+  <div class="row">
+    <div class="col-sm-12">
+      <div class="card">
+        <div class="page-title clearfix">
+          <h4>Ordem de ServiÃ§o</h4>
+          <div class="title-button-group">
+            <?php echo modal_anchor(get_uri("ordemservico/modal_form"), "<i data-feather='plus-circle' class='icon-16'></i> Nova OS", array("class" => "btn btn-default", "title" => "Nova Ordem de ServiÃ§o", "data-modal-lg" => true)); ?>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table id="os-table" class="display" width="100%"></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript">
+  $(document).ready(function () {
+    $("#os-table").appTable({
+      source: '<?php echo_uri("ordemservico/list_data") ?>',
+      columns: [
+        {title: 'ID', "class": "w100"},
+        {title: '<?php echo app_lang("client") ?>'},
+        {title: 'TÃ©cnico'},
+        {title: '<?php echo app_lang("status") ?>'},
+        {title: '<?php echo app_lang("start_date") ?>'},
+        {title: '<?php echo app_lang("end_date") ?>'},
+        {title: '<?php echo app_lang("amount") ?>', "class": "text-end w150"},
+        {title: '<i data-feather="menu" class="icon-16"></i>', "class": "text-center option w100"}
+      ]
+    });
+  });
+</script>
