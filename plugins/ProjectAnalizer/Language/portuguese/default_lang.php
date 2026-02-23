@@ -153,5 +153,9 @@ $lang["cumulative_balance"] = "Saldo acumulado";
 $lang["distribution_inicio"] = "Inicio";
 $lang["distribution_fim"] = "Fim";
 $lang["distribution_linear"] = "Linear";
+$lang["pa_error_logs"] = "Logs de erro";
+$lang["pa_log_files"] = "Arquivos de log";
+$lang["pa_log_content"] = "ConteÃºdo do log";
+$lang["pa_no_logs"] = "Nenhum log encontrado";
 
 return $lang;

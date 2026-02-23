@@ -22,6 +22,48 @@ class ProjectAnalizer_settings extends Security_Controller
         return $this->template->rander("ProjectAnalizer\\Views\\settings\\index");
     }
 
+    public function logs()
+    {
+        $logs_dir = WRITEPATH . "logs";
+        $files = [];
+        if (is_dir($logs_dir)) {
+            foreach (glob($logs_dir . DIRECTORY_SEPARATOR . "*.log") as $path) {
+                $files[] = [
+                    "name" => basename($path),
+                    "path" => $path,
+                    "mtime" => filemtime($path) ?: 0,
+                    "size" => filesize($path) ?: 0
+                ];
+            }
+        }
+
+        usort($files, function ($a, $b) {
+            return $b["mtime"] <=> $a["mtime"];
+        });
+
+        $selected = $this->request->getGet("file");
+        if ($selected) {
+            $selected = basename($selected);
+        }
+        if (!$selected && !empty($files)) {
+            $selected = $files[0]["name"];
+        }
+
+        $content = "";
+        if ($selected) {
+            $path = $logs_dir . DIRECTORY_SEPARATOR . $selected;
+            if (is_file($path)) {
+                $content = $this->_tail_file($path, 500);
+            }
+        }
+
+        return $this->template->rander("ProjectAnalizer\\Views\\settings\\logs", [
+            "files" => $files,
+            "selected" => $selected,
+            "content" => $content
+        ]);
+    }
+
     public function labor_profile_modal_form()
     {
         $this->validate_submitted_data(array(
@@ -155,5 +197,33 @@ class ProjectAnalizer_settings extends Security_Controller
             $options_str = implode(",", $options);
             $db->table($table)->where("id", $field_id)->update(array("options" => $options_str));
         }
+    }
+
+    private function _tail_file($path, $lines = 300)
+    {
+        $handle = @fopen($path, "rb");
+        if (!$handle) {
+            return "";
+        }
+
+        $buffer = "";
+        $chunk_size = 4096;
+        fseek($handle, 0, SEEK_END);
+        $pos = ftell($handle);
+        $line_count = 0;
+
+        while ($pos > 0 && $line_count <= $lines) {
+            $read_size = ($pos - $chunk_size) > 0 ? $chunk_size : $pos;
+            $pos -= $read_size;
+            fseek($handle, $pos, SEEK_SET);
+            $chunk = fread($handle, $read_size);
+            $buffer = $chunk . $buffer;
+            $line_count = substr_count($buffer, "\n");
+        }
+
+        fclose($handle);
+        $parts = explode("\n", $buffer);
+        $parts = array_slice($parts, -$lines);
+        return implode("\n", $parts);
     }
 }

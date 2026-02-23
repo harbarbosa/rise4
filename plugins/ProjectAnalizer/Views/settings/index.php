@@ -18,6 +18,11 @@
                             "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang("labor_add_profile"),
                             array("class" => "btn btn-default", "title" => app_lang("labor_add_profile"))
                         );
+                        echo anchor(
+                            get_uri("projectanalizer_settings/logs"),
+                            "<i data-feather='file-text' class='icon-16'></i> " . app_lang("pa_error_logs"),
+                            array("class" => "btn btn-default ms-2", "title" => app_lang("pa_error_logs"))
+                        );
                         ?>
                     </div>
                 </div>

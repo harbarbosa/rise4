@@ -12,6 +12,15 @@ class Photos_model extends Model
 
     public function get_by_timelog($timelog_id)
     {
+        if (!$this->db->tableExists($this->table)) {
+            return [];
+        }
+
+        $timelog_id = (int)$timelog_id;
+        if ($timelog_id <= 0) {
+            return [];
+        }
+
         return $this->where('timelog_id', $timelog_id)->findAll();
     }
 }
