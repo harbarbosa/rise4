@@ -163,7 +163,7 @@ app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
     $sidebar_menu["projectanalizer"] = array(
         "name" => "projectanalizer",
         "url" => "projectanalizer",
-        "class" => "hash",
+        "class" => "bar-chart-2",
         "position" => 3,
     );
 
