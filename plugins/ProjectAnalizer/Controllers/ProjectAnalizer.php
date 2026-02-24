@@ -7,6 +7,7 @@ use App\Controllers\Projects;
 use App\Controllers\Tasks;
 use ProjectAnalizer\Models\Team_activities_model;
 use ContaAzul\Libraries\ContaAzulClient;
+use ProjectAnalizer\Libraries\ProjectAnalizerCashflowService;
 
 class ProjectAnalizer extends Security_Controller {
     protected $Team_activities_model;
@@ -21,9 +22,148 @@ class ProjectAnalizer extends Security_Controller {
     }
 
     function index() {
+        $this->access_only_team_members();
 
-        
-        return $this->template->rander('ProjectAnalizer\Views\projectanalizer\index');
+        $date_from = $this->request->getGet("date_from");
+        $date_to = $this->request->getGet("date_to");
+        $include_completed = $this->request->getGet("include_completed") ? 1 : 0;
+        $project_ids_input = $this->request->getGet("project_ids");
+
+        $selected_project_ids = array();
+        if (is_array($project_ids_input)) {
+            $selected_project_ids = array_filter(array_map("intval", $project_ids_input));
+        } elseif (is_string($project_ids_input) && $project_ids_input !== "") {
+            $selected_project_ids = array_filter(array_map("intval", explode(",", $project_ids_input)));
+        }
+
+        $range_start = $date_from;
+        $range_end = $date_to;
+        if (!$range_start || !$range_end) {
+            $now = new \DateTime(get_my_local_time("Y-m-d"));
+            if (!$range_start) {
+                $range_start = $now->format("Y-m-01");
+            }
+            if (!$range_end) {
+                $end = clone $now;
+                $end->modify("+5 months");
+                $range_end = $end->format("Y-m-t");
+            }
+        } else {
+            if (strlen($range_start) === 7) {
+                $range_start .= "-01";
+            }
+            if (strlen($range_end) === 7) {
+                $end_dt = new \DateTime($range_end . "-01");
+                $range_end = $end_dt->format("Y-m-t");
+            }
+        }
+
+        $projects_options = array();
+        if (!$this->can_manage_all_projects()) {
+            $projects_options["user_id"] = $this->login_user->id;
+        }
+        $projects = $this->Projects_model->get_details($projects_options)->getResult();
+
+        $completed_status_id = null;
+        try {
+            $db = db_connect("default");
+            $status_table = $db->prefixTable("project_status");
+            if ($db->tableExists($status_table)) {
+                $row = $db->table($status_table)->select("id")->where("key_name", "completed")->get()->getRow();
+                if ($row && isset($row->id)) {
+                    $completed_status_id = (int)$row->id;
+                }
+            }
+        } catch (\Throwable $e) {
+            $completed_status_id = null;
+        }
+
+        $projects_dropdown = array();
+        $allowed_project_ids = array();
+        foreach ($projects as $project) {
+            if (!$include_completed && $completed_status_id && (int)$project->status_id === $completed_status_id) {
+                continue;
+            }
+            $projects_dropdown[] = array("id" => $project->id, "text" => $project->title);
+            $allowed_project_ids[] = (int)$project->id;
+        }
+
+        if (empty($selected_project_ids)) {
+            $selected_project_ids = $allowed_project_ids;
+        } else {
+            $selected_project_ids = array_values(array_intersect($selected_project_ids, $allowed_project_ids));
+        }
+
+        $evolution_service = new ProjectAnalizerCashflowService();
+        $range_builder = new \ProjectAnalizer\Libraries\ProjectAnalizerEvolutionService();
+        $range = $range_builder->build_month_range($range_start, $range_end);
+        $labels = $range["labels"];
+        $label_index = array();
+        foreach ($labels as $idx => $label) {
+            $label_index[$label] = $idx;
+        }
+
+        $planned_revenue = array_fill(0, count($labels), 0.0);
+        $planned_expenses = array_fill(0, count($labels), 0.0);
+        $realized_revenue = array_fill(0, count($labels), 0.0);
+        $realized_expenses = array_fill(0, count($labels), 0.0);
+
+        foreach ($selected_project_ids as $project_id) {
+            $summary = $evolution_service->getMonthlySummary($project_id);
+            if (!get_array_value($summary, "success")) {
+                continue;
+            }
+
+            $summary_labels = get_array_value($summary, "labels", array());
+            $rev_planned = get_array_value($summary, "revenue", array());
+            $exp_planned = get_array_value($summary, "expenses", array());
+
+            foreach ($summary_labels as $i => $label) {
+                if (!isset($label_index[$label])) {
+                    continue;
+                }
+                $idx = $label_index[$label];
+
+                $planned_revenue[$idx] += (float)get_array_value($rev_planned["planned_by_month"], $i, 0);
+                $realized_revenue[$idx] += (float)get_array_value($rev_planned["realized_by_month"], $i, 0);
+                $planned_expenses[$idx] += (float)get_array_value($exp_planned["planned_by_month"], $i, 0);
+                $realized_expenses[$idx] += (float)get_array_value($exp_planned["realized_by_month"], $i, 0);
+            }
+        }
+
+        $planned_balance = array();
+        $realized_balance = array();
+        foreach ($labels as $i => $label) {
+            $planned_balance[] = round($planned_revenue[$i] - $planned_expenses[$i], 2);
+            $realized_balance[] = round($realized_revenue[$i] - $realized_expenses[$i], 2);
+        }
+
+        $totals = array(
+            "planned_revenue" => round(array_sum($planned_revenue), 2),
+            "planned_expenses" => round(array_sum($planned_expenses), 2),
+            "realized_revenue" => round(array_sum($realized_revenue), 2),
+            "realized_expenses" => round(array_sum($realized_expenses), 2)
+        );
+        $totals["realized_balance"] = round($totals["realized_revenue"] - $totals["realized_expenses"], 2);
+        $totals["budget_saving"] = round($totals["planned_expenses"] - $totals["realized_expenses"], 2);
+
+        $view_data = array(
+            "projects_dropdown" => $projects_dropdown,
+            "selected_project_ids" => $selected_project_ids,
+            "include_completed" => $include_completed,
+            "date_from" => $range_start,
+            "date_to" => $range_end,
+            "labels" => $labels,
+            "planned_revenue" => $planned_revenue,
+            "planned_expenses" => $planned_expenses,
+            "realized_revenue" => $realized_revenue,
+            "realized_expenses" => $realized_expenses,
+            "planned_balance" => $planned_balance,
+            "realized_balance" => $realized_balance,
+            "totals" => $totals
+        );
+
+        return $this->template->rander('ProjectAnalizer\Views\projectanalizer\index', $view_data);
     }
 
     function sync_cost_centers() {
@@ -180,7 +320,169 @@ class ProjectAnalizer extends Security_Controller {
             }
 
             $info = $this->Timesheets_model->count_total_time($options);
-            $view_data["total_project_hours"] = to_decimal_format($info->timesheet_total / 60 / 60);
+            $base_total_hours = (float)$info->timesheet_total / 60 / 60;
+
+            // soma de horas das atividades (multiplicando pela quantidade de pessoas)
+            $activities_total_hours = 0;
+            $activities_table_exists = false;
+            try {
+                $db = db_connect("default");
+                $activities_table = $db->prefixTable("team_activities");
+                if ($db->tableExists($activities_table)) {
+                    $activities_table_exists = true;
+                    $builder = $db->table($activities_table);
+                    $builder->where("project_id", $project_id);
+                    if ($db->fieldExists("deleted", $activities_table)) {
+                        $builder->where("deleted", 0);
+                    }
+                    $rows = $builder->get()->getResult();
+                    foreach ($rows as $row) {
+                        $members_ids = array();
+                        if (!empty($row->members_ids)) {
+                            $decoded = json_decode($row->members_ids, true);
+                            if (is_array($decoded)) {
+                                $members_ids = $decoded;
+                            }
+                        }
+                        $people_count = count($members_ids);
+                        if ($people_count <= 0) {
+                            $people_count = 1;
+                        }
+
+                        $hours = 0;
+                        if ($row->time_mode === "hours") {
+                            $hours = (float)$row->hours;
+                        } elseif ($row->time_mode === "period" && $row->start_datetime && $row->end_datetime) {
+                            $start_ts = strtotime($row->start_datetime);
+                            $end_ts = strtotime($row->end_datetime);
+                            if ($start_ts && $end_ts && $end_ts > $start_ts) {
+                                $hours = ($end_ts - $start_ts) / 3600;
+                            }
+                        }
+
+                        $activities_total_hours += ($hours * $people_count);
+                    }
+                }
+            } catch (\Throwable $e) {
+                $activities_total_hours = 0;
+            }
+
+            $total_project_hours = $activities_total_hours > 0 ? $activities_total_hours : $base_total_hours;
+            $view_data["total_project_hours"] = to_decimal_format($total_project_hours);
+
+            // resultado do projeto = valor de venda - custos realizados
+            $project_value = 0;
+            if (isset($view_data["project_info"]) && isset($view_data["project_info"]->price)) {
+                $project_value = (float)$view_data["project_info"]->price;
+            }
+
+            $cost_realized_total = 0;
+            try {
+                $db = db_connect("default");
+                $table = get_db_prefix() . "projectanalizer_cost_realized";
+                if ($db->tableExists($table)) {
+                    $cost_realized_model = new \ProjectAnalizer\Models\Cost_realized_model();
+                    $cost_realized_query = $cost_realized_model->get_details(array("project_id" => $project_id));
+                    $cost_realized_rows = $cost_realized_query ? $cost_realized_query->getResult() : array();
+                    foreach ($cost_realized_rows as $row) {
+                        $cost_realized_total += (float)$row->value;
+                    }
+                }
+            } catch (\Throwable $e) {
+                $cost_realized_total = 0;
+            }
+
+            $cost_planned_total = 0;
+            try {
+                $db = db_connect("default");
+                $planned_table = get_db_prefix() . "projectanalizer_task_costs";
+                if ($db->tableExists($planned_table)) {
+                    $task_ids = array();
+                    $tasks_table = $db->prefixTable("tasks");
+                    if ($db->tableExists($tasks_table)) {
+                        $task_rows = $db->table($tasks_table)->select("id")->where("project_id", $project_id)->get()->getResult();
+                        foreach ($task_rows as $task_row) {
+                            $task_ids[] = (int)$task_row->id;
+                        }
+                    }
+                    if (!empty($task_ids)) {
+                        $task_costs_model = new \ProjectAnalizer\Models\Task_costs_model();
+                        $planned_rows = $task_costs_model->get_details(array("task_ids" => $task_ids));
+                        $planned_items = $planned_rows ? $planned_rows->getResult() : array();
+                        foreach ($planned_items as $row) {
+                            $cost_planned_total += (float)$row->planned_value;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                $cost_planned_total = 0;
+            }
+
+            $tax_service_percent = 0;
+            $tax_predicted = 0;
+            try {
+                $company_id = 0;
+                if (isset($this->login_user->company_id) && $this->login_user->company_id) {
+                    $company_id = (int)$this->login_user->company_id;
+                } else {
+                    $company_id = (int)get_default_company_id();
+                }
+                $settings_model = new \Proposals\Models\Proposals_module_settings_model();
+                $settings = $settings_model->get_settings($company_id);
+                if (!empty($settings->taxes_json)) {
+                    $decoded = json_decode($settings->taxes_json, true);
+                    if (is_array($decoded)) {
+                        foreach ($decoded as $tax) {
+                            $name = strtolower(trim((string)($tax['name'] ?? '')));
+                            if ($name === 'imposto servico') {
+                                $tax_service_percent = (float)($tax['percent'] ?? 0);
+                                break;
+                            }
+                        }
+                    }
+                }
+                if ($tax_service_percent > 0) {
+                    $tax_predicted = $project_value * ($tax_service_percent / 100);
+                }
+            } catch (\Throwable $e) {
+                $tax_service_percent = 0;
+                $tax_predicted = 0;
+            }
+
+            $view_data["project_result_summary"] = array(
+                "project_value" => $project_value,
+                "costs_realized" => $cost_realized_total,
+                "costs_planned" => $cost_planned_total,
+                "result_value" => $project_value - ($cost_realized_total + $tax_predicted),
+                "tax_service_percent" => $tax_service_percent,
+                "tax_predicted" => $tax_predicted
+            );
+
+            $planned_cashflow = null;
+            try {
+                $cashflow_service = new ProjectAnalizerCashflowService();
+                $summary = $cashflow_service->getMonthlySummary($project_id);
+                if (get_array_value($summary, "success")) {
+                    $planned_cum = array();
+                    $running = 0;
+                    $planned_revenue = get_array_value($summary, "revenue", array());
+                    $planned_expenses = get_array_value($summary, "expenses", array());
+                    $rev_by_month = get_array_value($planned_revenue, "planned_by_month", array());
+                    $exp_by_month = get_array_value($planned_expenses, "planned_by_month", array());
+                    $max = max(count($rev_by_month), count($exp_by_month));
+                    for ($i = 0; $i < $max; $i++) {
+                        $rev = isset($rev_by_month[$i]) ? (float)$rev_by_month[$i] : 0;
+                        $exp = isset($exp_by_month[$i]) ? (float)$exp_by_month[$i] : 0;
+                        $running += ($rev - $exp);
+                        $planned_cum[] = round($running, 2);
+                    }
+                    $summary["net"]["planned_cumulative"] = $planned_cum;
+                    $planned_cashflow = $summary;
+                }
+            } catch (\Throwable $e) {
+                $planned_cashflow = null;
+            }
+            $view_data["planned_cashflow"] = $planned_cashflow;
 
         return $this->template->view('ProjectAnalizer\Views\projectanalizer\overview', $view_data);
         }
