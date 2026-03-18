@@ -133,9 +133,13 @@ class ProjectAnalizer extends Security_Controller {
 
         $planned_balance = array();
         $realized_balance = array();
+        $planned_running = 0;
+        $realized_running = 0;
         foreach ($labels as $i => $label) {
-            $planned_balance[] = round($planned_revenue[$i] - $planned_expenses[$i], 2);
-            $realized_balance[] = round($realized_revenue[$i] - $realized_expenses[$i], 2);
+            $planned_running += ($planned_revenue[$i] - $planned_expenses[$i]);
+            $realized_running += ($realized_revenue[$i] - $realized_expenses[$i]);
+            $planned_balance[] = round($planned_running, 2);
+            $realized_balance[] = round($realized_running, 2);
         }
 
         $totals = array(
