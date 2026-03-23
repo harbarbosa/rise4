@@ -196,16 +196,15 @@ class Purchases_reports extends Security_Controller
 
     private function _get_status_label($status)
     {
-        $class = 'secondary';
-        if ($status === 'sent') {
-            $class = 'primary';
-        } else if ($status === 'partial_received') {
-            $class = 'warning';
-        } else if ($status === 'received') {
-            $class = 'success';
-        } else if ($status === 'canceled') {
-            $class = 'danger';
-        }
+        $class_map = array(
+            'draft' => 'secondary',
+            'open' => 'dark',
+            'sent' => 'info',
+            'partial_received' => 'warning',
+            'received' => 'success',
+            'canceled' => 'danger'
+        );
+        $class = get_array_value($class_map, $status, 'secondary');
 
         return "<span class='badge bg-" . $class . "'>" . app_lang('purchases_po_status_' . $status) . "</span>";
     }

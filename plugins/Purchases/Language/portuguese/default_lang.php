@@ -190,9 +190,13 @@ return [
     'purchases_receipt_qty_exceeded' => 'Quantidade recebida excede a quantidade pendente',
     'purchases_receipt_qty_required' => 'Informe ao menos uma quantidade recebida',
     'purchases_reopen_request' => 'Reabrir requisição',
-    'purchases_reopen_request_confirmation' => 'Esta ação vai desfazer cotações, aprovações e pedidos gerados após a requisição. Deseja continuar?',
+    'purchases_reopen_request_confirmation' => 'Selecione para qual etapa a requisição deve voltar. O sistema vai desfazer automaticamente o que estiver à frente dessa etapa.',
     'purchases_request_reopened' => 'Requisição reaberta com sucesso.',
     'purchases_reopen_blocked_by_receipts' => 'Não é possível reabrir a requisição porque já existe recebimento vinculado aos pedidos gerados.',
+    'purchases_reopen_target_status' => 'Voltar para a etapa',
+    'purchases_reopen_select_status' => 'Selecione a etapa para onde a requisição deve voltar.',
+    'purchases_reopen_invalid_target' => 'A etapa selecionada não é válida para esta requisição.',
+    'purchases_reopen_requires_finalized_quotation' => 'Para voltar a esta etapa é necessário existir uma cotação finalizada.',
     'back_to_list' => 'Voltar para a lista',
 
         /* Notificações */

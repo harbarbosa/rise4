@@ -3,6 +3,11 @@ $quotation = $quotation_info;
 $request = $request_info;
 $status = $quotation->status ? $quotation->status : 'draft';
 $request_code = $request->request_code ? $request->request_code : ('#' . $request->id);
+$quotation_status_class = get_array_value(array(
+    'draft' => 'secondary',
+    'finalized' => 'success',
+    'canceled' => 'danger'
+), $status, 'secondary');
 ?>
 
 <div id="page-content" class="page-wrapper clearfix">
@@ -19,7 +24,7 @@ $request_code = $request->request_code ? $request->request_code : ('#' . $reques
                     <div class="text-muted"><?php echo app_lang('purchases_request_code'); ?>: <strong><?php echo esc($request_code); ?></strong></div>
                 </div>
                 <div class="col-md-6 mb10 text-end">
-                    <span class="badge bg-info"><?php echo app_lang('purchases_quotation_status_' . $status); ?></span>
+                    <span class="badge bg-<?php echo esc($quotation_status_class); ?>"><?php echo app_lang('purchases_quotation_status_' . $status); ?></span>
                 </div>
             </div>
 

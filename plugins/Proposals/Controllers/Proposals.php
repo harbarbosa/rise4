@@ -209,8 +209,8 @@ class Proposals extends Security_Controller
                 'observations' => '',
                 'validity_days' => '',
                 'status' => 'draft',
-                'commission_type' => 'percent',
-                'commission_value' => 0,
+                'commission_type' => $settings->default_commission_type,
+                'commission_value' => $settings->default_commission_value,
                 'tax_product_percent' => $tax_product_percent,
                 'tax_service_percent' => $tax_service_percent,
                 'tax_service_only' => 0
@@ -429,7 +429,8 @@ class Proposals extends Security_Controller
         $this->_log_activity('proposal_updated', $id);
         return $this->response->setJSON(array(
             'success' => true,
-            'status' => app_lang('proposals_status_' . $status)
+            'status' => app_lang('proposals_status_' . $status),
+            'status_html' => $this->_get_status_label($status)
         ));
     }
 
@@ -1329,7 +1330,7 @@ class Proposals extends Security_Controller
         $code = 'PR-' . str_pad($data->id, 6, '0', STR_PAD_LEFT);
         $client = $data->client_company ? $data->client_company : ($data->client_name ? $data->client_name : '-');
         $status = $data->status ? $data->status : 'draft';
-        $status_label = "<span class='badge bg-secondary'>" . app_lang('proposals_status_' . $status) . "</span>";
+        $status_label = $this->_get_status_label($status);
         $total_value = isset($data->total_sale) ? $data->total_sale : 0;
         $total = to_currency($total_value);
         $updated = isset($data->updated_at) && $data->updated_at ? $data->updated_at : (isset($data->created_at) ? $data->created_at : '');
@@ -1369,6 +1370,21 @@ class Proposals extends Security_Controller
     private function _json_permission_denied()
     {
         return $this->response->setJSON(array('success' => false, 'message' => app_lang('permission_denied')));
+    }
+
+    private function _get_status_label($status)
+    {
+        $class_map = array(
+            'draft' => 'secondary',
+            'sent' => 'info',
+            'approved' => 'success',
+            'rejected' => 'danger',
+            'archived' => 'dark'
+        );
+
+        $class = get_array_value($class_map, $status, 'secondary');
+
+        return "<span class='badge bg-" . $class . "'>" . app_lang('proposals_status_' . $status) . "</span>";
     }
 
     private function _get_linked_task_ids($proposal_id)
@@ -1811,7 +1827,7 @@ class Proposals extends Security_Controller
         $markup_avg = $cost_total > 0 ? (($total_sale / $cost_total) - 1) * 100 : 0;
 
         $status = $proposal->status ?? 'draft';
-        $status_label = app_lang('proposals_status_' . $status);
+        $status_label = $this->_get_status_label($status);
         $updated_at = $proposal->updated_at ?? $proposal->created_at ?? '';
 
         return array(

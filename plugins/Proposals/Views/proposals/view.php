@@ -674,6 +674,31 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
 <script src="<?php echo base_url('plugins/Proposals/assets/js/proposals_document.js?v=' . $document_js_version); ?>"></script>
 <script>
     $(document).ready(function () {
+        var proposalId = "<?php echo (int)($proposal_info->id ?? 0); ?>";
+        var tabStorageKey = "proposal-view-active-tab-" + proposalId;
+        var $proposalTabs = $('.nav-tabs a[data-bs-toggle="tab"][href^="#proposal-"]');
+        var savedTab = localStorage.getItem(tabStorageKey);
+
+        if (savedTab) {
+            var $savedTabLink = $proposalTabs.filter('[href="' + savedTab + '"]');
+
+            if ($savedTabLink.length) {
+                if (window.bootstrap && window.bootstrap.Tab) {
+                    window.bootstrap.Tab.getOrCreateInstance($savedTabLink[0]).show();
+                } else {
+                    $savedTabLink.trigger("click");
+                }
+            }
+        }
+
+        $proposalTabs.on("shown.bs.tab", function (e) {
+            var targetTab = $(e.target).attr("href");
+
+            if (targetTab) {
+                localStorage.setItem(tabStorageKey, targetTab);
+            }
+        });
+
         $("#proposal-status-select").on("change", function () {
             var status = $(this).val();
             if (!status) {
@@ -689,6 +714,9 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
                 },
                 success: function (result) {
                     if (result && result.success) {
+                        if (result.status_html) {
+                            $("#proposal-dash-status").html(result.status_html);
+                        }
                         appAlert.success(result.status || "", {duration: 4000});
                     } else {
                         appAlert.error(result.message || "<?php echo app_lang('error_occurred'); ?>");

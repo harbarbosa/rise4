@@ -8,6 +8,7 @@
         proposalId: config.proposalId,
         sections: config.sections || [],
         items: config.items || [],
+        collapsedSections: {},
         selectedSectionId: null,
         lastOpenSelect: null,
         pendingCreate: false
@@ -103,6 +104,7 @@
         var sectionId = parseInt(section.id, 10);
         var title = section.title || config.labels.section;
         var canManage = config.canManage;
+        var isCollapsed = !!state.collapsedSections[sectionId];
 
         var $section = $("<div class='card mb10 proposal-section' data-id='" + sectionId + "'></div>");
         var $header = $("<div class='card-header d-flex align-items-center justify-content-between'></div>");
@@ -136,6 +138,9 @@
         $section.append($header);
 
         var $body = $("<div class='card-body'></div>");
+        if (isCollapsed) {
+            $body.addClass("hide");
+        }
         var items = getItemsBySection(sectionId);
         var children = getSectionsByParent(sectionId);
         if (items.length) {
@@ -172,6 +177,18 @@
         return $section;
     }
 
+    function syncCollapsedSectionsFromDom() {
+        $(".proposal-section").each(function () {
+            var $section = $(this);
+            var sectionId = parseInt($section.data("id"), 10);
+            if (!sectionId) {
+                return;
+            }
+
+            state.collapsedSections[sectionId] = $section.find(".card-body").first().hasClass("hide");
+        });
+    }
+
     function renderItemRow(item) {
         var itemId = parseInt(item.id, 10);
         var itemTitle = item.item_title || "";
@@ -188,7 +205,7 @@
 
         var optionsHtml = config.itemsOptionsHtml || "<option value=''>-</option>";
         var $row = $("<tr class='proposal-item-row' data-id='" + itemId + "'></tr>");
-        var displayLabel = itemTitle || "-";
+        var displayLabel = itemTitle || "";
         var selectHiddenClass = selectedItemId ? "style='display:none'" : "";
         var displayHiddenClass = selectedItemId ? "" : "style='display:none'";
         $row.append("<td>" +
@@ -237,7 +254,11 @@
 
         $(".toggle-section").off("click").on("click", function () {
             var $section = $(this).closest(".proposal-section");
-            $section.find(".card-body").first().toggleClass("hide");
+            var sectionId = parseInt($section.data("id"), 10);
+            var $body = $section.find(".card-body").first();
+
+            $body.toggleClass("hide");
+            state.collapsedSections[sectionId] = $body.hasClass("hide");
             feather.replace();
         });
 
@@ -355,6 +376,9 @@
     function initSelect2() {
         $(".item-select").each(function () {
             var $select = $(this);
+            if (!$select.is("select")) {
+                return;
+            }
             if ($select.data("select2")) {
                 var currentVal = $select.val();
                 $select.select2("destroy");
@@ -362,17 +386,7 @@
             }
             $select.select2({
                 width: "100%",
-                language: {
-                    noResults: function () {
-                        return "Nenhum item encontrado";
-                    }
-                },
-                formatNoMatches: function () {
-                    return "Nenhum item encontrado";
-                },
-                escapeMarkup: function (markup) {
-                    return markup;
-                }
+                placeholder: config.labels.selectItem || "-"
             }).on("select2:open", function () {
                 state.lastOpenSelect = $select;
                 $select.data("last-term", "");
@@ -567,12 +581,13 @@
                     }
                     var data = result.data;
                     appendItemOption(data.id, data.title || title, data.rate || costUnit, data.unit_type || "UN");
-                    restoreItemSelect($row, String(data.id));
+                    restoreItemSelect($row, String(data.id), true);
                     $row.find(".item-id").val(data.id);
                     $row.find(".item-type").val("material");
                     $row.find(".item-display-text").text(data.title || title);
                     $row.find(".item-display-wrap").show();
                     $row.find(".item-select-wrap").hide();
+                    $row.find(".item-edit, .item-create-inline").removeClass("hide");
                     $row.removeClass("is-new-item");
                     state.pendingCreate = false;
                     saveItemRow($row);
@@ -603,6 +618,9 @@
                 $(this).val(formatNumber2($(this).val()));
             }
             updateRowTotals($row, $(this).attr("class"));
+            if ($row.hasClass("is-new-item") && !$row.find(".item-id").val()) {
+                return;
+            }
             saveItemRow($row);
         });
         $(".item-edit, .item-display-text").off("click").on("click", function () {
@@ -771,13 +789,17 @@
         return "<select class='form-control item-select'>" + (config.itemsOptionsHtml || "<option value=''>-</option>") + "</select>";
     }
 
-    function restoreItemSelect($row, selectedId) {
+    function restoreItemSelect($row, selectedId, silent) {
         var $wrap = $row.find(".item-select-wrap");
         $wrap.html(getSelectHtml());
         var $select = $wrap.find(".item-select");
         initSelect2($select);
+        $row.find(".item-edit, .item-create-inline").removeClass("hide");
         if (selectedId) {
-            $select.val(selectedId).trigger("change");
+            $select.val(selectedId);
+            if (!silent) {
+                $select.trigger("change");
+            }
         }
     }
 
@@ -801,6 +823,7 @@
     function openNewItemInput($row, term) {
         var $wrap = $row.find(".item-select-wrap");
         var $display = $row.find(".item-display-wrap");
+        $row.find(".item-edit, .item-create-inline").addClass("hide");
         $display.hide();
         $wrap.show();
         if ($wrap.find(".item-new-wrap").length) {
@@ -843,7 +866,7 @@
                 $("#proposal-dash-gross-profit").text(data.gross_profit || "-");
                 $("#proposal-dash-net-profit").text(data.net_profit || "-");
                 $("#proposal-dash-markup").text(data.markup_avg || "-");
-                $("#proposal-dash-status").text(data.status || "-");
+                $("#proposal-dash-status").html(data.status || "-");
                 $("#proposal-dash-updated").text(data.updated_at || "-");
                 $("#proposal-dash-created-by").text(data.created_by || "-");
                 updateBreakdownBar(data);
@@ -885,6 +908,7 @@
     }
 
     function addSection(title, parentId) {
+        syncCollapsedSectionsFromDom();
         appAjaxRequest({
             url: config.endpoints.addSection,
             type: "POST",
@@ -907,6 +931,7 @@
     }
 
     function addItem(sectionId) {
+        syncCollapsedSectionsFromDom();
         syncStateFromDom();
         var tempId = -1 * (new Date().getTime());
         state.items.push({
@@ -930,7 +955,6 @@
         var selectedText = $row.find(".item-select option:selected").text() || $row.find(".item-display-text").text() || "";
         var itemType = $row.find(".item-type").val() || ($row.find(".item-select option:selected").data("type") || "material");
         if (!itemId) {
-            appAlert.error(config.labels.selectItem || AppLanugage.fieldRequired);
             return;
         }
         var sectionId = $row.closest(".proposal-section").data("id");

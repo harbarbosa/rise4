@@ -345,8 +345,41 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
 <input type="hidden" name="id" value="<?php echo esc($info->id); ?>" />
 <?php echo form_close(); ?>
 
+<?php if (!empty($can_reopen) && !empty($reopen_targets)) { ?>
+    <div class="modal fade" id="reopen-request-modal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title"><?php echo app_lang('purchases_reopen_request'); ?></h4>
+                    <button type="button" class="btn btn-default" data-bs-dismiss="modal" aria-label="Close">
+                        <span data-feather="x" class="icon-16"></span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="reopen_request_target"><?php echo app_lang('purchases_reopen_target_status'); ?></label>
+                        <select id="reopen_request_target" class="form-control">
+                            <option value=""><?php echo "- " . app_lang('status') . " -"; ?></option>
+                            <?php foreach ($reopen_targets as $target) { ?>
+                                <option value="<?php echo esc($target['id']); ?>"><?php echo esc($target['text']); ?></option>
+                            <?php } ?>
+                        </select>
+                    </div>
+                    <p class="text-muted mb0"><?php echo app_lang('purchases_reopen_request_confirmation'); ?></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-bs-dismiss="modal"><span data-feather="x" class="icon-16"></span> <?php echo app_lang('close'); ?></button>
+                    <button type="button" class="btn btn-warning js-confirm-reopen-request"><?php echo app_lang('save'); ?></button>
+                </div>
+            </div>
+        </div>
+    </div>
+<?php } ?>
+
 <script type="text/javascript">
     $(document).ready(function () {
+        var reopenRequestId = 0;
+
         <?php if (!empty($show_success_message)) { ?>
         appAlert.success("<?php echo app_lang('purchases_status_quotation_finalized'); ?>", {duration: 3000});
         <?php } ?>
@@ -454,13 +487,25 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
         });
 
         $(document).on("click", ".js-reopen-request", function () {
-            var $btn = $(this);
-            var id = $btn.data("id");
-            if (!id) {
+            reopenRequestId = $(this).data("id");
+            if (!reopenRequestId) {
                 return;
             }
 
-            if (!confirm("<?php echo app_lang('purchases_reopen_request_confirmation'); ?>")) {
+            $("#reopen_request_target").val("");
+            $("#reopen-request-modal").modal("show");
+        });
+
+        $(document).on("click", ".js-confirm-reopen-request", function () {
+            var $btn = $(this);
+            var targetStatus = $("#reopen_request_target").val();
+
+            if (!reopenRequestId) {
+                return;
+            }
+
+            if (!targetStatus) {
+                appAlert.error("<?php echo app_lang('purchases_reopen_select_status'); ?>");
                 return;
             }
 
@@ -469,9 +514,13 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                 url: "<?php echo get_uri('purchases_requests/reopen'); ?>",
                 type: "POST",
                 dataType: "json",
-                data: {id: id},
+                data: {
+                    id: reopenRequestId,
+                    target_status: targetStatus
+                },
                 success: function (result) {
                     if (result && result.success) {
+                        $("#reopen-request-modal").modal("hide");
                         if (result.message) {
                             appAlert.success(result.message, {duration: 3000});
                         }
@@ -489,6 +538,12 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                 }
             });
         });
+
+        <?php if (!empty($can_reopen) && !empty($reopen_targets)) { ?>
+        $("#reopen_request_target").select2({
+            width: "100%"
+        });
+        <?php } ?>
     });
 </script>
 

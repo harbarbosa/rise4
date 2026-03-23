@@ -177,8 +177,12 @@ return [
     'purchases_receipt_qty_exceeded' => 'Received quantity exceeds pending quantity',
     'purchases_receipt_qty_required' => 'Please enter at least one received quantity',
     'purchases_reopen_request' => 'Reopen request',
-    'purchases_reopen_request_confirmation' => 'This will undo quotations, approvals and purchase orders generated after this request. Do you want to continue?',
+    'purchases_reopen_request_confirmation' => 'Select the stage to which the request should return. The system will automatically undo everything that exists after that stage.',
     'purchases_request_reopened' => 'Request reopened successfully.',
     'purchases_reopen_blocked_by_receipts' => 'This request cannot be reopened because there are receipts linked to the generated purchase orders.',
+    'purchases_reopen_target_status' => 'Return to stage',
+    'purchases_reopen_select_status' => 'Select the stage the request should return to.',
+    'purchases_reopen_invalid_target' => 'The selected stage is not valid for this request.',
+    'purchases_reopen_requires_finalized_quotation' => 'A finalized quotation is required to return to this stage.',
     'back_to_list' => 'Back to list'
 ];

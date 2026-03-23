@@ -345,6 +345,7 @@ class Purchase_requests extends Security_Controller
         $view_data['has_financial_permission'] = $this->_can_approve_financial($request);
         $view_data['can_reject_approval'] = $this->_can_reject_approval($request);
         $view_data['can_reopen'] = $this->_can_reopen($request);
+        $view_data['reopen_targets'] = $this->_get_reopen_targets($request);
         $view_data['approval_total'] = $this->_get_request_quotation_total($id);
         $view_data['financial_limit'] = $this->_get_financial_limit_for_user($this->login_user->id, $this->_get_company_id());
         $view_data['is_admin'] = $this->login_user->is_admin ? true : false;
@@ -531,11 +532,13 @@ class Purchase_requests extends Security_Controller
 
         $id = (int)$this->request->getPost('id');
         $request = $this->_get_request_or_404($id);
+        $target_status = $this->_normalize_reopen_target((string)$this->request->getPost('target_status'));
+        $allowed_targets = array_column($this->_get_reopen_targets($request), 'id');
 
-        if (!$this->_can_reopen($request)) {
+        if (!$this->_can_reopen($request) || !$target_status || !in_array($target_status, $allowed_targets, true)) {
             return $this->response->setJSON(array(
                 'success' => false,
-                'message' => app_lang('permission_denied')
+                'message' => $target_status ? app_lang('purchases_reopen_invalid_target') : app_lang('permission_denied')
             ));
         }
 
@@ -553,9 +556,6 @@ class Purchase_requests extends Security_Controller
 
         $orders = $this->_get_orders_for_request($id);
         $quotation = $this->Purchases_quotations_model->get_one_by_request($id, $company_id);
-
-        $db->transStart();
-
         $approvals_table = $db->prefixTable('purchases_request_approvals');
         $quotation_items_table = $db->prefixTable('purchases_quotation_items');
         $quotation_prices_table = $db->prefixTable('purchases_quotation_item_prices');
@@ -563,21 +563,16 @@ class Purchase_requests extends Security_Controller
         $order_items_table = $db->prefixTable('purchases_order_items');
         $orders_table = $db->prefixTable('purchases_orders');
 
-        if ($quotation) {
-            $db->table($quotation_prices_table)->where('quotation_id', (int)$quotation->id)->update(array(
-                'deleted' => 1
-            ));
-            $db->table($quotation_suppliers_table)->where('quotation_id', (int)$quotation->id)->update(array(
-                'deleted' => 1
-            ));
-            $db->table($quotation_items_table)->where('quotation_id', (int)$quotation->id)->update(array(
-                'deleted' => 1
-            ));
-            $db->table($db->prefixTable('purchases_quotations'))->where('id', (int)$quotation->id)->update(array(
-                'deleted' => 1,
-                'updated_at' => $now
-            ));
+        if (in_array($target_status, array('awaiting_approval', 'approved_for_po'), true)) {
+            if (!$quotation || $quotation->status !== 'finalized') {
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => app_lang('purchases_reopen_requires_finalized_quotation')
+                ));
+            }
         }
+
+        $db->transStart();
 
         if ($orders) {
             $order_ids = array_map(function ($order) {
@@ -593,33 +588,102 @@ class Purchase_requests extends Security_Controller
             ));
         }
 
-        $db->table($approvals_table)->where('request_id', $id)->update(array(
-            'deleted' => 1
-        ));
-
-        $reset_data = array(
-            'status' => 'draft',
-            'submitted_at' => null,
-            'approved_by' => null,
-            'approved_at' => null,
-            'rejected_by' => null,
-            'rejected_at' => null,
-            'rejected_reason' => null,
-            'converted_by' => null,
-            'converted_at' => null,
-            'updated_at' => $now
-        );
-        $this->Purchases_requests_model->ci_save($reset_data, $id);
-
         $note_parts = array();
-        if ($quotation) {
-            $note_parts[] = 'cotacao desfeita';
-        }
         if (!empty($orders)) {
             $note_parts[] = count($orders) . ' pedido(s) desfeito(s)';
         }
-        $note_parts[] = 'aprovacoes resetadas';
-        $this->_log_status_change('request', $id, $old_status, 'draft', implode('; ', $note_parts));
+
+        if ($target_status === 'draft') {
+            if ($quotation) {
+                $db->table($quotation_prices_table)->where('quotation_id', (int)$quotation->id)->update(array(
+                    'deleted' => 1
+                ));
+                $db->table($quotation_suppliers_table)->where('quotation_id', (int)$quotation->id)->update(array(
+                    'deleted' => 1
+                ));
+                $db->table($quotation_items_table)->where('quotation_id', (int)$quotation->id)->update(array(
+                    'deleted' => 1
+                ));
+                $db->table($db->prefixTable('purchases_quotations'))->where('id', (int)$quotation->id)->update(array(
+                    'deleted' => 1,
+                    'updated_at' => $now
+                ));
+                $note_parts[] = 'cotacao desfeita';
+            }
+
+            $db->table($approvals_table)->where('request_id', $id)->update(array(
+                'deleted' => 1
+            ));
+            $note_parts[] = 'aprovacoes removidas';
+
+            $request_update = array(
+                'status' => 'draft',
+                'submitted_at' => null,
+                'approved_by' => null,
+                'approved_at' => null,
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'rejected_reason' => null,
+                'converted_by' => null,
+                'converted_at' => null,
+                'updated_at' => $now
+            );
+        } elseif ($target_status === 'sent_to_quotation') {
+            if ($quotation && $quotation->status === 'finalized') {
+                $quotation_update = array(
+                    'status' => 'draft',
+                    'updated_at' => $now
+                );
+                $this->Purchases_quotations_model->ci_save($quotation_update, (int)$quotation->id);
+                $note_parts[] = 'cotacao reaberta';
+            }
+
+            $db->table($approvals_table)->where('request_id', $id)->update(array(
+                'deleted' => 1
+            ));
+            $note_parts[] = 'aprovacoes removidas';
+
+            $request_update = array(
+                'status' => 'sent_to_quotation',
+                'submitted_at' => $request->submitted_at ?: $now,
+                'approved_by' => null,
+                'approved_at' => null,
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'rejected_reason' => null,
+                'converted_by' => null,
+                'converted_at' => null,
+                'updated_at' => $now
+            );
+        } elseif ($target_status === 'awaiting_approval') {
+            $this->_reset_request_approvals($request, $now);
+            $note_parts[] = 'aprovacoes reiniciadas';
+
+            $request_update = array(
+                'status' => 'awaiting_approval',
+                'approved_by' => null,
+                'approved_at' => null,
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'rejected_reason' => null,
+                'converted_by' => null,
+                'converted_at' => null,
+                'updated_at' => $now
+            );
+        } else {
+            $request_update = array(
+                'status' => 'approved_for_po',
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'rejected_reason' => null,
+                'converted_by' => null,
+                'converted_at' => null,
+                'updated_at' => $now
+            );
+        }
+
+        $this->Purchases_requests_model->ci_save($request_update, $id);
+        $this->_log_status_change('request', $id, $old_status, $target_status, implode('; ', $note_parts));
 
         $db->transComplete();
 
@@ -749,30 +813,22 @@ class Purchase_requests extends Security_Controller
 
     private function _get_status_label($status)
     {
-        $class = 'secondary';
-        if ($status === 'sent_to_quotation' || $status === 'submitted') {
-            $class = 'primary';
-        } else if ($status === 'quotation_in_progress') {
-            $class = 'info';
-        } else if ($status === 'approved') {
-            $class = 'success';
-        } else if ($status === 'awaiting_approval') {
-            $class = 'warning';
-        } else if ($status === 'approved_for_po') {
-            $class = 'success';
-        } else if ($status === 'po_created') {
-            $class = 'info';
-        } else if ($status === 'po_sent') {
-            $class = 'primary';
-        } else if ($status === 'partial_received') {
-            $class = 'warning';
-        } else if ($status === 'received') {
-            $class = 'success';
-        } else if ($status === 'rejected') {
-            $class = 'danger';
-        } else if ($status === 'converted') {
-            $class = 'info';
-        }
+        $class_map = array(
+            'draft' => 'secondary',
+            'sent_to_quotation' => 'dark',
+            'submitted' => 'dark',
+            'quotation_in_progress' => 'warning',
+            'awaiting_approval' => 'warning',
+            'approved' => 'success',
+            'approved_for_po' => 'success',
+            'po_created' => 'dark',
+            'po_sent' => 'primary',
+            'partial_received' => 'warning',
+            'received' => 'success',
+            'rejected' => 'danger',
+            'converted' => 'dark'
+        );
+        $class = get_array_value($class_map, $status, 'secondary');
 
         return "<span class='badge bg-" . $class . "'>" . app_lang('purchases_status_' . $status) . "</span>";
     }
@@ -1011,6 +1067,45 @@ class Purchase_requests extends Security_Controller
 
         $status = (string)($request->status ?? '');
         return !in_array($status, array('draft', 'rejected'));
+    }
+
+    private function _get_reopen_targets($request)
+    {
+        $status = (string)($request->status ?? '');
+        $targets = array();
+
+        if (in_array($status, array('sent_to_quotation', 'submitted'), true)) {
+            $targets[] = 'draft';
+        } elseif ($status === 'awaiting_approval') {
+            $targets[] = 'sent_to_quotation';
+            $targets[] = 'draft';
+        } elseif ($status === 'approved_for_po') {
+            $targets[] = 'awaiting_approval';
+            $targets[] = 'sent_to_quotation';
+            $targets[] = 'draft';
+        } elseif (in_array($status, array('po_created', 'po_sent'), true)) {
+            $targets[] = 'approved_for_po';
+            $targets[] = 'awaiting_approval';
+            $targets[] = 'sent_to_quotation';
+            $targets[] = 'draft';
+        }
+
+        return array_map(function ($target) {
+            return array(
+                'id' => $target,
+                'text' => app_lang('purchases_status_' . $target)
+            );
+        }, $targets);
+    }
+
+    private function _normalize_reopen_target($target_status)
+    {
+        $target_status = trim((string) $target_status);
+        if ($target_status === 'submitted') {
+            return 'sent_to_quotation';
+        }
+
+        return $target_status;
     }
 
     private function _can_submit($request)
@@ -1510,6 +1605,46 @@ class Purchase_requests extends Security_Controller
         return !empty($row);
     }
 
+    private function _reset_request_approvals($request, $now)
+    {
+        $db = db_connect('default');
+        $table = $db->prefixTable('purchases_request_approvals');
+        $rows = $db->table($table)
+            ->select('id, approval_type')
+            ->where('request_id', (int) $request->id)
+            ->get()
+            ->getResult();
+
+        $existing_types = array();
+        foreach ($rows as $row) {
+            $existing_types[] = $row->approval_type;
+        }
+
+        foreach (array('requester', 'financial') as $approval_type) {
+            if (!in_array($approval_type, $existing_types, true)) {
+                $db->table($table)->insert(array(
+                    'company_id' => $this->_get_company_id(),
+                    'request_id' => (int) $request->id,
+                    'approval_type' => $approval_type,
+                    'approved' => 0,
+                    'created_at' => $now,
+                    'created_by' => $this->login_user->id,
+                    'deleted' => 0
+                ));
+            }
+        }
+
+        $db->table($table)->where('request_id', (int) $request->id)->update(array(
+            'approved' => 0,
+            'approved_by' => null,
+            'approved_at' => null,
+            'comment' => null,
+            'approval_limit_used' => null,
+            'total_value_at_approval' => null,
+            'deleted' => 0
+        ));
+    }
+
     private function _get_company_id()
     {
         if (isset($this->login_user->company_id) && $this->login_user->company_id) {
@@ -1752,11 +1887,13 @@ class Purchase_requests extends Security_Controller
         $db = db_connect('default');
         $items_table = $db->prefixTable('purchases_quotation_items');
         $prices_table = $db->prefixTable('purchases_quotation_item_prices');
+        $request_items_table = $db->prefixTable('purchases_request_items');
 
         $sql = "SELECT SUM((qi.qty * qp.unit_price) + qp.freight_value) AS total
             FROM $items_table AS qi
+            LEFT JOIN $request_items_table AS ri ON ri.id=qi.request_item_id
             LEFT JOIN $prices_table AS qp ON qp.request_item_id=qi.request_item_id AND qp.quotation_id=qi.quotation_id AND qp.is_winner=1
-            WHERE qi.deleted=0 AND qp.deleted=0 AND qi.request_id=" . (int)$request_id;
+            WHERE qi.deleted=0 AND ri.deleted=0 AND qp.deleted=0 AND ri.request_id=" . (int)$request_id;
 
         $query = $db->query($sql);
         if (!$query || !method_exists($query, 'getRow')) {
