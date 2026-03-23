@@ -189,6 +189,10 @@ return [
     'purchases_no_receipts' => 'Nenhum recebimento registrado.',
     'purchases_receipt_qty_exceeded' => 'Quantidade recebida excede a quantidade pendente',
     'purchases_receipt_qty_required' => 'Informe ao menos uma quantidade recebida',
+    'purchases_reopen_request' => 'Reabrir requisição',
+    'purchases_reopen_request_confirmation' => 'Esta ação vai desfazer cotações, aprovações e pedidos gerados após a requisição. Deseja continuar?',
+    'purchases_request_reopened' => 'Requisição reaberta com sucesso.',
+    'purchases_reopen_blocked_by_receipts' => 'Não é possível reabrir a requisição porque já existe recebimento vinculado aos pedidos gerados.',
     'back_to_list' => 'Voltar para a lista',
 
         /* Notificações */

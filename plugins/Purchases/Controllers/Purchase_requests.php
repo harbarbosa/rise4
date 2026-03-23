@@ -344,6 +344,7 @@ class Purchase_requests extends Security_Controller
         $view_data['can_approve_financial'] = $this->_can_approve_financial_with_limit($request);
         $view_data['has_financial_permission'] = $this->_can_approve_financial($request);
         $view_data['can_reject_approval'] = $this->_can_reject_approval($request);
+        $view_data['can_reopen'] = $this->_can_reopen($request);
         $view_data['approval_total'] = $this->_get_request_quotation_total($id);
         $view_data['financial_limit'] = $this->_get_financial_limit_for_user($this->login_user->id, $this->_get_company_id());
         $view_data['is_admin'] = $this->login_user->is_admin ? true : false;
@@ -520,6 +521,119 @@ class Purchase_requests extends Security_Controller
         }
 
         return $this->response->setJSON(array('success' => $ok ? true : false));
+    }
+
+    public function reopen()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $id = (int)$this->request->getPost('id');
+        $request = $this->_get_request_or_404($id);
+
+        if (!$this->_can_reopen($request)) {
+            return $this->response->setJSON(array(
+                'success' => false,
+                'message' => app_lang('permission_denied')
+            ));
+        }
+
+        if ($this->_has_receipt_for_request($id)) {
+            return $this->response->setJSON(array(
+                'success' => false,
+                'message' => app_lang('purchases_reopen_blocked_by_receipts')
+            ));
+        }
+
+        $db = db_connect('default');
+        $company_id = $this->_get_company_id();
+        $old_status = (string)($request->status ?? '');
+        $now = get_my_local_time();
+
+        $orders = $this->_get_orders_for_request($id);
+        $quotation = $this->Purchases_quotations_model->get_one_by_request($id, $company_id);
+
+        $db->transStart();
+
+        $approvals_table = $db->prefixTable('purchases_request_approvals');
+        $quotation_items_table = $db->prefixTable('purchases_quotation_items');
+        $quotation_prices_table = $db->prefixTable('purchases_quotation_item_prices');
+        $quotation_suppliers_table = $db->prefixTable('purchases_quotation_suppliers');
+        $order_items_table = $db->prefixTable('purchases_order_items');
+        $orders_table = $db->prefixTable('purchases_orders');
+
+        if ($quotation) {
+            $db->table($quotation_prices_table)->where('quotation_id', (int)$quotation->id)->update(array(
+                'deleted' => 1
+            ));
+            $db->table($quotation_suppliers_table)->where('quotation_id', (int)$quotation->id)->update(array(
+                'deleted' => 1
+            ));
+            $db->table($quotation_items_table)->where('quotation_id', (int)$quotation->id)->update(array(
+                'deleted' => 1
+            ));
+            $db->table($db->prefixTable('purchases_quotations'))->where('id', (int)$quotation->id)->update(array(
+                'deleted' => 1,
+                'updated_at' => $now
+            ));
+        }
+
+        if ($orders) {
+            $order_ids = array_map(function ($order) {
+                return (int)$order->id;
+            }, $orders);
+
+            $db->table($order_items_table)->whereIn('order_id', $order_ids)->update(array(
+                'deleted' => 1
+            ));
+            $db->table($orders_table)->whereIn('id', $order_ids)->update(array(
+                'deleted' => 1,
+                'updated_at' => $now
+            ));
+        }
+
+        $db->table($approvals_table)->where('request_id', $id)->update(array(
+            'deleted' => 1
+        ));
+
+        $reset_data = array(
+            'status' => 'draft',
+            'submitted_at' => null,
+            'approved_by' => null,
+            'approved_at' => null,
+            'rejected_by' => null,
+            'rejected_at' => null,
+            'rejected_reason' => null,
+            'converted_by' => null,
+            'converted_at' => null,
+            'updated_at' => $now
+        );
+        $this->Purchases_requests_model->ci_save($reset_data, $id);
+
+        $note_parts = array();
+        if ($quotation) {
+            $note_parts[] = 'cotacao desfeita';
+        }
+        if (!empty($orders)) {
+            $note_parts[] = count($orders) . ' pedido(s) desfeito(s)';
+        }
+        $note_parts[] = 'aprovacoes resetadas';
+        $this->_log_status_change('request', $id, $old_status, 'draft', implode('; ', $note_parts));
+
+        $db->transComplete();
+
+        if (!$db->transStatus()) {
+            return $this->response->setJSON(array(
+                'success' => false,
+                'message' => app_lang('error_occurred')
+            ));
+        }
+
+        return $this->response->setJSON(array(
+            'success' => true,
+            'message' => app_lang('purchases_request_reopened')
+        ));
     }
 
     public function get_item_suggestion()
@@ -887,6 +1001,16 @@ class Purchase_requests extends Security_Controller
         }
 
         return $requested_by === (int)$this->login_user->id;
+    }
+
+    private function _can_reopen($request)
+    {
+        if (!$this->login_user->is_admin && !$this->_has_manage_permission()) {
+            return false;
+        }
+
+        $status = (string)($request->status ?? '');
+        return !in_array($status, array('draft', 'rejected'));
     }
 
     private function _can_submit($request)
@@ -1346,13 +1470,44 @@ class Purchase_requests extends Security_Controller
 
     private function _has_order_for_request($request_id)
     {
+        return !empty($this->_get_orders_for_request($request_id));
+    }
+
+    private function _get_orders_for_request($request_id)
+    {
         $orders_query = $this->Purchases_orders_model->get_details(array(
             'request_id' => (int)$request_id,
             'company_id' => $this->_get_company_id()
         ));
 
-        $orders = ($orders_query && method_exists($orders_query, 'getResult')) ? $orders_query->getResult() : array();
-        return !empty($orders);
+        return ($orders_query && method_exists($orders_query, 'getResult')) ? $orders_query->getResult() : array();
+    }
+
+    private function _has_receipt_for_request($request_id)
+    {
+        $orders = $this->_get_orders_for_request($request_id);
+        if (empty($orders)) {
+            return false;
+        }
+
+        $order_ids = array_map(function ($order) {
+            return (int)$order->id;
+        }, $orders);
+
+        $db = db_connect('default');
+        $receipts_table = $db->prefixTable('purchases_goods_receipts');
+        if (!$db->tableExists($receipts_table)) {
+            return false;
+        }
+
+        $row = $db->table($receipts_table)
+            ->select('id')
+            ->whereIn('order_id', $order_ids)
+            ->where('deleted', 0)
+            ->get()
+            ->getRow();
+
+        return !empty($row);
     }
 
     private function _get_company_id()

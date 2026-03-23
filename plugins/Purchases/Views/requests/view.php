@@ -26,6 +26,11 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                 <?php if ($can_edit) { ?>
                     <?php echo anchor(get_uri('purchases_requests/request_form/' . $info->id), "<i data-feather='edit' class='icon-16'></i> " . app_lang('edit'), array('class' => 'btn btn-default')); ?>
                 <?php } ?>
+                <?php if (!empty($can_reopen)) { ?>
+                    <button type="button" class="btn btn-warning js-reopen-request" data-id="<?php echo esc($info->id); ?>">
+                        <i data-feather='rotate-ccw' class='icon-16'></i> <?php echo app_lang('purchases_reopen_request'); ?>
+                    </button>
+                <?php } ?>
                 <?php echo anchor(get_uri('purchases_requests'), app_lang('back_to_list'), array('class' => 'btn btn-default')); ?>
             </div>
         </div>
@@ -437,6 +442,43 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                         }
                     }
                     if (result && result.message) {
+                        appAlert.error(result.message);
+                    } else {
+                        appAlert.error("<?php echo app_lang('error_occurred'); ?>");
+                    }
+                },
+                complete: function () {
+                    $btn.prop("disabled", false);
+                }
+            });
+        });
+
+        $(document).on("click", ".js-reopen-request", function () {
+            var $btn = $(this);
+            var id = $btn.data("id");
+            if (!id) {
+                return;
+            }
+
+            if (!confirm("<?php echo app_lang('purchases_reopen_request_confirmation'); ?>")) {
+                return;
+            }
+
+            $btn.prop("disabled", true);
+            appAjaxRequest({
+                url: "<?php echo get_uri('purchases_requests/reopen'); ?>",
+                type: "POST",
+                dataType: "json",
+                data: {id: id},
+                success: function (result) {
+                    if (result && result.success) {
+                        if (result.message) {
+                            appAlert.success(result.message, {duration: 3000});
+                        }
+                        setTimeout(function () {
+                            location.reload();
+                        }, 600);
+                    } else if (result && result.message) {
                         appAlert.error(result.message);
                     } else {
                         appAlert.error("<?php echo app_lang('error_occurred'); ?>");

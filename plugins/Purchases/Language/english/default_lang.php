@@ -176,5 +176,9 @@ return [
     'purchases_no_receipts' => 'No receipts recorded.',
     'purchases_receipt_qty_exceeded' => 'Received quantity exceeds pending quantity',
     'purchases_receipt_qty_required' => 'Please enter at least one received quantity',
+    'purchases_reopen_request' => 'Reopen request',
+    'purchases_reopen_request_confirmation' => 'This will undo quotations, approvals and purchase orders generated after this request. Do you want to continue?',
+    'purchases_request_reopened' => 'Request reopened successfully.',
+    'purchases_reopen_blocked_by_receipts' => 'This request cannot be reopened because there are receipts linked to the generated purchase orders.',
     'back_to_list' => 'Back to list'
 ];

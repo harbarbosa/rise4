@@ -21,6 +21,7 @@ $routes->post('purchases_requests/convert', 'Purchase_requests::convert', ['name
 $routes->post('purchases_requests/approve_requester', 'Purchase_requests::approve_requester', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_requests/approve_financial', 'Purchase_requests::approve_financial', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_requests/reject_approval', 'Purchase_requests::reject_approval', ['namespace' => 'Purchases\\Controllers']);
+$routes->post('purchases_requests/reopen', 'Purchase_requests::reopen', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_requests/get_item_suggestion', 'Purchase_requests::get_item_suggestion', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_requests/get_item_info_suggestion', 'Purchase_requests::get_item_info_suggestion', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_requests/tasks/list_data/(:num)', 'Purchase_requests::tasks_list_data/$1', ['namespace' => 'Purchases\\Controllers']);
