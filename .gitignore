@@ -1,0 +1,8 @@
+.env
+writable/cache/*
+writable/session/*
+writable/logs/*
+writable/debugbar/*
+node_modules/
+vendor/
+*.zip
