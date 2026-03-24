@@ -12,6 +12,7 @@ $routes->get('purchases_requests/approvals', 'Purchase_requests::approvals', ['n
 $routes->post('purchases_requests/approvals_list_data', 'Purchase_requests::approvals_list_data', ['namespace' => 'Purchases\\Controllers']);
 $routes->get('purchases_requests/request_form', 'Purchase_requests::request_form', ['namespace' => 'Purchases\\Controllers']);
 $routes->get('purchases_requests/request_form/(:num)', 'Purchase_requests::request_form/$1', ['namespace' => 'Purchases\\Controllers']);
+$routes->get('purchases_requests/download_items_template', 'Purchase_requests::download_items_template', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_requests/save', 'Purchase_requests::save', ['namespace' => 'Purchases\\Controllers']);
 $routes->get('purchases_requests/view/(:num)', 'Purchase_requests::view/$1', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_requests/submit', 'Purchase_requests::submit', ['namespace' => 'Purchases\\Controllers']);

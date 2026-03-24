@@ -150,6 +150,44 @@ class Purchase_requests extends Security_Controller
         return $this->template->rander('Purchases\\Views\\requests\\form', $view_data);
     }
 
+    public function download_items_template()
+    {
+        if (!$this->_has_manage_permission()) {
+            app_redirect('forbidden');
+        }
+
+        $filename = "modelo-importacao-itens-requisicao.csv";
+        $handle = fopen('php://temp', 'r+');
+        fwrite($handle, chr(239) . chr(187) . chr(191));
+
+        fputcsv($handle, array(
+            'item_id',
+            'descricao',
+            'quantidade',
+            'unidade',
+            'data_desejada',
+            'observacao'
+        ), ';');
+
+        fputcsv($handle, array(
+            '',
+            'CIMENTO CP II 50KG',
+            '10',
+            'SC',
+            date('Y-m-d'),
+            'Entrega no almoxarifado'
+        ), ';');
+
+        rewind($handle);
+        $content = stream_get_contents($handle);
+        fclose($handle);
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setBody($content);
+    }
+
     public function save()
     {
         if (!$this->_has_manage_permission()) {
@@ -224,7 +262,14 @@ class Purchase_requests extends Security_Controller
             $save_id = $id ?: db_connect('default')->insertID();
         }
 
-        $this->_save_request_items($save_id);
+        $items_result = $this->_save_request_items($save_id);
+        if (!$items_result['success']) {
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON(array('success' => false, 'message' => $items_result['message']));
+            }
+
+            return redirect()->back()->withInput()->with('error', $items_result['message']);
+        }
 
         if ($this->request->isAJAX()) {
             return $this->response->setJSON(array('success' => true, 'id' => $save_id));
@@ -1384,8 +1429,37 @@ class Purchase_requests extends Security_Controller
         $desired_dates = $this->request->getPost('desired_date');
         $notes = $this->request->getPost('note');
 
+        $import_result = $this->_get_imported_request_items();
+        if (!$import_result['success']) {
+            return $import_result;
+        }
+
         if (!is_array($item_ids)) {
             $item_ids = array();
+        }
+        if (!is_array($descriptions)) {
+            $descriptions = array();
+        }
+        if (!is_array($quantities)) {
+            $quantities = array();
+        }
+        if (!is_array($units)) {
+            $units = array();
+        }
+        if (!is_array($desired_dates)) {
+            $desired_dates = array();
+        }
+        if (!is_array($notes)) {
+            $notes = array();
+        }
+
+        foreach ($import_result['rows'] as $row) {
+            $item_ids[] = get_array_value($row, 'item_id');
+            $descriptions[] = get_array_value($row, 'description');
+            $quantities[] = get_array_value($row, 'quantity');
+            $units[] = get_array_value($row, 'unit');
+            $desired_dates[] = get_array_value($row, 'desired_date');
+            $notes[] = get_array_value($row, 'note');
         }
 
         $db = db_connect('default');
@@ -1410,10 +1484,10 @@ class Purchase_requests extends Security_Controller
                   continue;
               }
               if (!$desired_date) {
-                  return $this->response->setJSON(array(
+                  return array(
                       'success' => false,
                       'message' => app_lang('purchases_desired_date_required')
-                  ));
+                  );
               }
 
             $data = array(
@@ -1433,6 +1507,176 @@ class Purchase_requests extends Security_Controller
 
             $this->Purchases_request_items_model->save($data);
         }
+
+        return array('success' => true, 'rows' => $max);
+    }
+
+    private function _get_imported_request_items()
+    {
+        $file = $this->request->getFile('items_import_file');
+        if (!$file || $file->getError() === UPLOAD_ERR_NO_FILE) {
+            return array('success' => true, 'rows' => array());
+        }
+        if (!$file->isValid()) {
+            return array('success' => false, 'message' => app_lang('purchases_import_invalid_file'));
+        }
+
+        $extension = strtolower((string) $file->getExtension());
+        if ($extension !== 'csv') {
+            return array('success' => false, 'message' => app_lang('purchases_import_invalid_file'));
+        }
+
+        $path = $file->getTempName();
+        if (!$path || !is_file($path)) {
+            return array('success' => false, 'message' => app_lang('purchases_import_invalid_file'));
+        }
+
+        $handle = fopen($path, 'r');
+        if (!$handle) {
+            return array('success' => false, 'message' => app_lang('purchases_import_invalid_file'));
+        }
+
+        $headers = null;
+        $rows = array();
+        $delimiter = null;
+        $line_number = 0;
+
+        while (($line = fgets($handle)) !== false) {
+            $line_number++;
+            if ($line_number === 1) {
+                $line = preg_replace('/^\xEF\xBB\xBF/', '', $line);
+            }
+
+            if ($delimiter === null) {
+                $delimiter = (substr_count($line, ';') >= substr_count($line, ',')) ? ';' : ',';
+            }
+
+            $parsed = str_getcsv($line, $delimiter);
+            if ($parsed === null) {
+                continue;
+            }
+
+            $parsed = array_map(function ($value) {
+                return trim((string) $value);
+            }, $parsed);
+
+            if ($headers === null) {
+                $headers = $this->_normalize_import_headers($parsed);
+                if (!$this->_import_headers_are_valid($headers)) {
+                    fclose($handle);
+                    return array('success' => false, 'message' => app_lang('purchases_import_missing_columns'));
+                }
+                continue;
+            }
+
+            if ($this->_is_import_row_empty($parsed)) {
+                continue;
+            }
+
+            $mapped = array();
+            foreach ($headers as $index => $header_key) {
+                $mapped[$header_key] = get_array_value($parsed, $index, '');
+            }
+
+            $prepared = $this->_prepare_imported_item_row($mapped, $line_number);
+            if (!$prepared['success']) {
+                fclose($handle);
+                return $prepared;
+            }
+            $rows[] = $prepared['row'];
+        }
+
+        fclose($handle);
+
+        if ($headers === null) {
+            return array('success' => false, 'message' => app_lang('purchases_import_empty_file'));
+        }
+
+        return array('success' => true, 'rows' => $rows);
+    }
+
+    private function _normalize_import_headers($headers)
+    {
+        $normalized = array();
+        foreach ((array) $headers as $header) {
+            $key = strtolower(trim((string) $header));
+            $key = str_replace(array(' ', '-'), '_', $key);
+            $key = preg_replace('/[^a-z0-9_]/', '', $key);
+            $normalized[] = $key;
+        }
+
+        return $normalized;
+    }
+
+    private function _import_headers_are_valid($headers)
+    {
+        return in_array('descricao', $headers, true)
+            && in_array('quantidade', $headers, true)
+            && in_array('unidade', $headers, true)
+            && in_array('data_desejada', $headers, true);
+    }
+
+    private function _is_import_row_empty($row)
+    {
+        foreach ((array) $row as $value) {
+            if (trim((string) $value) !== '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function _prepare_imported_item_row($row, $line_number)
+    {
+        $description = trim((string) get_array_value($row, 'descricao'));
+        $quantity = trim((string) get_array_value($row, 'quantidade'));
+        $unit = trim((string) get_array_value($row, 'unidade'));
+        $desired_date = trim((string) get_array_value($row, 'data_desejada'));
+        $note = trim((string) get_array_value($row, 'observacao'));
+        $item_id = get_only_numeric_value(get_array_value($row, 'item_id'));
+
+        if ($description === '' || $quantity === '' || $unit === '' || $desired_date === '') {
+            return array(
+                'success' => false,
+                'message' => sprintf(app_lang('purchases_import_invalid_row'), $line_number)
+            );
+        }
+
+        if (!$item_id) {
+            $item_id = $this->_find_item_id_by_title($description);
+        }
+
+        return array(
+            'success' => true,
+            'row' => array(
+                'item_id' => $item_id ?: '',
+                'description' => $description,
+                'quantity' => $quantity,
+                'unit' => $unit,
+                'desired_date' => $desired_date,
+                'note' => $note
+            )
+        );
+    }
+
+    private function _find_item_id_by_title($title)
+    {
+        $title = trim((string) $title);
+        if ($title === '') {
+            return 0;
+        }
+
+        $db = db_connect('default');
+        $items_table = $db->prefixTable('items');
+        $row = $db->table($items_table)
+            ->select('id')
+            ->where('deleted', 0)
+            ->where('title', $title)
+            ->get()
+            ->getRow();
+
+        return $row ? (int) $row->id : 0;
     }
 
     public function approvals()

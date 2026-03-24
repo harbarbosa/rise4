@@ -231,6 +231,7 @@
                         "placeholder" => app_lang('task')
                     ));
                     ?>
+                    <div id="task-execution-summary" class="mt10" style="display:none;"></div>
                 </div>
             </div>
         </div>
@@ -569,6 +570,7 @@
                         $('#user_id').select2({data: result.project_members_dropdown});
                         $("#task_id").show().val("");
                         $('#task_id').select2({data: result.tasks_dropdown});
+                        togglePercentageExecuted();
                         appLoader.hide();
                     }
                 });
@@ -579,15 +581,60 @@
         $("#user_id").select2({data: <?php echo json_encode($project_members_dropdown); ?>});
         $("#task_id").select2({data: <?php echo $tasks_dropdown; ?>});
 
+        function escapeTaskText(text) {
+            return $("<div>").text(text || "").html();
+        }
+
+        function renderTaskExecutionSummary(taskTitle, percentage, remainingPercentage) {
+            var numericPercentage = parseFloat(percentage || 0);
+            var progressClass = numericPercentage >= 100 ? "bg-success" : "bg-primary";
+            var summaryHtml = "<div class='alert alert-info mb0'>" +
+                "<div><strong>Tarefa:</strong> " + escapeTaskText(taskTitle) + "</div>" +
+                "<div><strong>Executado atual:</strong> " + percentage + "%</div>" +
+                "<div><strong>Saldo disponivel:</strong> " + remainingPercentage + "%</div>" +
+                "<div class='progress mt10 mb0' title='" + percentage + "%'>" +
+                    "<div class='progress-bar " + progressClass + "' role='progressbar' aria-valuenow='" + percentage + "' aria-valuemin='0' aria-valuemax='100' style='width: " + percentage + "%;'></div>" +
+                "</div>" +
+            "</div>";
+
+            $("#task-execution-summary").html(summaryHtml).show();
+        }
+
+        function loadTaskExecutionSummary(taskId) {
+            if (!taskId) {
+                $("#task-execution-summary").hide().empty();
+                return;
+            }
+
+            appAjaxRequest({
+                url: "<?php echo get_uri('projectanalizer/get_task_execution_percentage'); ?>",
+                type: "POST",
+                dataType: "json",
+                data: {task_id: taskId},
+                success: function (result) {
+                    if (result.success) {
+                        renderTaskExecutionSummary(result.task_title, result.percentage, result.remaining_percentage);
+                    } else {
+                        $("#task-execution-summary").hide().empty();
+                    }
+                },
+                error: function () {
+                    $("#task-execution-summary").hide().empty();
+                }
+            });
+        }
+
         function togglePercentageExecuted() {
             var taskValue = $("#task_id").val();
             var hasTask = taskValue && taskValue !== "";
             if (hasTask) {
                 $("#percentage-executed-wrapper").show();
                 $("#percentage_executed").prop("required", true);
+                loadTaskExecutionSummary(taskValue);
             } else {
                 $("#percentage-executed-wrapper").hide();
                 $("#percentage_executed").prop("required", false).val("");
+                $("#task-execution-summary").hide().empty();
             }
         }
 

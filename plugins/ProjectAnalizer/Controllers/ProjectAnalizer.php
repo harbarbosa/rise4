@@ -1278,44 +1278,7 @@ class ProjectAnalizer extends Security_Controller {
             return;
         }
 
-        $db = db_connect('default');
-        $percentage_total = 0;
-
-            $timesheet_table = $db->prefixTable('project_time');
-            if ($db->fieldExists('percentage_executed', $timesheet_table)) {
-                $builder = $db->table($timesheet_table);
-                $builder->select("SUM(percentage_executed) AS total_percentage");
-                $builder->where("task_id", $task_id);
-                if ($db->fieldExists('deleted', $timesheet_table)) {
-                    $builder->where("deleted", 0);
-                }
-                $query = $builder->get();
-                if ($query) {
-                    $row = $query->getRow();
-                    if ($row && $row->total_percentage !== null) {
-                        $percentage_total += (float)$row->total_percentage;
-                }
-            }
-        }
-
-            $activities_table = $db->prefixTable('team_activities');
-            if ($db->fieldExists('percentage_executed', $activities_table)) {
-                $builder = $db->table($activities_table);
-                $builder->select("SUM(percentage_executed) AS total_percentage");
-                $builder->where("task_id", $task_id);
-                if ($db->fieldExists('deleted', $activities_table)) {
-                    $builder->where("deleted", 0);
-                }
-                $query = $builder->get();
-                if ($query) {
-                    $row = $query->getRow();
-                    if ($row && $row->total_percentage !== null) {
-                        $percentage_total += (float)$row->total_percentage;
-                }
-            }
-        }
-
-        $percentage_total = max(0, min(100, $percentage_total));
+        $percentage_total = $this->_get_task_execution_percentage_total($task_id);
         if ($percentage_total <= 0) {
             return;
         }
@@ -1344,6 +1307,52 @@ class ProjectAnalizer extends Security_Controller {
             $status_data = array("status_id" => $target_status_id);
             $this->Tasks_model->ci_save($status_data, $task_id);
         }
+    }
+
+    private function _get_task_execution_percentage_total($task_id) {
+        $task_id = get_only_numeric_value($task_id);
+        if (!$task_id) {
+            return 0;
+        }
+
+        $db = db_connect('default');
+        $percentage_total = 0;
+
+        $timesheet_table = $db->prefixTable('project_time');
+        if ($db->tableExists($timesheet_table) && $db->fieldExists('percentage_executed', $timesheet_table)) {
+            $builder = $db->table($timesheet_table);
+            $builder->select("SUM(percentage_executed) AS total_percentage");
+            $builder->where("task_id", $task_id);
+            if ($db->fieldExists('deleted', $timesheet_table)) {
+                $builder->where("deleted", 0);
+            }
+            $query = $builder->get();
+            if ($query) {
+                $row = $query->getRow();
+                if ($row && $row->total_percentage !== null) {
+                    $percentage_total += (float) $row->total_percentage;
+                }
+            }
+        }
+
+        $activities_table = $db->prefixTable('team_activities');
+        if ($db->tableExists($activities_table) && $db->fieldExists('percentage_executed', $activities_table)) {
+            $builder = $db->table($activities_table);
+            $builder->select("SUM(percentage_executed) AS total_percentage");
+            $builder->where("task_id", $task_id);
+            if ($db->fieldExists('deleted', $activities_table)) {
+                $builder->where("deleted", 0);
+            }
+            $query = $builder->get();
+            if ($query) {
+                $row = $query->getRow();
+                if ($row && $row->total_percentage !== null) {
+                    $percentage_total += (float) $row->total_percentage;
+                }
+            }
+        }
+
+        return max(0, min(100, round($percentage_total, 2)));
     }
 
     private function _can_edit_task_status($task_info) {
@@ -2118,6 +2127,34 @@ class ProjectAnalizer extends Security_Controller {
         $view_data["custom_fields"] = $this->Custom_fields_model->get_combined_details("timesheets", $view_data['model_info']->id, $this->login_user->is_admin, $this->login_user->user_type)->getResult();
 
         return $this->template->view('ProjectAnalizer\Views\\timesheets/modal_form', $view_data);
+    }
+
+    function get_task_execution_percentage() {
+        $this->access_only_team_members();
+        $this->validate_submitted_data(array(
+            "task_id" => "required|numeric"
+        ));
+
+        $task_id = get_only_numeric_value($this->request->getPost("task_id"));
+        $task_info = $this->Tasks_model->get_one($task_id);
+
+        if (!$task_info || !$task_info->id) {
+            echo json_encode(array(
+                "success" => false,
+                "message" => app_lang("record_not_found")
+            ));
+            return;
+        }
+
+        $percentage_total = $this->_get_task_execution_percentage_total($task_id);
+
+        echo json_encode(array(
+            "success" => true,
+            "task_id" => $task_id,
+            "task_title" => $task_info->title,
+            "percentage" => number_format($percentage_total, 2, ".", ""),
+            "remaining_percentage" => number_format(max(0, 100 - $percentage_total), 2, ".", "")
+        ));
     }
 
     function delete_timelog() {

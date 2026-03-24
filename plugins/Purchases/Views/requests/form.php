@@ -8,7 +8,7 @@ foreach ($items_dropdown_list as $key => $value) {
 }
 ?>
 
-<?php echo form_open(get_uri('purchases_requests/save'), array('id' => 'purchases-request-form', 'class' => 'general-form', 'role' => 'form')); ?>
+<?php echo form_open_multipart(get_uri('purchases_requests/save'), array('id' => 'purchases-request-form', 'class' => 'general-form', 'role' => 'form')); ?>
 <input type="hidden" name="id" value="<?php echo esc($info->id); ?>" />
 
 <div id="page-content" class="page-wrapper clearfix">
@@ -20,6 +20,9 @@ foreach ($items_dropdown_list as $key => $value) {
             </div>
         </div>
         <div class="card-body">
+            <?php if (session()->getFlashdata('error')) { ?>
+                <div class="alert alert-danger"><?php echo esc(session()->getFlashdata('error')); ?></div>
+            <?php } ?>
             <div class="row">
                 <div class="col-md-3 mb15">
                     <label for="request_code" class="form-label"><?php echo app_lang('purchases_request_code'); ?></label>
@@ -68,9 +71,19 @@ foreach ($items_dropdown_list as $key => $value) {
             <div class="mt15">
                 <div class="d-flex justify-content-between align-items-center mb10">
                     <h4 class="mb0"><?php echo app_lang('purchases_items'); ?></h4>
-                    <button type="button" id="add-item-row" class="btn btn-default">
-                        <i data-feather='plus-circle' class='icon-16'></i> <?php echo app_lang('purchases_add_item'); ?>
-                    </button>
+                    <div class="d-flex gap-2">
+                        <?php echo anchor(get_uri('purchases_requests/download_items_template'), "<i data-feather='download' class='icon-16'></i> " . app_lang('purchases_download_import_template'), array('class' => 'btn btn-default')); ?>
+                        <button type="button" id="add-item-row" class="btn btn-default">
+                            <i data-feather='plus-circle' class='icon-16'></i> <?php echo app_lang('purchases_add_item'); ?>
+                        </button>
+                    </div>
+                </div>
+                <div class="row mb15">
+                    <div class="col-md-6">
+                        <label for="items_import_file" class="form-label"><?php echo app_lang('purchases_import_items_excel'); ?></label>
+                        <input type="file" id="items_import_file" name="items_import_file" class="form-control" accept=".csv,text/csv,application/vnd.ms-excel" />
+                        <small class="text-muted"><?php echo app_lang('purchases_import_items_excel_help'); ?></small>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table" id="purchases-items-table">
