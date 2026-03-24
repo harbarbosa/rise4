@@ -417,10 +417,11 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('invalid_request')));
         }
 
-        $save_id = $this->Proposals_model->ci_save(array(
+        $status_data = array(
             'status' => $status,
             'updated_at' => get_my_local_time()
-        ), $id);
+        );
+        $save_id = $this->Proposals_model->ci_save($status_data, $id);
 
         if (!$save_id) {
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
@@ -431,6 +432,120 @@ class Proposals extends Security_Controller
             'success' => true,
             'status' => app_lang('proposals_status_' . $status),
             'status_html' => $this->_get_status_label($status)
+        ));
+    }
+
+    public function approve()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $this->validate_submitted_data(array(
+            'id' => 'required|numeric'
+        ));
+
+        $proposal_id = (int)$this->request->getPost('id');
+        $proposal = $this->_get_proposal_for_company($proposal_id);
+        if (!$proposal) {
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
+        }
+
+        $create_project = $this->request->getPost('create_project') ? true : false;
+        $create_purchase_request = $this->request->getPost('create_purchase_request') ? true : false;
+
+        $request_item_rows = array();
+        if ($create_purchase_request) {
+            $request_items_result = $this->_prepare_purchase_request_items_from_post($proposal_id);
+            if (!$request_items_result['success']) {
+                return $this->response->setJSON($request_items_result);
+            }
+            $request_item_rows = $request_items_result['rows'];
+        }
+
+        $db = db_connect('default');
+        $db->transStart();
+
+        $approval_data = array(
+            'status' => 'approved',
+            'updated_at' => get_my_local_time()
+        );
+        $save_id = $this->Proposals_model->ci_save($approval_data, $proposal_id);
+
+        if (!$save_id) {
+            $db->transRollback();
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+        }
+
+        $project_id = 0;
+        if ($create_project) {
+            $project_id = $this->_create_project_from_proposal($proposal);
+            if (!$project_id) {
+                $db->transRollback();
+                return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+            }
+        }
+
+        $purchase_request_id = 0;
+        if ($create_purchase_request) {
+            $purchase_request_id = $this->_create_purchase_request_from_proposal($proposal, $project_id, $request_item_rows);
+            if (!$purchase_request_id) {
+                $db->transRollback();
+                return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+            }
+        }
+
+        $db->transComplete();
+        if (!$db->transStatus()) {
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+        }
+
+        $this->_log_activity('proposal_approved', $proposal_id);
+
+        $redirect_to = get_uri('propostas/view/' . $proposal_id);
+        if ($purchase_request_id) {
+            $redirect_to = get_uri('purchases_requests/view/' . $purchase_request_id);
+        } else if ($project_id) {
+            $redirect_to = get_uri('projects/view/' . $project_id);
+        }
+
+        return $this->response->setJSON(array(
+            'success' => true,
+            'message' => app_lang('record_saved'),
+            'redirect_to' => $redirect_to,
+            'project_id' => $project_id,
+            'purchase_request_id' => $purchase_request_id
+        ));
+    }
+
+    public function duplicate()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $this->validate_submitted_data(array(
+            'id' => 'required|numeric'
+        ));
+
+        $proposal_id = (int)$this->request->getPost('id');
+        $proposal = $this->_get_proposal_for_company($proposal_id);
+        if (!$proposal) {
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
+        }
+
+        $new_id = $this->_duplicate_proposal($proposal);
+        if (!$new_id) {
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+        }
+
+        $this->_log_activity('proposal_duplicated', $proposal_id, $new_id);
+
+        return $this->response->setJSON(array(
+            'success' => true,
+            'message' => app_lang('record_saved'),
+            'redirect_to' => get_uri('propostas/view/' . $new_id),
+            'id' => $new_id
         ));
     }
 
@@ -1266,6 +1381,323 @@ class Proposals extends Security_Controller
             'success' => true,
             'message' => app_lang('record_saved')
         ));
+    }
+
+    private function _prepare_purchase_request_items_from_post($proposal_id)
+    {
+        $proposal_items_query = $this->Proposal_items_model->get_details(array('proposal_id' => (int)$proposal_id));
+        $proposal_items = ($proposal_items_query && method_exists($proposal_items_query, 'getResult')) ? $proposal_items_query->getResult() : array();
+
+        $proposal_items_map = array();
+        foreach ($proposal_items as $item) {
+            $proposal_items_map[(int)$item->id] = $item;
+        }
+
+        $selected_rows = $this->request->getPost('request_item_selected');
+        if (!is_array($selected_rows)) {
+            $selected_rows = array();
+        }
+
+        $quantities = $this->request->getPost('request_item_quantity');
+        $units = $this->request->getPost('request_item_unit');
+        $desired_dates = $this->request->getPost('request_item_desired_date');
+        $notes = $this->request->getPost('request_item_note');
+
+        $rows = array();
+        foreach ($selected_rows as $item_id => $selected) {
+            if (!$selected) {
+                continue;
+            }
+
+            $proposal_item = get_array_value($proposal_items_map, (int)$item_id);
+            if (!$proposal_item) {
+                continue;
+            }
+            if (($proposal_item->item_type ?? 'material') !== 'material') {
+                continue;
+            }
+
+            $description = trim((string)($proposal_item->description_override ?: $proposal_item->item_title));
+            $quantity = $this->_parse_decimal(get_array_value($quantities, $item_id));
+            $unit = trim((string)get_array_value($units, $item_id));
+            $desired_date = trim((string)get_array_value($desired_dates, $item_id));
+            $note = trim((string)get_array_value($notes, $item_id));
+
+            $rows[] = array(
+                'item_id' => $proposal_item->item_type === 'material' ? ((int)$proposal_item->item_id ?: null) : null,
+                'description' => $description,
+                'quantity' => $quantity > 0 ? $quantity : (float)$proposal_item->qty,
+                'unit' => $unit ?: ($proposal_item->item_unit ?: 'UN'),
+                'desired_date' => $desired_date,
+                'note' => $note
+            );
+        }
+
+        $new_item_ids = $this->request->getPost('new_item_id');
+        $new_descriptions = $this->request->getPost('new_item_description');
+        $new_quantities = $this->request->getPost('new_item_quantity');
+        $new_units = $this->request->getPost('new_item_unit');
+        $new_desired_dates = $this->request->getPost('new_item_desired_date');
+        $new_notes = $this->request->getPost('new_item_note');
+
+        if (!is_array($new_item_ids)) {
+            $new_item_ids = array();
+        }
+
+        foreach ($new_item_ids as $index => $raw_item_id) {
+            $description = trim((string)get_array_value($new_descriptions, $index));
+            $quantity = $this->_parse_decimal(get_array_value($new_quantities, $index));
+            $unit = trim((string)get_array_value($new_units, $index));
+            $desired_date = trim((string)get_array_value($new_desired_dates, $index));
+            $note = trim((string)get_array_value($new_notes, $index));
+            $item_id = get_only_numeric_value($raw_item_id);
+
+            if (!$item_id && !$description) {
+                continue;
+            }
+
+            $rows[] = array(
+                'item_id' => $item_id ? (int)$item_id : null,
+                'description' => $description,
+                'quantity' => $quantity > 0 ? $quantity : 1,
+                'unit' => $unit ?: 'UN',
+                'desired_date' => $desired_date,
+                'note' => $note
+            );
+        }
+
+        if (!$rows) {
+            return array('success' => false, 'message' => 'Selecione pelo menos um item para a requisição.');
+        }
+
+        foreach ($rows as $row) {
+            if (empty($row['desired_date'])) {
+                return array('success' => false, 'message' => app_lang('purchases_desired_date_required'));
+            }
+        }
+
+        return array('success' => true, 'rows' => $rows);
+    }
+
+    private function _create_project_from_proposal($proposal)
+    {
+        $Projects_model = model('App\\Models\\Projects_model');
+        $Project_members_model = model('App\\Models\\Project_members_model');
+        $db = db_connect('default');
+        $projects_table = $db->prefixTable('projects');
+
+        $data = array(
+            'title' => trim((string)$proposal->title),
+            'description' => trim((string)$proposal->description),
+            'client_id' => !empty($proposal->client_id) ? (int)$proposal->client_id : 0,
+            'project_type' => !empty($proposal->client_id) ? 'client_project' : 'internal_project',
+            'price' => (float)($proposal->total_sale ?? 0),
+            'created_date' => get_current_utc_time(),
+            'created_by' => $this->login_user->id,
+            'status_id' => 1
+        );
+
+        if ($db->fieldExists('proposal_id', $projects_table)) {
+            $data['proposal_id'] = (int)$proposal->id;
+        }
+
+        $project_data = clean_data($data);
+        $project_id = $Projects_model->ci_save($project_data);
+        if (!$project_id || !is_numeric($project_id)) {
+            $project_id = $db->insertID();
+        }
+
+        $project_id = (int)$project_id;
+        if (!$project_id) {
+            return 0;
+        }
+
+        $Project_members_model->save_member(array(
+            'project_id' => $project_id,
+            'user_id' => $this->login_user->id,
+            'is_leader' => 1
+        ));
+
+        $proposals_table = $db->prefixTable('proposals_custom');
+        if ($db->fieldExists('project_id', $proposals_table)) {
+            $proposal_project_data = array('project_id' => $project_id);
+            $this->Proposals_model->ci_save($proposal_project_data, (int)$proposal->id);
+        }
+
+        return $project_id;
+    }
+
+    private function _create_purchase_request_from_proposal($proposal, $project_id, $rows)
+    {
+        $Purchases_requests_model = model('Purchases\\Models\\Purchases_requests_model');
+        $Purchases_request_items_model = model('Purchases\\Models\\Purchases_request_items_model');
+
+        $code_data = $Purchases_requests_model->get_next_request_code_data($this->_get_company_id());
+        $request_data = array(
+            'company_id' => $this->_get_company_id(),
+            'project_id' => $project_id ? (int)$project_id : null,
+            'os_id' => null,
+            'is_internal' => $project_id ? 0 : 1,
+            'cost_center' => '',
+            'priority' => 'medium',
+            'note' => 'Gerada a partir da proposta PR-' . str_pad((int)$proposal->id, 6, '0', STR_PAD_LEFT),
+            'updated_at' => get_my_local_time(),
+            'request_code_number' => $code_data['request_code_number'],
+            'request_code' => $code_data['request_code'],
+            'requested_by' => $this->login_user->id,
+            'requester_id' => $this->login_user->id,
+            'request_date' => get_my_local_time(),
+            'created_at' => get_my_local_time(),
+            'created_by' => $this->login_user->id,
+            'status' => 'draft'
+        );
+
+        $request_id = $Purchases_requests_model->ci_save($request_data);
+        if (!$request_id || !is_numeric($request_id)) {
+            $request_id = db_connect('default')->insertID();
+        }
+
+        $request_id = (int)$request_id;
+        if (!$request_id) {
+            return 0;
+        }
+
+        foreach ($rows as $row) {
+            $item_data = array(
+                'company_id' => $this->_get_company_id(),
+                'request_id' => $request_id,
+                'item_id' => get_array_value($row, 'item_id'),
+                'description' => get_array_value($row, 'description'),
+                'unit' => get_array_value($row, 'unit') ?: 'UN',
+                'quantity' => (float)get_array_value($row, 'quantity'),
+                'rate' => 0,
+                'total' => 0,
+                'desired_date' => get_array_value($row, 'desired_date'),
+                'note' => get_array_value($row, 'note'),
+                'created_at' => get_my_local_time(),
+                'created_by' => $this->login_user->id
+            );
+
+            if (!$Purchases_request_items_model->save($item_data)) {
+                return 0;
+            }
+        }
+
+        return $request_id;
+    }
+
+    private function _duplicate_proposal($proposal)
+    {
+        $db = db_connect('default');
+        $db->transStart();
+
+        $new_proposal_data = array(
+            'company_id' => (int)$proposal->company_id,
+            'client_id' => !empty($proposal->client_id) ? (int)$proposal->client_id : null,
+            'client_name' => $proposal->client_name ?? '',
+            'title' => trim((string)$proposal->title) . ' (Cópia)',
+            'description' => $proposal->description ?? '',
+            'payment_terms' => $proposal->payment_terms ?? '',
+            'observations' => $proposal->observations ?? '',
+            'validity_days' => $proposal->validity_days ?? null,
+            'status' => 'draft',
+            'commission_type' => $proposal->commission_type ?? 'percent',
+            'commission_value' => $proposal->commission_value ?? 0,
+            'tax_product_percent' => $proposal->tax_product_percent ?? 0,
+            'tax_service_percent' => $proposal->tax_service_percent ?? 0,
+            'tax_service_only' => $proposal->tax_service_only ?? 0,
+            'taxes_snapshot_json' => $proposal->taxes_snapshot_json ?? '',
+            'created_at' => get_my_local_time(),
+            'created_by' => $this->login_user->id,
+            'updated_at' => get_my_local_time()
+        );
+
+        $proposals_table = $db->prefixTable('proposals_custom');
+        if (!$db->fieldExists('client_name', $proposals_table)) {
+            unset($new_proposal_data['client_name']);
+        }
+
+        $new_proposal_id = $this->Proposals_model->ci_save($new_proposal_data);
+        if (!$new_proposal_id || !is_numeric($new_proposal_id)) {
+            $new_proposal_id = $db->insertID();
+        }
+
+        $new_proposal_id = (int)$new_proposal_id;
+        if (!$new_proposal_id) {
+            $db->transRollback();
+            return 0;
+        }
+
+        $sections_query = $this->Proposal_sections_model->get_details(array('proposal_id' => (int)$proposal->id));
+        $sections = ($sections_query && method_exists($sections_query, 'getResult')) ? $sections_query->getResult() : array();
+        $section_map = array();
+        $pending_sections = $sections;
+
+        while ($pending_sections) {
+            $progress = false;
+            foreach ($pending_sections as $index => $section) {
+                $old_parent_id = (int)($section->parent_id ?? 0);
+                if ($old_parent_id && !isset($section_map[$old_parent_id])) {
+                    continue;
+                }
+
+                $section_data = array(
+                    'proposal_id' => $new_proposal_id,
+                    'parent_id' => $old_parent_id ? $section_map[$old_parent_id] : null,
+                    'title' => $section->title ?? '',
+                    'sort' => $section->sort ?? 0
+                );
+
+                $new_section_id = $this->Proposal_sections_model->ci_save($section_data);
+                if (!$new_section_id || !is_numeric($new_section_id)) {
+                    $new_section_id = $db->insertID();
+                }
+
+                $section_map[(int)$section->id] = (int)$new_section_id;
+                unset($pending_sections[$index]);
+                $progress = true;
+            }
+
+            if (!$progress) {
+                break;
+            }
+        }
+
+        $items_query = $this->Proposal_items_model->get_details(array('proposal_id' => (int)$proposal->id));
+        $items = ($items_query && method_exists($items_query, 'getResult')) ? $items_query->getResult() : array();
+        foreach ($items as $item) {
+            $item_data = array(
+                'proposal_id' => $new_proposal_id,
+                'section_id' => !empty($item->section_id) ? get_array_value($section_map, (int)$item->section_id) : null,
+                'item_id' => $item->item_id ?: null,
+                'item_type' => $item->item_type ?? 'material',
+                'description_override' => $item->description_override ?? '',
+                'cost_unit' => $item->cost_unit ?? 0,
+                'qty' => $item->qty ?? 0,
+                'markup_percent' => $item->markup_percent ?? 0,
+                'sale_unit' => $item->sale_unit ?? 0,
+                'total' => $item->total ?? 0,
+                'show_in_proposal' => $item->show_in_proposal ?? 0,
+                'show_values_in_proposal' => $item->show_values_in_proposal ?? 0,
+                'in_memory' => $item->in_memory ?? 0,
+                'sort' => $item->sort ?? 0
+            );
+
+            $new_item_id = $this->Proposal_items_model->ci_save($item_data);
+            if (!$new_item_id && !$db->insertID()) {
+                $db->transRollback();
+                return 0;
+            }
+        }
+
+        $this->Proposals_model->calculate_totals($new_proposal_id);
+
+        $db->transComplete();
+        if (!$db->transStatus()) {
+            return 0;
+        }
+
+        return $new_proposal_id;
     }
 
     private function _has_view_permission()

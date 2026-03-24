@@ -144,6 +144,58 @@ class ContaAzulClient
         return $last;
     }
 
+    public function createCostCenter($title, $code = null, $isActive = true)
+    {
+        $title = trim((string) $title);
+        if ($title === '') {
+            return ["ok" => false, "status" => 0, "data" => null, "body" => "Titulo vazio"];
+        }
+
+        $headers = [
+            'Authorization: Bearer ' . $this->accessToken,
+            'Content-Type: application/json'
+        ];
+
+        $payloads = [
+            [
+                'descricao' => $title,
+                'codigo' => $code,
+                'ativo' => $isActive ? true : false
+            ],
+            [
+                'name' => $title,
+                'code' => $code,
+                'active' => $isActive ? true : false
+            ],
+            [
+                'nome' => $title,
+                'codigo' => $code,
+                'ativo' => $isActive ? true : false
+            ]
+        ];
+
+        $endpoints = [
+            self::API_BASE . '/v1/centro-de-custo',
+            self::API_BASE . '/v1/centros-de-custo'
+        ];
+
+        $last = ["ok" => false, "status" => 0, "data" => null, "body" => ""];
+        foreach ($endpoints as $url) {
+            foreach ($payloads as $payload) {
+                $cleanPayload = array_filter($payload, function ($value) {
+                    return $value !== null && $value !== '';
+                });
+                $resp = $this->postJsonRequest($url, $headers, $cleanPayload);
+                if ($resp["ok"]) {
+                    return $resp;
+                }
+                $last = $resp;
+            }
+        }
+
+        return $last;
+    }
+
     public function getProduct($id)
     {
         $id = trim((string)$id);
@@ -271,6 +323,30 @@ class ContaAzulClient
 
         
        
+        $ok = $httpCode >= 200 && $httpCode < 300;
+        return ["ok" => $ok, "status" => $httpCode, "data" => $decoded, "body" => $response];
+    }
+
+    private function postJsonRequest($url, $headers, $payload)
+    {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        $this->applyCaInfo($ch);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error) {
+            return ["ok" => false, "status" => 0, "data" => null, "body" => $error];
+        }
+
+        $decoded = json_decode($response, true);
         $ok = $httpCode >= 200 && $httpCode < 300;
         return ["ok" => $ok, "status" => $httpCode, "data" => $decoded, "body" => $response];
     }

@@ -46,6 +46,8 @@ $routes->get('propostas/download_pdf/(:num)', 'Proposals::download_pdf/$1', ['na
 $routes->post('propostas/items/visibility', 'Proposals::update_item_visibility', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/items/copy_from_memory', 'Proposals::copy_items_from_memory', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/dashboard_data', 'Proposals::dashboard_data', ['namespace' => 'Proposals\\Controllers']);
+$routes->post('propostas/approve', 'Proposals::approve', ['namespace' => 'Proposals\\Controllers']);
+$routes->post('propostas/duplicate', 'Proposals::duplicate', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/tasks/list_data/(:num)', 'Proposals::tasks_list_data/$1', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/reminders/list_data/(:num)/(:any)', 'Proposals::reminders_list_data/$1/$2', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/reminders/list_data/(:num)', 'Proposals::reminders_list_data/$1', ['namespace' => 'Proposals\\Controllers']);

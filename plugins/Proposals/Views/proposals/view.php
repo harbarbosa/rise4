@@ -25,6 +25,20 @@ if (!function_exists('proposals_render_section_options')) {
 
 $sections_dropdown_html = "<option value=''>" . app_lang('proposals_select_section') . "</option>";
 $sections_dropdown_html .= proposals_render_section_options($sections, null, 0);
+$default_desired_date = date('Y-m-d');
+$requestable_items = array();
+foreach ($items as $proposal_item) {
+    if (($proposal_item->item_type ?? 'material') !== 'material') {
+        continue;
+    }
+    $requestable_items[] = array(
+        'id' => (int)($proposal_item->id ?? 0),
+        'title' => trim((string)(($proposal_item->item_title ?? app_lang('item')) . (($proposal_item->description_override ?? '') ? ' - ' . $proposal_item->description_override : ''))),
+        'qty' => (float)($proposal_item->qty ?? 0),
+        'unit' => trim((string)($proposal_item->item_unit ?? 'UN')),
+        'item_type' => $proposal_item->item_type ?? 'material'
+    );
+}
 ?>
 
 <style type="text/css">
@@ -138,6 +152,106 @@ $sections_dropdown_html .= proposals_render_section_options($sections, null, 0);
         font-weight: 600;
         color: #2c3e50;
     }
+    .proposal-dashboard-hero {
+        background: linear-gradient(135deg, #f4f8fc 0%, #eef6f1 100%);
+        border: 1px solid #dfe9e4;
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 18px;
+    }
+    .proposal-dashboard-kicker {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: #5f7486;
+        margin-bottom: 8px;
+    }
+    .proposal-dashboard-title {
+        font-size: 26px;
+        line-height: 1.2;
+        font-weight: 700;
+        color: #203347;
+        margin-bottom: 10px;
+    }
+    .proposal-dashboard-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .proposal-dashboard-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .85);
+        border: 1px solid #dde7f0;
+        color: #41576b;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .proposal-stat-card {
+        height: 100%;
+        border: 1px solid #e7edf3;
+        border-radius: 12px;
+        background: #fff;
+        padding: 16px;
+        box-shadow: 0 8px 18px rgba(27, 39, 51, .04);
+    }
+    .proposal-stat-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: #7a8998;
+        margin-bottom: 8px;
+    }
+    .proposal-stat-value {
+        font-size: 24px;
+        line-height: 1.1;
+        font-weight: 700;
+        color: #1f2f3f;
+    }
+    .proposal-stat-note {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #70808f;
+    }
+    .proposal-info-card {
+        border: 1px solid #e7edf3;
+        border-radius: 12px;
+        background: #fff;
+        padding: 16px;
+        height: 100%;
+    }
+    .proposal-info-card-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #203347;
+        margin-bottom: 12px;
+    }
+    .proposal-info-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px 16px;
+    }
+    .proposal-info-item {
+        min-width: 0;
+    }
+    .proposal-info-item .label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: #81909e;
+        margin-bottom: 4px;
+    }
+    .proposal-info-item .value {
+        font-size: 14px;
+        font-weight: 600;
+        color: #25384a;
+        word-break: break-word;
+    }
     .proposal-breakdown {
         background: #f8fafc;
         border: 1px solid #eef1f5;
@@ -170,6 +284,28 @@ $sections_dropdown_html .= proposals_render_section_options($sections, null, 0);
         display: inline-block;
         margin-right: 6px;
     }
+    .proposal-approve-request-section {
+        border: 1px solid #eef1f5;
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 12px;
+        background: #fbfdff;
+    }
+    .proposal-approve-request-section .table td,
+    .proposal-approve-request-section .table th {
+        vertical-align: middle;
+    }
+    @media (max-width: 767px) {
+        .proposal-dashboard-title {
+            font-size: 22px;
+        }
+        .proposal-info-list {
+            grid-template-columns: 1fr;
+        }
+        .proposal-stat-value {
+            font-size: 20px;
+        }
+    }
 </style>
 
 <div id="page-content" class="page-wrapper clearfix">
@@ -180,6 +316,14 @@ $sections_dropdown_html .= proposals_render_section_options($sections, null, 0);
                 <button type="button" class="btn btn-default" id="proposal-document-print">
                     <i data-feather="printer" class="icon-16"></i> <?php echo app_lang('print'); ?>
                 </button>
+                <?php if ($can_manage && !empty($proposal_info->id)) { ?>
+                    <button type="button" class="btn btn-success" id="proposal-approve-button" data-bs-toggle="modal" data-bs-target="#proposal-approve-modal">
+                        Aprovar proposta
+                    </button>
+                    <button type="button" class="btn btn-default" id="proposal-duplicate-button">
+                        Duplicar proposta
+                    </button>
+                <?php } ?>
                 <?php if (!empty($can_manage)) { ?>
                     <select id="proposal-status-select" class="form-select">
                         <?php foreach (($status_options ?? array()) as $status_option) { ?>
@@ -223,145 +367,169 @@ $sections_dropdown_html .= proposals_render_section_options($sections, null, 0);
                 <div class="tab-pane fade show active" id="proposal-dashboard" role="tabpanel">
                     <?php
                     $dash = $dashboard_data ?? array();
+                    $client_label = $proposal_info->client_company ?? ($proposal_info->client_name ?? '-');
+                    $commission_type = $proposal_info->commission_type ?? 'percent';
+                    $commission_value = $proposal_info->commission_value ?? 0;
+                    $commission_label = $commission_type === 'fixed'
+                        ? to_currency($commission_value)
+                        : number_format((float)$commission_value, 2, ",", ".") . '%';
                     ?>
-                    <div class="row mb15 proposal-summary-grid">
-                        <div class="col-md-4">
-                            <div class="label"><?php echo app_lang('title'); ?></div>
-                            <div class="value"><?php echo esc($proposal_info->title ?? '-'); ?></div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="label"><?php echo app_lang('client'); ?></div>
-                            <div class="value">
-                                <?php
-                                $client_label = $proposal_info->client_company ?? ($proposal_info->client_name ?? '-');
-                                echo esc($client_label ?: '-');
-                                ?>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="label"><?php echo app_lang('status'); ?></div>
-                            <div class="value"><?php echo $dash['status'] ?? '-'; ?></div>
-                        </div>
-                        <div class="col-md-4 mt10">
-                            <div class="label"><?php echo app_lang('proposals_validity_days'); ?></div>
-                            <div class="value"><?php echo esc($proposal_info->validity_days ?? '-'); ?></div>
-                        </div>
-                        <div class="col-md-4 mt10">
-                            <div class="label"><?php echo app_lang('proposals_commission'); ?></div>
-                            <div class="value">
-                                <?php
-                                $commission_type = $proposal_info->commission_type ?? 'percent';
-                                $commission_value = $proposal_info->commission_value ?? 0;
-                                $commission_label = $commission_type === 'fixed'
-                                    ? to_currency($commission_value)
-                                    : number_format((float)$commission_value, 2, ",", ".") . '%';
-                                echo esc($commission_label);
-                                ?>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mt10">
-                            <div class="label"><?php echo app_lang('proposals_tax_product_percent'); ?></div>
-                            <div class="value"><?php echo number_format((float)($proposal_info->tax_product_percent ?? 0), 2, ",", "."); ?>%</div>
-                        </div>
-                        <div class="col-md-4 mt10">
-                            <div class="label"><?php echo app_lang('proposals_tax_service_percent'); ?></div>
-                            <div class="value"><?php echo number_format((float)($proposal_info->tax_service_percent ?? 0), 2, ",", "."); ?>%</div>
-                        </div>
-                        <div class="col-md-4 mt10">
-                            <div class="label"><?php echo app_lang('proposals_tax_service_only'); ?></div>
-                            <div class="value"><?php echo !empty($proposal_info->tax_service_only) ? app_lang('yes') : app_lang('no'); ?></div>
-                        </div>
-                        <div class="col-md-4 mt10">
-                            <div class="label"><?php echo app_lang('proposals_dash_updated_at'); ?></div>
-                            <div class="value"><?php echo $dash['updated_at'] ?? '-'; ?></div>
-                        </div>
-                    </div>
-
-                    <div class="proposal-breakdown mb20"
-                        data-total="<?php echo (float)($dash['total_sale_n'] ?? 0); ?>"
-                        data-cost="<?php echo (float)(($dash['total_cost_material_n'] ?? 0) + ($dash['total_cost_service_n'] ?? 0)); ?>"
-                        data-tax="<?php echo (float)($dash['taxes_total_n'] ?? 0); ?>"
-                        data-commission="<?php echo (float)($dash['commission_total_n'] ?? 0); ?>"
-                        data-profit="<?php echo (float)($dash['net_profit_n'] ?? 0); ?>">
-                        <div class="text-muted mb10"><?php echo app_lang('proposals_dash_breakdown'); ?></div>
-                        <div class="proposal-breakdown-bar">
-                            <span class="breakdown-cost" style="background:#f39c12;"></span>
-                            <span class="breakdown-tax" style="background:#e74c3c;"></span>
-                            <span class="breakdown-commission" style="background:#8e44ad;"></span>
-                            <span class="breakdown-profit" style="background:#2ecc71;"></span>
-                        </div>
-                        <div class="proposal-breakdown-legend">
-                            <div><span class="dot" style="background:#f39c12;"></span><?php echo app_lang('proposals_dash_cost_total'); ?></div>
-                            <div><span class="dot" style="background:#e74c3c;"></span><?php echo app_lang('proposals_dash_taxes'); ?></div>
-                            <div><span class="dot" style="background:#8e44ad;"></span><?php echo app_lang('proposals_dash_commission'); ?></div>
-                            <div><span class="dot" style="background:#2ecc71;"></span><?php echo app_lang('proposals_dash_net_profit'); ?></div>
+                    <div class="proposal-dashboard-hero">
+                        <div class="proposal-dashboard-kicker">Visão Geral da Proposta</div>
+                        <div class="proposal-dashboard-title"><?php echo esc($proposal_info->title ?? '-'); ?></div>
+                        <div class="proposal-dashboard-meta">
+                            <span class="proposal-dashboard-pill"><?php echo esc($client_label ?: '-'); ?></span>
+                            <span class="proposal-dashboard-pill"><?php echo $dash['status'] ?? '-'; ?></span>
+                            <span class="proposal-dashboard-pill"><?php echo app_lang('proposals_validity_days'); ?>: <?php echo esc($proposal_info->validity_days ?? '-'); ?></span>
+                            <span class="proposal-dashboard-pill"><?php echo app_lang('proposals_dash_updated_at'); ?>: <?php echo $dash['updated_at'] ?? '-'; ?></span>
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-3 mb15">
-                            <div class="card card-body">
-                                <div class="text-muted"><?php echo app_lang('proposals_dash_cost_material'); ?></div>
-                                <div class="h4" id="proposal-dash-cost-material"><?php echo $dash['total_cost_material'] ?? '-'; ?></div>
+                            <div class="proposal-stat-card">
+                                <div class="proposal-stat-label"><?php echo app_lang('proposals_dash_total_sale'); ?></div>
+                                <div class="proposal-stat-value" id="proposal-dash-total-sale"><?php echo $dash['total_sale'] ?? '-'; ?></div>
+                                <div class="proposal-stat-note">Valor final considerado na proposta.</div>
                             </div>
                         </div>
                         <div class="col-md-3 mb15">
-                            <div class="card card-body">
-                                <div class="text-muted"><?php echo app_lang('proposals_dash_cost_service'); ?></div>
-                                <div class="h4" id="proposal-dash-cost-service"><?php echo $dash['total_cost_service'] ?? '-'; ?></div>
+                            <div class="proposal-stat-card">
+                                <div class="proposal-stat-label"><?php echo app_lang('proposals_dash_cost_total'); ?></div>
+                                <div class="proposal-stat-value"><?php echo to_currency((float)(($dash['total_cost_material_n'] ?? 0) + ($dash['total_cost_service_n'] ?? 0))); ?></div>
+                                <div class="proposal-stat-note">Materiais e serviços somados.</div>
                             </div>
                         </div>
                         <div class="col-md-3 mb15">
-                            <div class="card card-body">
-                                <div class="text-muted"><?php echo app_lang('proposals_dash_total_sale'); ?></div>
-                                <div class="h4" id="proposal-dash-total-sale"><?php echo $dash['total_sale'] ?? '-'; ?></div>
+                            <div class="proposal-stat-card">
+                                <div class="proposal-stat-label"><?php echo app_lang('proposals_dash_net_profit'); ?></div>
+                                <div class="proposal-stat-value" id="proposal-dash-net-profit"><?php echo $dash['net_profit'] ?? '-'; ?></div>
+                                <div class="proposal-stat-note">Resultado líquido após impostos e comissão.</div>
                             </div>
                         </div>
                         <div class="col-md-3 mb15">
-                            <div class="card card-body">
-                                <div class="text-muted"><?php echo app_lang('proposals_dash_taxes'); ?></div>
-                                <div class="h4" id="proposal-dash-taxes"><?php echo $dash['taxes_total'] ?? '-'; ?></div>
+                            <div class="proposal-stat-card">
+                                <div class="proposal-stat-label"><?php echo app_lang('proposals_dash_markup_avg'); ?></div>
+                                <div class="proposal-stat-value" id="proposal-dash-markup"><?php echo $dash['markup_avg'] ?? '-'; ?></div>
+                                <div class="proposal-stat-note">Markup médio aplicado sobre o custo.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb15">
+                        <div class="col-md-7 mb15">
+                            <div class="proposal-info-card proposal-summary-grid">
+                                <div class="proposal-info-card-title">Resumo comercial</div>
+                                <div class="proposal-info-list">
+                                    <div class="proposal-info-item">
+                                        <div class="label"><?php echo app_lang('client'); ?></div>
+                                        <div class="value"><?php echo esc($client_label ?: '-'); ?></div>
+                                    </div>
+                                    <div class="proposal-info-item">
+                                        <div class="label"><?php echo app_lang('status'); ?></div>
+                                        <div class="value" id="proposal-dash-status"><?php echo $dash['status'] ?? '-'; ?></div>
+                                    </div>
+                                    <div class="proposal-info-item">
+                                        <div class="label"><?php echo app_lang('proposals_commission'); ?></div>
+                                        <div class="value"><?php echo esc($commission_label); ?></div>
+                                    </div>
+                                    <div class="proposal-info-item">
+                                        <div class="label"><?php echo app_lang('proposals_tax_product_percent'); ?></div>
+                                        <div class="value"><?php echo number_format((float)($proposal_info->tax_product_percent ?? 0), 2, ",", "."); ?>%</div>
+                                    </div>
+                                    <div class="proposal-info-item">
+                                        <div class="label"><?php echo app_lang('proposals_tax_service_percent'); ?></div>
+                                        <div class="value"><?php echo number_format((float)($proposal_info->tax_service_percent ?? 0), 2, ",", "."); ?>%</div>
+                                    </div>
+                                    <div class="proposal-info-item">
+                                        <div class="label"><?php echo app_lang('proposals_tax_service_only'); ?></div>
+                                        <div class="value"><?php echo !empty($proposal_info->tax_service_only) ? app_lang('yes') : app_lang('no'); ?></div>
+                                    </div>
+                                    <div class="proposal-info-item">
+                                        <div class="label"><?php echo app_lang('proposals_dash_created_by'); ?></div>
+                                        <div class="value" id="proposal-dash-created-by"><?php echo $dash['created_by'] ?? '-'; ?></div>
+                                    </div>
+                                    <div class="proposal-info-item">
+                                        <div class="label"><?php echo app_lang('proposals_dash_updated_at'); ?></div>
+                                        <div class="value" id="proposal-dash-updated"><?php echo $dash['updated_at'] ?? '-'; ?></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-5 mb15">
+                            <div class="proposal-breakdown h-100"
+                                data-total="<?php echo (float)($dash['total_sale_n'] ?? 0); ?>"
+                                data-cost="<?php echo (float)(($dash['total_cost_material_n'] ?? 0) + ($dash['total_cost_service_n'] ?? 0)); ?>"
+                                data-tax="<?php echo (float)($dash['taxes_total_n'] ?? 0); ?>"
+                                data-commission="<?php echo (float)($dash['commission_total_n'] ?? 0); ?>"
+                                data-profit="<?php echo (float)($dash['net_profit_n'] ?? 0); ?>">
+                                <div class="proposal-info-card-title mb10"><?php echo app_lang('proposals_dash_breakdown'); ?></div>
+                                <div class="proposal-breakdown-bar">
+                                    <span class="breakdown-cost" style="background:#f39c12;"></span>
+                                    <span class="breakdown-tax" style="background:#e74c3c;"></span>
+                                    <span class="breakdown-commission" style="background:#8e44ad;"></span>
+                                    <span class="breakdown-profit" style="background:#2ecc71;"></span>
+                                </div>
+                                <div class="proposal-breakdown-legend">
+                                    <div><span class="dot" style="background:#f39c12;"></span><?php echo app_lang('proposals_dash_cost_total'); ?></div>
+                                    <div><span class="dot" style="background:#e74c3c;"></span><?php echo app_lang('proposals_dash_taxes'); ?></div>
+                                    <div><span class="dot" style="background:#8e44ad;"></span><?php echo app_lang('proposals_dash_commission'); ?></div>
+                                    <div><span class="dot" style="background:#2ecc71;"></span><?php echo app_lang('proposals_dash_net_profit'); ?></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3 mb15">
+                            <div class="proposal-stat-card">
+                                <div class="proposal-stat-label"><?php echo app_lang('proposals_dash_cost_material'); ?></div>
+                                <div class="proposal-stat-value" id="proposal-dash-cost-material"><?php echo $dash['total_cost_material'] ?? '-'; ?></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb15">
+                            <div class="proposal-stat-card">
+                                <div class="proposal-stat-label"><?php echo app_lang('proposals_dash_cost_service'); ?></div>
+                                <div class="proposal-stat-value" id="proposal-dash-cost-service"><?php echo $dash['total_cost_service'] ?? '-'; ?></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb15">
+                            <div class="proposal-stat-card">
+                                <div class="proposal-stat-label"><?php echo app_lang('proposals_dash_taxes'); ?></div>
+                                <div class="proposal-stat-value" id="proposal-dash-taxes"><?php echo $dash['taxes_total'] ?? '-'; ?></div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb15">
+                            <div class="proposal-stat-card">
+                                <div class="proposal-stat-label"><?php echo app_lang('proposals_dash_commission'); ?></div>
+                                <div class="proposal-stat-value" id="proposal-dash-commission"><?php echo $dash['commission_total'] ?? '-'; ?></div>
                             </div>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-3 mb15">
-                            <div class="card card-body">
-                                <div class="text-muted"><?php echo app_lang('proposals_dash_commission'); ?></div>
-                                <div class="h4" id="proposal-dash-commission"><?php echo $dash['commission_total'] ?? '-'; ?></div>
+                            <div class="proposal-stat-card">
+                                <div class="proposal-stat-label"><?php echo app_lang('proposals_dash_gross_profit'); ?></div>
+                                <div class="proposal-stat-value" id="proposal-dash-gross-profit"><?php echo $dash['gross_profit'] ?? '-'; ?></div>
                             </div>
                         </div>
                         <div class="col-md-3 mb15">
-                            <div class="card card-body">
-                                <div class="text-muted"><?php echo app_lang('proposals_dash_gross_profit'); ?></div>
-                                <div class="h4" id="proposal-dash-gross-profit"><?php echo $dash['gross_profit'] ?? '-'; ?></div>
+                            <div class="proposal-stat-card">
+                                <div class="proposal-stat-label">Impostos + comissão</div>
+                                <div class="proposal-stat-value"><?php echo to_currency((float)(($dash['taxes_total_n'] ?? 0) + ($dash['commission_total_n'] ?? 0))); ?></div>
                             </div>
                         </div>
                         <div class="col-md-3 mb15">
-                            <div class="card card-body">
-                                <div class="text-muted"><?php echo app_lang('proposals_dash_net_profit'); ?></div>
-                                <div class="h4" id="proposal-dash-net-profit"><?php echo $dash['net_profit'] ?? '-'; ?></div>
+                            <div class="proposal-stat-card">
+                                <div class="proposal-stat-label">Resultado antes de taxas</div>
+                                <div class="proposal-stat-value"><?php echo to_currency((float)($dash['gross_profit_n'] ?? 0)); ?></div>
                             </div>
                         </div>
                         <div class="col-md-3 mb15">
-                            <div class="card card-body">
-                                <div class="text-muted"><?php echo app_lang('proposals_dash_markup_avg'); ?></div>
-                                <div class="h4" id="proposal-dash-markup"><?php echo $dash['markup_avg'] ?? '-'; ?></div>
+                            <div class="proposal-stat-card">
+                                <div class="proposal-stat-label"><?php echo app_lang('proposals_dash_created_by'); ?></div>
+                                <div class="proposal-stat-value" style="font-size:18px"><?php echo $dash['created_by'] ?? '-'; ?></div>
                             </div>
-                        </div>
-                    </div>
-                    <div class="row mt10">
-                        <div class="col-md-4">
-                            <div class="text-muted"><?php echo app_lang('status'); ?></div>
-                            <div id="proposal-dash-status"><?php echo $dash['status'] ?? '-'; ?></div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="text-muted"><?php echo app_lang('proposals_dash_updated_at'); ?></div>
-                            <div id="proposal-dash-updated"><?php echo $dash['updated_at'] ?? '-'; ?></div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="text-muted"><?php echo app_lang('proposals_dash_created_by'); ?></div>
-                            <div id="proposal-dash-created-by"><?php echo $dash['created_by'] ?? '-'; ?></div>
                         </div>
                     </div>
                     <?php
@@ -514,6 +682,121 @@ $sections_dropdown_html .= proposals_render_section_options($sections, null, 0);
         </div>
     </div>
 </div>
+
+<?php if ($can_manage && !empty($proposal_info->id)) { ?>
+    <div class="modal fade" id="proposal-approve-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Aprovar proposta</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo app_lang('close'); ?>"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="proposal-approve-form">
+                        <input type="hidden" name="id" value="<?php echo (int)$proposal_info->id; ?>">
+                        <div class="form-check mb10">
+                            <input class="form-check-input" type="checkbox" id="proposal-create-project" name="create_project" value="1" checked>
+                            <label class="form-check-label" for="proposal-create-project">
+                                Criar novo projeto com os dados do cliente e o valor total da proposta
+                            </label>
+                        </div>
+                        <div class="form-check mb10">
+                            <input class="form-check-input" type="checkbox" id="proposal-create-purchase-request" name="create_purchase_request" value="1">
+                            <label class="form-check-label" for="proposal-create-purchase-request">
+                                Criar requisição de compra
+                            </label>
+                        </div>
+
+                        <div class="proposal-approve-request-section hide" id="proposal-purchase-request-section">
+                            <div class="mb10 text-muted">
+                                Selecione os itens que devem entrar na requisição. Você também pode adicionar linhas novas.
+                            </div>
+                            <div class="row mb15">
+                                <div class="col-md-4">
+                                    <div class="form-check mt10">
+                                        <input class="form-check-input" type="checkbox" id="proposal-select-all-request-items">
+                                        <label class="form-check-label" for="proposal-select-all-request-items">
+                                            Selecionar todos os itens
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="proposal-bulk-request-date" class="mb5">Aplicar data de entrega em todos</label>
+                                    <input type="date" class="form-control" id="proposal-bulk-request-date" value="<?php echo esc($default_desired_date); ?>">
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:6%"></th>
+                                            <th style="width:34%">Item</th>
+                                            <th style="width:12%"><?php echo app_lang('quantity'); ?></th>
+                                            <th style="width:12%"><?php echo app_lang('unit'); ?></th>
+                                            <th style="width:16%">Data desejada</th>
+                                            <th style="width:20%"><?php echo app_lang('notes'); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($requestable_items as $request_item) { ?>
+                                            <tr>
+                                                <td class="text-center">
+                                                    <input type="checkbox" class="proposal-request-item-checkbox" name="request_item_selected[<?php echo $request_item['id']; ?>]" value="1">
+                                                </td>
+                                                <td>
+                                                    <?php echo esc($request_item['title']); ?>
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control" name="request_item_quantity[<?php echo $request_item['id']; ?>]" value="<?php echo esc($request_item['qty'] ?: 1); ?>">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control" name="request_item_unit[<?php echo $request_item['id']; ?>]" value="<?php echo esc($request_item['unit'] ?: 'UN'); ?>">
+                                                </td>
+                                                <td>
+                                                    <input type="date" class="form-control proposal-request-date-input" name="request_item_desired_date[<?php echo $request_item['id']; ?>]" value="<?php echo esc($default_desired_date); ?>">
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control" name="request_item_note[<?php echo $request_item['id']; ?>]">
+                                                </td>
+                                            </tr>
+                                        <?php } ?>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mt15 mb10">
+                                <strong>Novos itens</strong>
+                                <button type="button" class="btn btn-default btn-sm" id="proposal-add-request-row">
+                                    <i data-feather="plus" class="icon-16"></i> <?php echo app_lang('add'); ?>
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered" id="proposal-new-request-items-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:22%">Produto</th>
+                                            <th style="width:24%">Descrição</th>
+                                            <th style="width:10%"><?php echo app_lang('quantity'); ?></th>
+                                            <th style="width:10%"><?php echo app_lang('unit'); ?></th>
+                                            <th style="width:16%">Data desejada</th>
+                                            <th style="width:14%"><?php echo app_lang('notes'); ?></th>
+                                            <th style="width:4%"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-bs-dismiss="modal"><?php echo app_lang('close'); ?></button>
+                    <button type="button" class="btn btn-primary" id="proposal-approve-submit">Confirmar aprovação</button>
+                </div>
+            </div>
+        </div>
+    </div>
+<?php } ?>
 
 <script type="text/javascript">
     (function () {
@@ -678,6 +961,10 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
         var tabStorageKey = "proposal-view-active-tab-" + proposalId;
         var $proposalTabs = $('.nav-tabs a[data-bs-toggle="tab"][href^="#proposal-"]');
         var savedTab = localStorage.getItem(tabStorageKey);
+        var newRequestItemOptionsHtml = <?php echo json_encode($items_options_html ?? ""); ?>;
+        var $materialRequestItemOptions = $("<div>").html(newRequestItemOptionsHtml);
+        $materialRequestItemOptions.find("option[data-type='service']").remove();
+        newRequestItemOptionsHtml = $materialRequestItemOptions.html();
 
         if (savedTab) {
             var $savedTabLink = $proposalTabs.filter('[href="' + savedTab + '"]');
@@ -720,6 +1007,98 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
                         appAlert.success(result.status || "", {duration: 4000});
                     } else {
                         appAlert.error(result.message || "<?php echo app_lang('error_occurred'); ?>");
+                    }
+                }
+            });
+        });
+
+        $("#proposal-create-purchase-request").on("change", function () {
+            $("#proposal-purchase-request-section").toggleClass("hide", !$(this).is(":checked"));
+        }).trigger("change");
+
+        $("#proposal-add-request-row").on("click", function () {
+            var bulkRequestDate = $("#proposal-bulk-request-date").val() || "<?php echo esc($default_desired_date); ?>";
+            var rowHtml = '' +
+                '<tr>' +
+                    '<td><select name="new_item_id[]" class="form-control proposal-request-new-item-select">' + newRequestItemOptionsHtml + '</select></td>' +
+                    '<td><input type="text" name="new_item_description[]" class="form-control"></td>' +
+                    '<td><input type="text" name="new_item_quantity[]" class="form-control" value="1"></td>' +
+                    '<td><input type="text" name="new_item_unit[]" class="form-control" value="UN"></td>' +
+                    '<td><input type="date" name="new_item_desired_date[]" class="form-control proposal-request-date-input" value="' + bulkRequestDate + '"></td>' +
+                    '<td><input type="text" name="new_item_note[]" class="form-control"></td>' +
+                    '<td class="text-center"><a href="#" class="text-danger proposal-remove-request-row"><i data-feather="x" class="icon-16"></i></a></td>' +
+                '</tr>';
+
+            $("#proposal-new-request-items-table tbody").append(rowHtml);
+            if (window.feather) {
+                window.feather.replace();
+            }
+        });
+
+        $(document).on("click", ".proposal-remove-request-row", function (e) {
+            e.preventDefault();
+            $(this).closest("tr").remove();
+        });
+
+        $(document).on("change", ".proposal-request-new-item-select", function () {
+            var $option = $(this).find("option:selected");
+            var $row = $(this).closest("tr");
+            var $description = $row.find("input[name='new_item_description[]']");
+            var $unit = $row.find("input[name='new_item_unit[]']");
+
+            if (!$description.val()) {
+                $description.val($.trim($option.text()) === "-" ? "" : $.trim($option.text()));
+            }
+            if ($option.data("unit")) {
+                $unit.val($option.data("unit"));
+            }
+        });
+
+        $("#proposal-select-all-request-items").on("change", function () {
+            $(".proposal-request-item-checkbox").prop("checked", $(this).is(":checked"));
+        });
+
+        $("#proposal-bulk-request-date").on("change", function () {
+            var value = $(this).val();
+            if (!value) {
+                return;
+            }
+            $(".proposal-request-date-input").val(value);
+        });
+
+        $("#proposal-approve-submit").on("click", function () {
+            appAjaxRequest({
+                url: "<?php echo_uri('propostas/approve'); ?>",
+                type: "POST",
+                dataType: "json",
+                data: $("#proposal-approve-form").serialize(),
+                success: function (result) {
+                    if (result && result.success) {
+                        window.location.href = result.redirect_to || "<?php echo_uri('propostas/view/' . (int)($proposal_info->id ?? 0)); ?>";
+                    } else {
+                        appAlert.error((result && result.message) || "<?php echo app_lang('error_occurred'); ?>");
+                    }
+                }
+            });
+        });
+
+        $("#proposal-duplicate-button").on("click", function () {
+            if (!confirm("Deseja duplicar esta proposta?")) {
+                return;
+            }
+
+            appAjaxRequest({
+                url: "<?php echo_uri('propostas/duplicate'); ?>",
+                type: "POST",
+                dataType: "json",
+                data: {
+                    id: proposalId
+                },
+                success: function (result) {
+                    if (result && result.success) {
+                        window.location.href = result.redirect_to;
+                    } else {
+                        appAlert.error((result && result.message) || "<?php echo app_lang('error_occurred'); ?>");
                     }
                 }
             });
