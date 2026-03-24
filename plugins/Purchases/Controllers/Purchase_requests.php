@@ -306,6 +306,7 @@ class Purchase_requests extends Security_Controller
         ))->getResult();
 
         $view_data['can_edit'] = $this->_can_edit($request);
+        $view_data['can_delete'] = $this->_can_delete($request);
         $view_data['can_submit'] = $this->_can_submit($request);
         $view_data['can_approve'] = $this->_can_approve($request);
         $view_data['can_convert'] = $this->_can_convert($request);
@@ -745,6 +746,29 @@ class Purchase_requests extends Security_Controller
         ));
     }
 
+    public function delete()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $id = (int)$this->request->getPost('id');
+        if (!$id) {
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
+        }
+
+        $request = $this->_get_request_or_404($id);
+        if (!$this->_can_delete($request)) {
+            return $this->_json_permission_denied();
+        }
+
+        if ($this->Purchases_requests_model->delete($id)) {
+            return $this->response->setJSON(array('success' => true, 'message' => app_lang('record_deleted')));
+        }
+
+        return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+    }
+
     public function get_item_suggestion()
     {
         if (!$this->_has_view_permission()) {
@@ -809,6 +833,15 @@ class Purchase_requests extends Security_Controller
         $actions = anchor(get_uri('purchases_requests/view/' . $data->id), "<i data-feather='external-link' class='icon-16'></i>", array('title' => app_lang('view_details'), 'class' => 'btn btn-sm btn-outline-secondary'));
         if ($this->_can_edit($data)) {
             $actions .= ' ' . anchor(get_uri('purchases_requests/request_form/' . $data->id), "<i data-feather='edit' class='icon-16'></i>", array('title' => app_lang('edit'), 'class' => 'btn btn-sm btn-outline-secondary'));
+        }
+        if ($this->_can_delete($data)) {
+            $actions .= ' ' . js_anchor("<i data-feather='x' class='icon-16'></i>", array(
+                'title' => app_lang('delete'),
+                'class' => 'btn btn-sm btn-outline-danger delete',
+                'data-id' => $data->id,
+                'data-action-url' => get_uri('purchases_requests/delete'),
+                'data-action' => 'delete-confirmation'
+            ));
         }
 
         $created_at = $data->created_at ? format_to_date($data->created_at, false) : '-';
@@ -1102,6 +1135,11 @@ class Purchase_requests extends Security_Controller
         }
 
         return $requested_by === (int)$this->login_user->id;
+    }
+
+    private function _can_delete($request)
+    {
+        return $this->_can_edit($request);
     }
 
     private function _can_reopen($request)

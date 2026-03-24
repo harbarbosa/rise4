@@ -2,15 +2,23 @@
 
 // execute SQL for Purchases plugin
 $install_file = __DIR__ . '/install.sql';
-if (!file_exists($install_file)) {
+$compressed_install_file = __DIR__ . '/install.sql.gz';
+
+if (file_exists($install_file)) {
+    $sql = file_get_contents($install_file);
+    $source_file = 'install.sql';
+} elseif (file_exists($compressed_install_file)) {
+    $compressed_sql = file_get_contents($compressed_install_file);
+    $sql = $compressed_sql ? gzdecode($compressed_sql) : false;
+    $source_file = 'install.sql.gz';
+} else {
     return array("success" => false, "errors" => array("install.sql not found"));
 }
 
 $db = db_connect('default');
 $dbprefix = get_db_prefix();
-$sql = file_get_contents($install_file);
 if (!$sql) {
-    return array("success" => false, "errors" => array("install.sql is empty"));
+    return array("success" => false, "errors" => array($source_file . " is empty or invalid"));
 }
 
 $result = array(

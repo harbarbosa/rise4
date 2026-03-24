@@ -26,6 +26,14 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                 <?php if ($can_edit) { ?>
                     <?php echo anchor(get_uri('purchases_requests/request_form/' . $info->id), "<i data-feather='edit' class='icon-16'></i> " . app_lang('edit'), array('class' => 'btn btn-default')); ?>
                 <?php } ?>
+                <?php if (!empty($can_delete)) { ?>
+                    <?php echo js_anchor("<i data-feather='x' class='icon-16'></i> " . app_lang('delete'), array(
+                        'class' => 'btn btn-danger delete',
+                        'data-id' => $info->id,
+                        'data-action-url' => get_uri('purchases_requests/delete'),
+                        'data-action' => 'delete-confirmation'
+                    )); ?>
+                <?php } ?>
                 <?php if (!empty($can_reopen)) { ?>
                     <button type="button" class="btn btn-warning js-reopen-request" data-id="<?php echo esc($info->id); ?>">
                         <i data-feather='rotate-ccw' class='icon-16'></i> <?php echo app_lang('purchases_reopen_request'); ?>
