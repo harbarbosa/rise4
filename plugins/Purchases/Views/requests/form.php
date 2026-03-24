@@ -81,7 +81,13 @@ foreach ($items_dropdown_list as $key => $value) {
                 <div class="row mb15">
                     <div class="col-md-6">
                         <label for="items_import_file" class="form-label"><?php echo app_lang('purchases_import_items_excel'); ?></label>
-                        <input type="file" id="items_import_file" name="items_import_file" class="form-control" accept=".csv,text/csv,application/vnd.ms-excel" />
+                        <input type="file" id="items_import_file" name="items_import_file" style="position:absolute; left:-9999px;" accept=".csv,text/csv,application/vnd.ms-excel" />
+                        <div>
+                            <button type="button" id="select-items-import-file" class="btn btn-default">
+                                <i data-feather='upload' class='icon-16'></i> <?php echo app_lang('purchases_select_import_file'); ?>
+                            </button>
+                            <span id="items_import_file_name" class="text-muted" style="margin-left:10px;"><?php echo app_lang('no_file_chosen'); ?></span>
+                        </div>
                         <small class="text-muted"><?php echo app_lang('purchases_import_items_excel_help'); ?></small>
                     </div>
                 </div>
@@ -311,6 +317,15 @@ foreach ($items_dropdown_list as $key => $value) {
 
             $(document).on('click', '.remove-item', function () {
                 window.purchasesRemoveItemRow(this);
+            });
+
+            $("#select-items-import-file").on("click", function () {
+                $("#items_import_file").trigger("click");
+            });
+
+            $("#items_import_file").on("change", function () {
+                var fileName = this.files && this.files.length ? this.files[0].name : <?php echo json_encode(app_lang('no_file_chosen')); ?>;
+                $("#items_import_file_name").text(fileName);
             });
         });
 
