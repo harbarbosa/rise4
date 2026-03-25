@@ -8,6 +8,7 @@ $routes = Services::routes();
 $routes->get('projectanalizer', 'ProjectAnalizer::index', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/evolution_project/(:num)', 'Tasks::evolution_project/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/evolucao/(:num)', 'Projectanalizer_projects::evolucao/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->get('projectanalizer/revenues_expenses/(:num)', 'Projectanalizer_projects::revenues_expenses/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/evolucao/reschedule_modal_form/(:num)', 'Projectanalizer_projects::reschedule_modal_form/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/evolucao/reschedule_modal_form/(:num)', 'Projectanalizer_projects::reschedule_modal_form/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/evolucao/generate_baseline/(:num)', 'Projectanalizer_projects::generate_baseline/$1', ['namespace' => 'ProjectAnalizer\Controllers']);

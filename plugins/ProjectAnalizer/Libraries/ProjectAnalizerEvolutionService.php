@@ -268,6 +268,10 @@ class ProjectAnalizerEvolutionService
         $metrics_map = $this->get_task_metrics_map($task_ids);
         $costs_map = $this->get_task_costs_map($task_ids);
         $manual_rows_map = $this->get_task_manual_cashflow_rows($task_ids);
+        $planned_query = $this->task_costs_model->get_details(array(
+            "project_id" => $project_id
+        ));
+        $planned_rows = $planned_query ? $planned_query->getResult() : array();
 
         $realized_query = $this->cost_realized_model->get_details(array(
             "project_id" => $project_id
@@ -333,6 +337,12 @@ class ProjectAnalizerEvolutionService
                 }
 
                 $planned_month_total += $planned_value;
+            }
+
+            foreach ($planned_rows as $row) {
+                if (!empty($row->planned_date) && (empty($row->task_id) || (int)$row->task_id === 0) && $row->planned_date <= $month_end) {
+                    $planned_month_total += (float)$row->planned_value;
+                }
             }
 
             $realized_total = 0;

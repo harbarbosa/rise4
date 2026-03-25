@@ -185,6 +185,7 @@
                             "placeholder" => app_lang('milestone')
                         ));
                         ?>
+                        <div id="milestone-percentage-summary" class="mt10 hide"></div>
                     </div>
                 </div>
             </div>
@@ -617,12 +618,66 @@
 
         $("#save-and-show-button, #save-and-add-button").click(function() {
             window.showAddNewModal = true;
-            $(this).trigger("submit");
+            $("#task-form").trigger("submit");
         });
 
         var taskShowText = "<?php echo app_lang('task_info') ?>",
             multipleTaskAddText = "<?php echo app_lang('add_multiple_tasks') ?>",
             addType = "<?php echo $add_type; ?>";
+
+        function escapeMilestoneSummaryText(text) {
+            return $("<div>").text(text || "").html();
+        }
+
+        function renderMilestonePercentageSummary(result) {
+            var allocated = parseFloat(result.allocated_percentage || 0);
+            var remaining = parseFloat(result.remaining_percentage || 0);
+            var currentTask = parseFloat(result.current_task_percentage || 0);
+            var progressClass = allocated >= 100 ? "bg-success" : "bg-primary";
+            var summaryHtml = "<div class='alert alert-info mb0'>" +
+                "<div><strong>Etapa:</strong> " + escapeMilestoneSummaryText(result.milestone_title) + "</div>" +
+                "<div><strong>Percentual já lançado:</strong> " + result.allocated_percentage + "%</div>" +
+                "<div><strong>Saldo disponível:</strong> " + result.remaining_percentage + "%</div>";
+
+            if (currentTask > 0) {
+                summaryHtml += "<div><strong>Percentual atual desta tarefa:</strong> " + result.current_task_percentage + "%</div>";
+            }
+
+            summaryHtml += "<div class='progress mt10 mb0' title='" + result.allocated_percentage + "%'>" +
+                    "<div class='progress-bar " + progressClass + "' role='progressbar' aria-valuenow='" + result.allocated_percentage + "' aria-valuemin='0' aria-valuemax='100' style='width: " + Math.min(100, allocated) + "%;'></div>" +
+                "</div>" +
+            "</div>";
+
+            $("#milestone-percentage-summary").html(summaryHtml).removeClass("hide");
+        }
+
+        window.loadMilestonePercentageSummary = function (milestoneId) {
+            if (!milestoneId) {
+                $("#milestone-percentage-summary").addClass("hide").empty();
+                return;
+            }
+
+            appAjaxRequest({
+                url: "<?php echo get_uri('projectanalizer/get_milestone_percentage_summary'); ?>",
+                type: "POST",
+                dataType: "json",
+                data: {
+                    milestone_id: milestoneId,
+                    project_id: "<?php echo (int) $project_id; ?>",
+                    task_id: "<?php echo isset($model_info->id) ? (int) $model_info->id : 0; ?>"
+                },
+                success: function (result) {
+                    if (result && result.success) {
+                        renderMilestonePercentageSummary(result);
+                    } else {
+                        $("#milestone-percentage-summary").addClass("hide").empty();
+                    }
+                },
+                error: function () {
+                    $("#milestone-percentage-summary").addClass("hide").empty();
+                }
+            });
+        };
 
         window.taskForm = $("#task-form").appForm({
             closeModalOnSuccess: false,
@@ -948,6 +1003,14 @@
         });
 
         $(".labor-profile-select").select2();
+
+        $(document).on("change", "#milestone_id", function () {
+            window.loadMilestonePercentageSummary($(this).val());
+        });
+
+        setTimeout(function () {
+            window.loadMilestonePercentageSummary($("#milestone_id").val());
+        }, 300);
 
     });
 </script>

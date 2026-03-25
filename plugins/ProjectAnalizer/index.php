@@ -23,7 +23,7 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
     
 app_hooks()->add_action('app_hook_after_signin', function () {
  
-    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,notes,files,comments,teamactivities';
+    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,teamactivities';
  
 
     $save_setting = new \App\Models\Settings_model();
@@ -40,7 +40,7 @@ app_hooks()->add_action('app_hook_after_signin', function () {
 // "evolucao_ff" exista mesmo sem precisar sair/entrar no sistema.
 app_hooks()->add_action('app_hook_before_app_access', function () {
     try {
-        $desired_default = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,notes,files,comments,teamactivities';
+        $desired_default = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,teamactivities';
 
         $normalize = function ($value) use ($desired_default) {
             $value = is_string($value) ? trim($value) : "";
@@ -68,6 +68,14 @@ app_hooks()->add_action('app_hook_before_app_access', function () {
                     $tabs[] = "evolution_project";
                 } else {
                     array_splice($tabs, $pos + 1, 0, array("evolution_project"));
+                }
+            }
+            if (!in_array("revenues_expenses_section", $tabs, true)) {
+                $pos = array_search("evolucao_ff", $tabs, true);
+                if ($pos === false) {
+                    $tabs[] = "revenues_expenses_section";
+                } else {
+                    array_splice($tabs, $pos + 1, 0, array("revenues_expenses_section"));
                 }
             }
 
@@ -176,6 +184,7 @@ app_hooks()->add_filter('app_filter_team_members_project_details_tab', function 
     $project_tabs_of_hook_of_staff["etapas"] = "projectanalizer/etapas/".$project_id;
     // rota conforme padrão solicitado: /projects/{project_id}/projectanalizer/evolucao
     $project_tabs_of_hook_of_staff["evolucao_ff"] = "projectanalizer/evolucao/".$project_id;
+    $project_tabs_of_hook_of_staff["revenues_expenses_section"] = "projectanalizer/revenues_expenses/".$project_id;
     $project_tabs_of_hook_of_staff["evolution_project"] = "projectanalizer/evolution_project/".$project_id;
     $project_tabs_of_hook_of_staff["teamactivities"] = "projectanalizer/timesheets/".$project_id;
     $project_tabs_of_hook_of_staff["project_items"] = "projectanalizer/projectitens/".$project_id;
@@ -196,7 +205,7 @@ app_hooks()->add_filter('app_filter_admin_settings_menu', function ($settings_me
 register_installation_hook("ProjectAnalizer", function ($item_purchase_code) {
     
 
-    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,notes,files,comments,teamactivities';
+    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,teamactivities';
  
 
     $save_setting = new \App\Models\Settings_model();
@@ -307,7 +316,9 @@ register_installation_hook("ProjectAnalizer", function ($item_purchase_code) {
         $db->query("CREATE TABLE IF NOT EXISTS `" . $dbprefix . "projectanalizer_task_costs` (
             `id` INT(11) NOT NULL AUTO_INCREMENT,
             `task_id` INT(11) NOT NULL,
+            `project_id` INT(11) NULL DEFAULT NULL,
             `cost_type` VARCHAR(25) NOT NULL,
+            `planned_date` DATE NULL DEFAULT NULL,
             `planned_value` DECIMAL(20,4) NOT NULL DEFAULT 0,
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -429,7 +440,7 @@ register_update_hook("ProjectAnalizer", function () {
     $dbprefix = get_db_prefix();
     $messages = array();
 
-    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,notes,files,comments,teamactivities';
+    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,teamactivities';
     $save_setting = new \App\Models\Settings_model();
     $save_setting->save_setting('project_tab_order', $project_tabs);
     $messages[] = "Updated project_tab_order";
@@ -509,7 +520,9 @@ register_update_hook("ProjectAnalizer", function () {
     $db->query("CREATE TABLE IF NOT EXISTS `" . $dbprefix . "projectanalizer_task_costs` (
         `id` INT(11) NOT NULL AUTO_INCREMENT,
         `task_id` INT(11) NOT NULL,
+        `project_id` INT(11) NULL DEFAULT NULL,
         `cost_type` VARCHAR(25) NOT NULL,
+        `planned_date` DATE NULL DEFAULT NULL,
         `planned_value` DECIMAL(20,4) NOT NULL DEFAULT 0,
         `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
         `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -665,7 +678,9 @@ register_update_hook("ProjectAnalizer", function () {
             "weight" => "ALTER TABLE `" . $dbprefix . "projectanalizer_task_metrics` MODIFY `weight` DECIMAL(5,2) NOT NULL DEFAULT 1;"
         ),
         "projectanalizer_task_costs" => array(
-            "deleted" => "ALTER TABLE `" . $dbprefix . "projectanalizer_task_costs` ADD COLUMN `deleted` TINYINT(1) NOT NULL DEFAULT 0;"
+            "deleted" => "ALTER TABLE `" . $dbprefix . "projectanalizer_task_costs` ADD COLUMN `deleted` TINYINT(1) NOT NULL DEFAULT 0;",
+            "project_id" => "ALTER TABLE `" . $dbprefix . "projectanalizer_task_costs` ADD COLUMN `project_id` INT(11) NULL DEFAULT NULL AFTER `task_id`;",
+            "planned_date" => "ALTER TABLE `" . $dbprefix . "projectanalizer_task_costs` ADD COLUMN `planned_date` DATE NULL DEFAULT NULL AFTER `cost_type`;"
         ),
         "projectanalizer_cost_realized" => array(
             "deleted" => "ALTER TABLE `" . $dbprefix . "projectanalizer_cost_realized` ADD COLUMN `deleted` TINYINT(1) NOT NULL DEFAULT 0;"

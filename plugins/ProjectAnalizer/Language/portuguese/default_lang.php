@@ -84,6 +84,7 @@ $lang["cost_labor"] = "Mao de obra";
 $lang["cost_mao_obra"] = "Mao de obra";
 $lang["cost_service"] = "Servico";
 $lang["cost_third_party"] = "Terceiros";
+$lang["cost_terceiros"] = "Terceiros";
 $lang["cost_other"] = "Outros";
 $lang["execution_team_by_profile"] = "EQUIPE DE EXECUCAO (POR PERFIL)";
 $lang["labor_profile"] = "Perfil";

@@ -62,6 +62,7 @@ $lang['cost_material'] = 'Material';
 $lang['cost_labor'] = 'Labor';
 $lang['cost_service'] = 'Service';
 $lang['cost_third_party'] = 'Third party';
+$lang['cost_terceiros'] = 'Third party';
 $lang['cost_other'] = 'Other';
 $lang['realized_financial_today'] = 'Realized financial today';
 $lang['financial_deviation'] = 'Financial deviation';

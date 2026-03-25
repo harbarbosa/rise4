@@ -28,11 +28,32 @@ class Projectanalizer_projects extends Security_Controller
 
     public function evolucao($project_id = 0)
     {
+        $view_data = $this->_get_evolution_view_data($project_id);
 
-      
+        if ($this->request->isAJAX()) {
+            return $this->template->view('ProjectAnalizer\\Views\\evolution\\index', $view_data);
+        }
+
+        return $this->template->render('ProjectAnalizer\\Views\\evolution\\index', $view_data);
+    }
+
+    public function revenues_expenses($project_id = 0)
+    {
+        $view_data = $this->_get_evolution_view_data($project_id);
+
+        if ($this->request->isAJAX()) {
+            return $this->template->view('ProjectAnalizer\\Views\\evolution\\revenues_expenses', $view_data);
+        }
+
+        return $this->template->render('ProjectAnalizer\\Views\\evolution\\revenues_expenses', $view_data);
+    }
+
+    private function _get_evolution_view_data($project_id)
+    {
         validate_numeric_value($project_id);
         $this->access_only_team_members();
         $this->init_project_permission_checker($project_id);
+        $this->_ensure_task_costs_columns();
 
         $project_info = $this->Projects_model->get_details(array(
             "id" => $project_id,
@@ -52,7 +73,7 @@ class Projectanalizer_projects extends Security_Controller
             return $task->id;
         }, $tasks);
         $task_costs_model = new Task_costs_model();
-        $costs_query = $task_ids ? $task_costs_model->get_details(array("task_ids" => $task_ids)) : null;
+        $costs_query = $task_costs_model->get_details(array("project_id" => $project_id, "task_ids" => $task_ids));
         $task_costs = $costs_query ? $costs_query->getResult() : array();
         $metrics_map = $this->evolution_service->get_task_metrics_map($task_ids);
         $cost_realized_model = new Cost_realized_model();
@@ -133,7 +154,7 @@ class Projectanalizer_projects extends Security_Controller
         $cashflow_summary = $this->cashflow_service->getMonthlySummary($project_id);
         $cashflow_cards = $this->cashflow_service->getCards($project_id);
 
-        $view_data = array(
+        return array(
             "project_id" => $project_id,
             "project_info" => $project_info,
             "summary" => $summary,
@@ -158,12 +179,6 @@ class Projectanalizer_projects extends Security_Controller
                 "date_to" => $filter_date_to
             )
         );
-
-        if ($this->request->isAJAX()) {
-            return $this->template->view('ProjectAnalizer\\Views\\evolution\\index', $view_data);
-        }
-
-        return $this->template->render('ProjectAnalizer\\Views\\evolution\\index', $view_data);
     }
 
     public function generate_baseline($project_id = 0)
@@ -251,6 +266,7 @@ class Projectanalizer_projects extends Security_Controller
             $labor_total = get_array_value($labor_info, "total");
             $labor_profiles = (int)get_array_value($labor_info, "profiles");
             if ($labor_profiles > 0) {
+                $labor_planned_date = $start_date ? $start_date : $baseline_start;
                 $existing_cost = $task_costs_model->get_details(array(
                     "task_id" => $task->id,
                     "cost_type" => "mao_obra"
@@ -260,7 +276,9 @@ class Projectanalizer_projects extends Security_Controller
                     if ($overwrite_labor) {
                         $task_costs_model->save(array(
                             "id" => $existing_cost->id,
+                            "project_id" => $project_id,
                             "task_id" => $task->id,
+                            "planned_date" => $labor_planned_date,
                             "cost_type" => "mao_obra",
                             "planned_value" => $labor_total
                         ));
@@ -270,7 +288,9 @@ class Projectanalizer_projects extends Security_Controller
                     }
                 } else {
                     $task_costs_model->save(array(
+                        "project_id" => $project_id,
                         "task_id" => $task->id,
+                        "planned_date" => $labor_planned_date,
                         "cost_type" => "mao_obra",
                         "planned_value" => $labor_total
                     ));
@@ -648,6 +668,7 @@ class Projectanalizer_projects extends Security_Controller
         validate_numeric_value($project_id);
         $this->access_only_team_members();
         $this->init_project_permission_checker($project_id);
+        $this->_ensure_task_costs_columns();
 
         $project_info = $this->Projects_model->get_details(array(
             "id" => $project_id,
@@ -658,26 +679,13 @@ class Projectanalizer_projects extends Security_Controller
             show_404();
         }
 
-        $tasks = $this->Tasks_model->get_details(array("project_id" => $project_id, "deleted" => 0))->getResult();
-        $milestones = $this->Milestones_model->get_details(array("project_id" => $project_id, "deleted" => 0))->getResult();
-        $milestone_title_map = array();
-        foreach ($milestones as $milestone) {
-            $milestone_title_map[$milestone->id] = $milestone->title;
-        }
-
-        $task_dropdown = array();
-        foreach ($tasks as $task) {
-            $milestone_title = get_array_value($milestone_title_map, $task->milestone_id, "");
-            $task_dropdown[$task->id] = ($milestone_title ? ($milestone_title . " - ") : "") . $task->title;
-        }
-
-        $metrics_model = new Task_metrics_model();
-        $metrics_map = $this->evolution_service->get_task_metrics_map(array_keys($task_dropdown));
+        $id = (int)$this->request->getPost("id");
+        $task_costs_model = new Task_costs_model();
+        $model_info = $id ? $task_costs_model->get_details(array("id" => $id, "project_id" => $project_id))->getRow() : null;
 
         $view_data = array(
             "project_id" => $project_id,
-            "task_dropdown" => $task_dropdown,
-            "metrics_map" => $metrics_map
+            "model_info" => $model_info
         );
 
         return $this->template->view("ProjectAnalizer\\Views\\evolution\\cost_modal_form", $view_data);
@@ -688,36 +696,28 @@ class Projectanalizer_projects extends Security_Controller
         validate_numeric_value($project_id);
         $this->access_only_team_members();
         $this->init_project_permission_checker($project_id);
+        $this->_ensure_task_costs_columns();
 
-        $task_id = (int)$this->request->getPost("task_id");
+        $id = (int)$this->request->getPost("id");
+        $planned_date = $this->request->getPost("planned_date");
         $cost_type = $this->request->getPost("cost_type");
         $planned_value = unformat_currency($this->request->getPost("planned_value"));
-        $distribution_type = $this->request->getPost("distribution_type");
 
-        if (!$task_id || !$cost_type) {
+        if (!$planned_date || !$cost_type || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $planned_date)) {
             return $this->response->setJSON(array("success" => false, "message" => app_lang("invalid_request")));
         }
 
         $task_costs_model = new Task_costs_model();
         $task_costs_model->save(array(
-            "task_id" => $task_id,
+            "id" => $id,
+            "project_id" => $project_id,
+            "task_id" => 0,
+            "planned_date" => $planned_date,
             "cost_type" => $cost_type,
             "planned_value" => $planned_value ? $planned_value : 0
         ));
 
-        $metrics_model = new Task_metrics_model();
-        $metric = $metrics_model->get_details(array("task_id" => $task_id))->getRow();
-        $metric_data = array(
-            "task_id" => $task_id,
-            "distribution_type" => $distribution_type ? $distribution_type : "linear",
-            "weight" => $metric && is_numeric($metric->weight) ? $metric->weight : 1
-        );
-        if ($metric) {
-            $metric_data["id"] = $metric->id;
-        }
-        $metrics_model->save($metric_data);
-
-        $this->log_audit($project_id, "planned_cost_saved", "Task {$task_id} - {$cost_type} = {$planned_value}");
+        $this->log_audit($project_id, $id ? "planned_cost_updated" : "planned_cost_saved", "Date {$planned_date} - {$cost_type} = {$planned_value}");
 
         return $this->response->setJSON(array("success" => true, "message" => app_lang("record_saved")));
     }
@@ -741,6 +741,29 @@ class Projectanalizer_projects extends Security_Controller
         return $this->response->setJSON(array("success" => true, "message" => app_lang("record_deleted")));
     }
 
+    private function _ensure_task_costs_columns()
+    {
+        try {
+            $db = db_connect("default");
+            $table = get_db_prefix() . "projectanalizer_task_costs";
+            if (!$db->tableExists($table)) {
+                return;
+            }
+
+            $project_column = $db->query("SHOW COLUMNS FROM `" . $table . "` LIKE 'project_id'")->getRow();
+            if (!$project_column) {
+                $db->query("ALTER TABLE `" . $table . "` ADD COLUMN `project_id` INT(11) NULL DEFAULT NULL AFTER `task_id`;");
+            }
+
+            $date_column = $db->query("SHOW COLUMNS FROM `" . $table . "` LIKE 'planned_date'")->getRow();
+            if (!$date_column) {
+                $db->query("ALTER TABLE `" . $table . "` ADD COLUMN `planned_date` DATE NULL DEFAULT NULL AFTER `cost_type`;");
+            }
+        } catch (\Throwable $e) {
+            log_message("error", "[ProjectAnalizer] Failed to ensure planned cost columns: " . $e->getMessage());
+        }
+    }
+
     public function realized_modal_form($project_id = 0)
     {
         validate_numeric_value($project_id);
@@ -756,15 +779,13 @@ class Projectanalizer_projects extends Security_Controller
             show_404();
         }
 
-        $tasks = $this->Tasks_model->get_details(array("project_id" => $project_id, "deleted" => 0))->getResult();
-        $task_dropdown = array("" => "-");
-        foreach ($tasks as $task) {
-            $task_dropdown[$task->id] = $task->title;
-        }
+        $id = (int)$this->request->getPost("id");
+        $cost_realized_model = new Cost_realized_model();
+        $model_info = $id ? $cost_realized_model->get_details(array("id" => $id, "project_id" => $project_id))->getRow() : null;
 
         $view_data = array(
             "project_id" => $project_id,
-            "task_dropdown" => $task_dropdown
+            "model_info" => $model_info
         );
 
         return $this->template->view("ProjectAnalizer\\Views\\evolution\\realized_modal_form", $view_data);
@@ -839,10 +860,10 @@ class Projectanalizer_projects extends Security_Controller
         $this->access_only_team_members();
         $this->init_project_permission_checker($project_id);
 
+        $id = (int)$this->request->getPost("id");
         $date = $this->request->getPost("date");
         $value = unformat_currency($this->request->getPost("value"));
         $cost_type = $this->request->getPost("cost_type");
-        $task_id = (int)$this->request->getPost("task_id");
         $description = $this->request->getPost("description");
 
         if (!$date || !$cost_type || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $date)) {
@@ -851,8 +872,9 @@ class Projectanalizer_projects extends Security_Controller
 
         $cost_realized_model = new Cost_realized_model();
         $cost_realized_model->save(array(
+            "id" => $id,
             "project_id" => $project_id,
-            "task_id" => $task_id ? $task_id : null,
+            "task_id" => null,
             "cost_type" => $cost_type,
             "date" => $date,
             "value" => $value ? $value : 0,
@@ -860,7 +882,7 @@ class Projectanalizer_projects extends Security_Controller
             "created_by" => $this->login_user->id
         ));
 
-        $this->log_audit($project_id, "realized_saved", "Task {$task_id} - {$cost_type} = {$value}");
+        $this->log_audit($project_id, $id ? "realized_updated" : "realized_saved", "Date {$date} - {$cost_type} = {$value}");
 
         return $this->response->setJSON(array("success" => true, "message" => app_lang("record_saved")));
     }

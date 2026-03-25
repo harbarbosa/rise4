@@ -86,7 +86,10 @@ foreach ($items_dropdown_list as $key => $value) {
                             <button type="button" id="select-items-import-file" class="btn btn-default">
                                 <i data-feather='upload' class='icon-16'></i> <?php echo app_lang('purchases_select_import_file'); ?>
                             </button>
-                            <span id="items_import_file_name" class="text-muted" style="margin-left:10px;"><?php echo app_lang('no_file_chosen'); ?></span>
+                            <button type="button" id="import-items-file" class="btn btn-primary" style="margin-left:10px;">
+                                <i data-feather='file-plus' class='icon-16'></i> <?php echo app_lang('purchases_import_file_now'); ?>
+                            </button>
+                            <span id="items_import_file_name" class="text-muted" style="margin-left:10px;"><?php echo app_lang('purchases_no_file_chosen'); ?></span>
                         </div>
                         <small class="text-muted"><?php echo app_lang('purchases_import_items_excel_help'); ?></small>
                     </div>
@@ -121,7 +124,7 @@ foreach ($items_dropdown_list as $key => $value) {
                                             <input type="text" name="unit[]" class="form-control" value="<?php echo esc($item->unit ? $item->unit : $item->item_unit); ?>" />
                                         </td>
                                         <td>
-                                            <input type="date" name="desired_date[]" class="form-control" value="<?php echo esc($item->desired_date); ?>" required />
+                                            <input type="date" name="desired_date[]" class="form-control" value="<?php echo esc($item->desired_date); ?>" />
                                         </td>
                                         <td>
                                             <input type="text" name="note[]" class="form-control" value="<?php echo esc($item->note); ?>" />
@@ -146,7 +149,7 @@ foreach ($items_dropdown_list as $key => $value) {
                                         <input type="text" name="unit[]" class="form-control" value="UN" />
                                     </td>
                                     <td>
-                                        <input type="date" name="desired_date[]" class="form-control" required />
+                                        <input type="date" name="desired_date[]" class="form-control" />
                                     </td>
                                     <td>
                                         <input type="text" name="note[]" class="form-control" />
@@ -244,13 +247,119 @@ foreach ($items_dropdown_list as $key => $value) {
                 "<td><input type='text' name='description[]' class='form-control' /></td>" +
                 "<td><input type='text' name='quantity[]' class='form-control text-right' value='1' /></td>" +
                 "<td><input type='text' name='unit[]' class='form-control' value='UN' /></td>" +
-                "<td><input type='date' name='desired_date[]' class='form-control' required /></td>" +
+                "<td><input type='date' name='desired_date[]' class='form-control' /></td>" +
                 "<td><input type='text' name='note[]' class='form-control' /></td>" +
                 "<td class='text-center'><button type='button' class='btn btn-default btn-sm remove-item' onclick=\"if (window.purchasesRemoveItemRow) { window.purchasesRemoveItemRow(this); } return false;\"><i data-feather='x' class='icon-16'></i></button></td>" +
                 "</tr>";
             var $row = $(rowHtml);
             $tbody.append($row);
             window.purchasesInitItemSelect($row.find('.item-select'));
+            if (typeof feather !== "undefined") {
+                feather.replace();
+            }
+        };
+
+        window.purchasesParseCsvLine = function (line, delimiter) {
+            var result = [];
+            var value = '';
+            var inQuotes = false;
+
+            for (var i = 0; i < line.length; i++) {
+                var char = line.charAt(i);
+                var nextChar = i + 1 < line.length ? line.charAt(i + 1) : '';
+
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        value += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === delimiter && !inQuotes) {
+                    result.push(value);
+                    value = '';
+                } else {
+                    value += char;
+                }
+            }
+
+            result.push(value);
+            return result;
+        };
+
+        window.purchasesNormalizeImportHeader = function (header) {
+            return $.trim((header || '').toLowerCase());
+        };
+
+        window.purchasesBuildImportedRow = function (row) {
+            window.purchasesAddItemRow();
+
+            var $row = $("#purchases-items-table tbody tr:last");
+            $row.find("select[name='item_id[]']").val(row.item_id || '').trigger('change');
+            $row.find("input[name='description[]']").val(row.description || '');
+            $row.find("input[name='quantity[]']").val(row.quantity || '1');
+            $row.find("input[name='unit[]']").val(row.unit || 'UN');
+            $row.find("input[name='desired_date[]']").val(row.desired_date || '');
+            $row.find("input[name='note[]']").val(row.note || '');
+        };
+
+        window.purchasesResetItemsTableForImport = function () {
+            var $tbody = $("#purchases-items-table tbody");
+            $tbody.empty();
+        };
+
+        window.purchasesImportRowsFromCsv = function (csvText) {
+            var lines = csvText.replace(/^\uFEFF/, '').split(/\r?\n/);
+            var delimiter = ';';
+            var headers = null;
+            var importedRows = [];
+
+            for (var i = 0; i < lines.length; i++) {
+                var line = $.trim(lines[i]);
+                if (!line) {
+                    continue;
+                }
+
+                var parsed = window.purchasesParseCsvLine(line, delimiter);
+                if (!headers) {
+                    headers = $.map(parsed, function (item) {
+                        return window.purchasesNormalizeImportHeader(item);
+                    });
+                    continue;
+                }
+
+                var mapped = {};
+                for (var j = 0; j < headers.length; j++) {
+                    mapped[headers[j]] = $.trim(parsed[j] || '');
+                }
+
+                if (!mapped.item_id && !mapped.descricao) {
+                    continue;
+                }
+
+                importedRows.push({
+                    item_id: mapped.item_id || '',
+                    description: mapped.descricao || '',
+                    quantity: mapped.quantidade || '1',
+                    unit: mapped.unidade || 'UN',
+                    desired_date: mapped.data_desejada || '',
+                    note: mapped.observacao || ''
+                });
+            }
+
+            if (!importedRows.length) {
+                appAlert.error(<?php echo json_encode(app_lang('purchases_import_empty_file')); ?>);
+                return;
+            }
+
+            window.purchasesResetItemsTableForImport();
+            $.each(importedRows, function (_, row) {
+                window.purchasesBuildImportedRow(row);
+            });
+
+            $("#items_import_file").val('');
+            $("#items_import_file_name").text(<?php echo json_encode(app_lang('purchases_no_file_chosen')); ?>);
+
             if (typeof feather !== "undefined") {
                 feather.replace();
             }
@@ -324,8 +433,32 @@ foreach ($items_dropdown_list as $key => $value) {
             });
 
             $("#items_import_file").on("change", function () {
-                var fileName = this.files && this.files.length ? this.files[0].name : <?php echo json_encode(app_lang('no_file_chosen')); ?>;
+                var fileName = this.files && this.files.length ? this.files[0].name : <?php echo json_encode(app_lang('purchases_no_file_chosen')); ?>;
                 $("#items_import_file_name").text(fileName);
+            });
+
+            $("#import-items-file").on("click", function () {
+                var input = document.getElementById("items_import_file");
+                if (!input || !input.files || !input.files.length) {
+                    appAlert.error(<?php echo json_encode(app_lang('purchases_import_invalid_file')); ?>);
+                    return;
+                }
+
+                var file = input.files[0];
+                var fileName = (file.name || '').toLowerCase();
+                if (!/\.csv$/.test(fileName)) {
+                    appAlert.error(<?php echo json_encode(app_lang('purchases_import_invalid_file')); ?>);
+                    return;
+                }
+
+                var reader = new FileReader();
+                reader.onload = function (event) {
+                    window.purchasesImportRowsFromCsv(event.target.result || '');
+                };
+                reader.onerror = function () {
+                    appAlert.error(<?php echo json_encode(app_lang('purchases_import_invalid_file')); ?>);
+                };
+                reader.readAsText(file, 'UTF-8');
             });
         });
 

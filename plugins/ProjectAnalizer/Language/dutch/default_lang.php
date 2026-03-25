@@ -62,6 +62,7 @@ $lang['cost_material'] = 'Materiaal';
 $lang['cost_labor'] = 'Arbeid';
 $lang['cost_service'] = 'Dienst';
 $lang['cost_third_party'] = 'Derden';
+$lang['cost_terceiros'] = 'Derden';
 $lang['cost_other'] = 'Overig';
 $lang['realized_financial_today'] = 'Gerealiseerd financieel vandaag';
 $lang['financial_deviation'] = 'Financiele afwijking';

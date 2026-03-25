@@ -148,7 +148,14 @@ if (!isset($contexts)) {
             }
 
             $("#milestone_id").appDropdown({
-                list_data: result.milestones_dropdown
+                list_data: result.milestones_dropdown,
+                onChangeCallback: function(value) {
+                    if (typeof window.loadMilestonePercentageSummary === "function") {
+                        window.loadMilestonePercentageSummary(value);
+                    } else {
+                        $("#milestone_id").trigger("change");
+                    }
+                }
             });
 
             $("#assigned_to").appDropdown({

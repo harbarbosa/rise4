@@ -2157,6 +2157,100 @@ class ProjectAnalizer extends Security_Controller {
         ));
     }
 
+    function get_milestone_percentage_summary() {
+        $this->access_only_team_members();
+        $this->validate_submitted_data(array(
+            "milestone_id" => "required|numeric",
+            "project_id" => "numeric",
+            "task_id" => "numeric"
+        ));
+
+        $milestone_id = get_only_numeric_value($this->request->getPost("milestone_id"));
+        $project_id = get_only_numeric_value($this->request->getPost("project_id"));
+        $task_id = get_only_numeric_value($this->request->getPost("task_id"));
+
+        $milestone_info = $this->Milestones_model->get_one($milestone_id);
+        if (!$milestone_info || !$milestone_info->id || $milestone_info->deleted) {
+            echo json_encode(array("success" => false, "message" => app_lang("record_not_found")));
+            return;
+        }
+
+        $project_id = $project_id ?: (int) $milestone_info->project_id;
+        $this->init_project_permission_checker($project_id);
+        if (!$this->_can_view_project_tasks($project_id)) {
+            app_redirect("forbidden");
+        }
+
+        $builder = db_connect("default")->table(db_connect("default")->prefixTable("tasks"));
+        $builder->select("SUM(percentage) AS total_percentage");
+        $builder->where("project_id", $project_id);
+        $builder->where("milestone_id", $milestone_id);
+        $builder->where("deleted", 0);
+        if ($task_id) {
+            $builder->where("id !=", $task_id);
+        }
+        $row = $builder->get()->getRow();
+        $allocated_percentage = $row && $row->total_percentage ? (float) $row->total_percentage : 0;
+
+        $current_task_percentage = 0;
+        if ($task_id) {
+            $task_info = $this->Tasks_model->get_one($task_id);
+            if ($task_info && (int) $task_info->id && (int) $task_info->milestone_id === $milestone_id) {
+                $current_task_percentage = (float) $task_info->percentage;
+            }
+        }
+
+        echo json_encode(array(
+            "success" => true,
+            "milestone_id" => $milestone_id,
+            "milestone_title" => $milestone_info->title,
+            "allocated_percentage" => number_format($allocated_percentage, 2, ".", ""),
+            "remaining_percentage" => number_format(max(0, 100 - $allocated_percentage), 2, ".", ""),
+            "current_task_percentage" => number_format($current_task_percentage, 2, ".", "")
+        ));
+    }
+
+    function get_project_milestone_percentage_summary() {
+        $this->access_only_team_members();
+        $this->validate_submitted_data(array(
+            "project_id" => "required|numeric",
+            "milestone_id" => "numeric"
+        ));
+
+        $project_id = get_only_numeric_value($this->request->getPost("project_id"));
+        $milestone_id = get_only_numeric_value($this->request->getPost("milestone_id"));
+
+        $this->init_project_permission_checker($project_id);
+        if (!$this->_can_view_project_tasks($project_id)) {
+            app_redirect("forbidden");
+        }
+
+        $db = db_connect("default");
+        $milestones_table = $db->prefixTable("milestones");
+        $where = "project_id = " . (int) $project_id . " AND deleted = 0";
+        if ($milestone_id) {
+            $where .= " AND id <> " . (int) $milestone_id;
+        }
+
+        $sum_row = $db->query("SELECT IFNULL(SUM(percentage), 0) AS total FROM $milestones_table WHERE $where")->getRow();
+        $allocated_percentage = $sum_row && isset($sum_row->total) ? (float) $sum_row->total : 0;
+
+        $current_milestone_percentage = 0;
+        if ($milestone_id) {
+            $milestone_info = $this->Milestones_model->get_one($milestone_id);
+            if ($milestone_info && (int) $milestone_info->id && !$milestone_info->deleted) {
+                $current_milestone_percentage = (float) $milestone_info->percentage;
+            }
+        }
+
+        echo json_encode(array(
+            "success" => true,
+            "allocated_percentage" => number_format($allocated_percentage, 2, ".", ""),
+            "remaining_percentage" => number_format(max(0, 100 - $allocated_percentage), 2, ".", ""),
+            "current_milestone_percentage" => number_format($current_milestone_percentage, 2, ".", "")
+        ));
+    }
+
     function delete_timelog() {
         
         $this->access_only_team_members();

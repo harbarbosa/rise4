@@ -62,6 +62,8 @@ return [
     'purchases_import_items_excel' => 'Import items via CSV',
     'purchases_import_items_excel_help' => 'Download the CSV template, fill it in Excel and upload the file to add materials to the request.',
     'purchases_select_import_file' => 'Select CSV file',
+    'purchases_import_file_now' => 'Import spreadsheet',
+    'purchases_no_file_chosen' => 'No file chosen',
     'purchases_download_import_template' => 'Download template',
     'purchases_import_invalid_file' => 'Upload a valid CSV file to import materials.',
     'purchases_import_empty_file' => 'The import file is empty.',

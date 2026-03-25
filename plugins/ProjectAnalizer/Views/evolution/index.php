@@ -80,8 +80,9 @@ $cashflow_summary = isset($cashflow_summary) && is_array($cashflow_summary) ? ar
     </div>
 <?php } ?>
 
-<div class="card mb15">
-    <div class="card-body">
+  <div class="card mb15">
+      <div class="card-body">
+        <div id="baseline-feedback" class="mb15"></div>
         <?php echo form_open(get_uri("projectanalizer/evolucao/generate_baseline/" . $project_id), array("id" => "baseline-form", "class" => "general-form", "role" => "form")); ?>
         <div class="row">
             <div class="col-md-4">
@@ -248,24 +249,10 @@ $cashflow_summary = isset($cashflow_summary) && is_array($cashflow_summary) ? ar
 </div>
 
 <div class="card mb15">
-    <ul id="project-evolution-tabs" class="nav nav-tabs bg-white title" role="tablist">
-        <li class="nav-item title-tab">
-            <h4 class="pl15 pt10 pr15"><?php echo app_lang("evolucao_ff"); ?></h4>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link active" role="presentation" data-bs-toggle="tab" href="#evolution-summary">
-                <?php echo app_lang("summary"); ?>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" role="presentation" data-bs-toggle="tab" href="#evolution-revenue">
-                <?php echo app_lang("revenues_expenses_section"); ?>
-            </a>
-        </li>
-    </ul>
-
-    <div class="tab-content p15">
-        <div role="tabpanel" class="tab-pane fade show active" id="evolution-summary">
+    <div class="card-header">
+        <h4 class="mb0"><?php echo app_lang("evolucao_ff"); ?></h4>
+    </div>
+    <div class="card-body">
 
 <div class="card mb15">
     <div class="card-header">
@@ -469,9 +456,7 @@ $cashflow_summary = isset($cashflow_summary) && is_array($cashflow_summary) ? ar
 </div>
 
 
-        </div>
-<div role="tabpanel" class="tab-pane fade" id="evolution-revenue">
-
+<div class="hide">
 <div class="card mb15">
     <div class="card-header clearfix">
         <h4 class="mb0 pull-left">
@@ -885,27 +870,51 @@ $cashflow_summary = isset($cashflow_summary) && is_array($cashflow_summary) ? ar
 
 
 
-        </div>
-    </div>
 </div>
-
-
-
-
-        </div>
     </div>
 </div>
 
 <script type="text/javascript">
     $(document).ready(function () {
+        var activeTabKey = "projectanalizer_evolution_active_tab";
+        var activateStoredTab = function () {
+            if (!window.sessionStorage) {
+                return;
+            }
+
+            var activeTab = window.sessionStorage.getItem(activeTabKey);
+            if (!activeTab) {
+                return;
+            }
+
+            var $tab = $("#project-evolution-tabs").find("a[href='#" + activeTab + "']");
+            if ($tab.length) {
+                $tab.tab("show");
+            }
+
+            window.sessionStorage.removeItem(activeTabKey);
+        };
+
         $('[data-bs-toggle="tooltip"]').tooltip();
+        activateStoredTab();
         setDatePicker("#baseline_date");
+
+        function renderBaselineError(result) {
+            var message = (result && result.message) ? result.message : "<?php echo app_lang('error_occurred'); ?>";
+            $("#baseline-feedback").html("<div class='alert alert-danger mb0'>" + message + "</div>");
+        }
+
         $("#baseline-form").appForm({
             onSuccess: function (result) {
+                $("#baseline-feedback").html("");
                 if (result && result.message) {
                     appAlert.success(result.message, {duration: 10000});
                 }
                 location.reload();
+            },
+            onError: function (result) {
+                renderBaselineError(result);
+                return false;
             }
         });
 

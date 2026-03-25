@@ -76,6 +76,8 @@ return [
     'purchases_import_items_excel' => 'Importar itens via CSV',
     'purchases_import_items_excel_help' => 'Baixe o modelo CSV, preencha no Excel e envie o arquivo para adicionar os materiais na requisição.',
     'purchases_select_import_file' => 'Selecionar arquivo CSV',
+    'purchases_import_file_now' => 'Importar planilha',
+    'purchases_no_file_chosen' => 'Nenhum arquivo selecionado',
     'purchases_download_import_template' => 'Baixar modelo',
     'purchases_import_invalid_file' => 'Envie um arquivo CSV vÃ¡lido para importar os materiais.',
     'purchases_import_empty_file' => 'O arquivo de importaÃ§Ã£o estÃ¡ vazio.',
