@@ -109,7 +109,7 @@ class Purchase_quotations extends Security_Controller
             }
             $supplier_ids = array_filter(array_map('intval', $supplier_ids));
             $supplier_ids = array_values(array_unique($supplier_ids));
-            if (count($supplier_ids) < 1 || count($supplier_ids) > 3) {
+            if (count($supplier_ids) < 1) {
                 return $this->response->setJSON(array('success' => false, 'message' => app_lang('purchases_select_suppliers_limit')));
             }
 
@@ -367,7 +367,7 @@ class Purchase_quotations extends Security_Controller
             }
 
             $supplier_ids = array_values(array_unique(array_filter(array_map('intval', $supplier_ids))));
-            if (count($supplier_ids) < 1 || count($supplier_ids) > 3) {
+            if (count($supplier_ids) < 1) {
                 return $this->response->setJSON(array('success' => false, 'message' => app_lang('purchases_select_suppliers_limit')));
             }
 

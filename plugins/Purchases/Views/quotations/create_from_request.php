@@ -23,6 +23,7 @@ $request = $request_info;
                     <label for="supplier_ids" class="form-label"><?php echo app_lang('purchases_suppliers'); ?></label>
                     <?php echo form_dropdown("supplier_ids[]", $suppliers_dropdown, "", "class='select2' id='supplier_ids' multiple"); ?>
                     <small class="text-muted"><?php echo app_lang('purchases_suppliers_limit'); ?></small>
+                    <div class="small text-muted mt5" id="quotation-create-selected-count"></div>
                 </div>
             </div>
 
@@ -63,7 +64,14 @@ $request = $request_info;
 
 <script type="text/javascript">
     $(document).ready(function () {
+        var updateSelectedSuppliersCount = function () {
+            var values = $("#supplier_ids").val() || [];
+            $("#quotation-create-selected-count").text(values.length ? (values.length + " fornecedor(es) selecionado(s)") : "");
+        };
+
         $("#supplier_ids").select2();
+        $("#supplier_ids").on("change", updateSelectedSuppliersCount);
+        updateSelectedSuppliersCount();
 
         $("#quotation-create-form").appForm({
             onSuccess: function (result) {
@@ -72,6 +80,10 @@ $request = $request_info;
                 } else {
                     window.location.reload();
                 }
+            },
+            onError: function (result) {
+                appAlert.error((result && result.message) ? result.message : "<?php echo app_lang('error_occurred'); ?>");
+                return false;
             }
         });
     });
