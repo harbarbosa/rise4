@@ -117,6 +117,7 @@ return [
     'purchases_supplier_address' => 'Address',
     'purchases_winner' => 'Winner',
     'purchases_winner_total' => 'Winner total',
+    'purchases_total' => 'Total',
     'purchases_save_prices_winners' => 'Save prices and winners',
     'purchases_select_winners_required' => 'Select a winner for each item before finalizing.',
     'purchases_use_item_winners' => 'Please select winners per item.',

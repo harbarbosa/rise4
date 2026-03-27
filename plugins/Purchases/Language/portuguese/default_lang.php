@@ -130,6 +130,7 @@ return [
     'purchases_supplier_address' => 'Endereço',
     'purchases_winner' => 'Vencedor',
     'purchases_winner_total' => 'Total vencedor',
+    'purchases_total' => 'Total',
     'purchases_save_prices_winners' => 'Salvar preços e vencedores',
     'purchases_select_winners_required' => 'Selecione um vencedor para cada item antes de finalizar.',
     'purchases_use_item_winners' => 'Selecione vencedores por item.',

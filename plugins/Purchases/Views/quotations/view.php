@@ -52,55 +52,69 @@ foreach ($suppliers as $supplier) {
         border: 0;
         background: #fff;
         text-align: left;
-        padding: 16px 18px;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 16px;
+        padding: 10px 14px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 24px;
+        align-items: center;
+        gap: 10px;
     }
 
     .purchases-quotation-layout .quotation-item-toggle:hover {
         background: #f8fafc;
     }
 
+    .purchases-quotation-layout .quotation-item-main {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
     .purchases-quotation-layout .quotation-item-title {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
         color: #111827;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin: 0;
+        flex: 1 1 auto;
+        min-width: 0;
     }
 
     .purchases-quotation-layout .quotation-item-subtitle {
-        margin-top: 4px;
-        color: #6b7280;
-        font-size: 13px;
+        display: none;
     }
 
     .purchases-quotation-layout .quotation-item-meta {
-        padding: 10px 12px;
-        min-width: 320px;
-        background: #f8fafc;
-        display: grid;
-        gap: 8px;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        flex: 0 1 auto;
     }
 
-    .purchases-quotation-layout .quotation-meta-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px 14px;
+    .purchases-quotation-layout .quotation-meta-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #374151;
+        font-size: 13px;
+        white-space: nowrap;
     }
 
     .purchases-quotation-layout .quotation-meta-label {
-        display: block;
         font-size: 11px;
         text-transform: uppercase;
-        letter-spacing: .04em;
+        letter-spacing: .05em;
         color: #6b7280;
-        margin-bottom: 2px;
     }
 
     .purchases-quotation-layout .quotation-meta-value {
         color: #111827;
         font-weight: 600;
+        font-size: 14px;
     }
 
     .purchases-quotation-layout .quotation-item-body {
@@ -158,12 +172,20 @@ foreach ($suppliers as $supplier) {
 
     @media (max-width: 991px) {
         .purchases-quotation-layout .quotation-item-toggle {
-            flex-direction: column;
+            grid-template-columns: 1fr;
+        }
+
+        .purchases-quotation-layout .quotation-item-main {
+            display: block;
+        }
+
+        .purchases-quotation-layout .quotation-item-title {
+            white-space: normal;
         }
 
         .purchases-quotation-layout .quotation-item-meta {
-            width: 100%;
-            min-width: 0;
+            display: flex;
+            margin-top: 6px;
         }
     }
 </style>
@@ -213,8 +235,8 @@ foreach ($suppliers as $supplier) {
                         <div class="col-md-4 col-xl-3 mb10">
                             <div class="quotation-summary-card">
                                 <strong><?php echo esc($supplier->supplier_name); ?></strong>
-                                <div class="mt5"><?php echo to_currency(get_array_value($totals, $supplier->supplier_id, 0)); ?></div>
-                                <div class="text-muted small mt5"><?php echo app_lang('purchases_winner_total'); ?>: <?php echo to_currency(get_array_value($winner_totals, $supplier->supplier_id, 0)); ?></div>
+                                <div class="mt5 js-supplier-total" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>"><?php echo to_currency(get_array_value($totals, $supplier->supplier_id, 0)); ?></div>
+                                <div class="text-muted small mt5"><?php echo app_lang('purchases_winner_total'); ?>: <span class="js-supplier-winner-total" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>"><?php echo to_currency(get_array_value($winner_totals, $supplier->supplier_id, 0)); ?></span></div>
                             </div>
                         </div>
                     <?php } ?>
@@ -228,35 +250,39 @@ foreach ($suppliers as $supplier) {
                     $winner_supplier_id = (int) ($winner_map[$item->request_item_id] ?? 0);
                     $winner_supplier_name = $winner_supplier_id ? get_array_value($supplier_name_map, $winner_supplier_id, '-') : '-';
                     $desired_date = $item->request_desired_date ?? '';
+                    $item_title = trim((string) ($item->item_title ?? ''));
+                    if (!$item_title) {
+                        $item_title = trim((string) ($item->request_description ?? ''));
+                    }
+                    if (!$item_title) {
+                        $item_title = '-';
+                    }
                     ?>
                     <div class="quotation-item-card">
                         <button class="quotation-item-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#quotation-item-<?php echo $item->request_item_id; ?>" aria-expanded="<?php echo $index === 0 ? 'true' : 'false'; ?>">
-                            <div>
-                                <div class="quotation-item-title"><?php echo esc($item->item_title ? $item->item_title : '-'); ?></div>
-                                <div class="quotation-item-subtitle"><?php echo esc($item->request_description); ?></div>
-                            </div>
-                            <div class="quotation-item-meta">
-                                <div class="quotation-meta-grid">
-                                    <div>
+                            <div class="quotation-item-main">
+                                <div class="quotation-item-title"><?php echo esc($item_title); ?></div>
+                                <div class="quotation-item-meta">
+                                    <span class="quotation-meta-chip">
                                         <span class="quotation-meta-label"><?php echo app_lang('purchases_qty'); ?></span>
                                         <span class="quotation-meta-value"><?php echo esc(to_decimal_format($item->qty)); ?></span>
-                                    </div>
-                                    <div>
-                                        <span class="quotation-meta-label"><?php echo app_lang('purchases_supplier'); ?></span>
-                                        <span class="quotation-meta-value"><?php echo esc($winner_supplier_name); ?></span>
-                                    </div>
-                                    <div>
+                                    </span>
+                                    <span class="quotation-meta-chip">
                                         <span class="quotation-meta-label"><?php echo app_lang('purchases_unit'); ?></span>
                                         <span class="quotation-meta-value"><?php echo esc($item->request_unit ? $item->request_unit : '-'); ?></span>
-                                    </div>
-                                    <div>
+                                    </span>
+                                    <span class="quotation-meta-chip">
+                                        <span class="quotation-meta-label"><?php echo app_lang('purchases_supplier'); ?></span>
+                                        <span class="quotation-meta-value"><?php echo esc($winner_supplier_name); ?></span>
+                                    </span>
+                                    <span class="quotation-meta-chip">
                                         <span class="quotation-meta-label"><?php echo app_lang('purchases_delivery_date'); ?></span>
                                         <span class="quotation-meta-value"><?php echo $desired_date ? format_to_date($desired_date, false) : '-'; ?></span>
-                                    </div>
+                                    </span>
                                 </div>
-                                <div class="text-end">
-                                    <i data-feather="chevron-down" class="icon-18 rotate-icon"></i>
-                                </div>
+                            </div>
+                            <div class="text-end">
+                                <i data-feather="chevron-down" class="icon-18 rotate-icon"></i>
                             </div>
                         </button>
 
@@ -264,7 +290,7 @@ foreach ($suppliers as $supplier) {
                             <div class="quotation-item-body">
                                 <div class="mb10">
                                     <label class="form-label"><?php echo app_lang('purchases_qty'); ?></label>
-                                    <input type="text" name="qty[<?php echo $item->request_item_id; ?>]" class="form-control text-right w150" value="<?php echo esc(to_decimal_format($item->qty)); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
+                                    <input type="text" name="qty[<?php echo $item->request_item_id; ?>]" class="form-control text-right w150 js-quotation-qty" data-request-item-id="<?php echo esc($item->request_item_id); ?>" value="<?php echo esc(to_decimal_format($item->qty)); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
                                 </div>
 
                                 <div class="table-responsive">
@@ -297,20 +323,20 @@ foreach ($suppliers as $supplier) {
                                                 }
                                                 $is_winner = (($winner_map[$item->request_item_id] ?? 0) == $supplier->supplier_id);
                                                 ?>
-                                                <tr class="<?php echo $is_winner ? 'winner-row' : ''; ?>">
+                                                <tr class="<?php echo $is_winner ? 'winner-row' : ''; ?> js-quotation-price-row" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" data-request-item-id="<?php echo esc($item->request_item_id); ?>">
                                                     <td>
                                                         <span class="supplier-pill"><?php echo esc($supplier->supplier_name); ?></span>
                                                     </td>
                                                     <td class="text-center">
-                                                        <input type="radio" name="winner_supplier[<?php echo $item->request_item_id; ?>]" value="<?php echo $supplier->supplier_id; ?>" <?php echo $is_winner ? 'checked' : ''; ?> <?php echo $can_edit ? '' : 'disabled'; ?> />
+                                                        <input type="radio" name="winner_supplier[<?php echo $item->request_item_id; ?>]" value="<?php echo $supplier->supplier_id; ?>" class="js-winner-supplier" data-request-item-id="<?php echo esc($item->request_item_id); ?>" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" <?php echo $is_winner ? 'checked' : ''; ?> <?php echo $can_edit ? '' : 'disabled'; ?> />
                                                     </td>
                                                     <td>
-                                                        <input type="text" name="unit_price[<?php echo $supplier->supplier_id; ?>][<?php echo $item->request_item_id; ?>]" class="form-control js-currency-field" value="<?php echo esc($unit_price); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
+                                                        <input type="text" name="unit_price[<?php echo $supplier->supplier_id; ?>][<?php echo $item->request_item_id; ?>]" class="form-control js-currency-field js-unit-price" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" data-request-item-id="<?php echo esc($item->request_item_id); ?>" value="<?php echo esc($unit_price); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
                                                     </td>
                                                     <td>
-                                                        <input type="text" name="freight_value[<?php echo $supplier->supplier_id; ?>][<?php echo $item->request_item_id; ?>]" class="form-control js-currency-field" value="<?php echo esc($freight); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
+                                                        <input type="text" name="freight_value[<?php echo $supplier->supplier_id; ?>][<?php echo $item->request_item_id; ?>]" class="form-control js-currency-field js-freight-value" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" data-request-item-id="<?php echo esc($item->request_item_id); ?>" value="<?php echo esc($freight); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
                                                     </td>
-                                                    <td class="fw-bold"><?php echo $line_total > 0 ? to_currency($line_total) : '-'; ?></td>
+                                                    <td class="fw-bold js-line-total" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" data-request-item-id="<?php echo esc($item->request_item_id); ?>"><?php echo $line_total > 0 ? to_currency($line_total) : '-'; ?></td>
                                                     <td>
                                                         <input type="date" name="delivery_date[<?php echo $supplier->supplier_id; ?>][<?php echo $item->request_item_id; ?>]" class="form-control" value="<?php echo esc($delivery_date); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
                                                         <?php if ($late_delivery) { ?>
@@ -426,6 +452,101 @@ foreach ($suppliers as $supplier) {
                 el.setSelectionRange(len, len);
             }
         });
+
+        var parseNumericFieldValue = function (value) {
+            if (value === null || typeof value === "undefined") {
+                return 0;
+            }
+
+            if (typeof value !== "string") {
+                value = value.toString();
+            }
+
+            value = $.trim(value);
+            if (!value) {
+                return 0;
+            }
+
+            if (typeof unformatCurrency === "function") {
+                var parsed = unformatCurrency(value);
+                return isNaN(parsed) ? 0 : parsed;
+            }
+
+            value = value.replace(/\./g, "").replace(",", ".");
+            var numeric = parseFloat(value);
+            return isNaN(numeric) ? 0 : numeric;
+        };
+
+        var formatMoneyDisplay = function (value) {
+            value = parseFloat(value || 0);
+            if (isNaN(value) || value <= 0) {
+                return "-";
+            }
+
+            if (typeof toCurrency === "function") {
+                return toCurrency(value);
+            }
+
+            return "R$ " + value.toFixed(2).replace(".", ",");
+        };
+
+        var getQtyForItem = function (requestItemId) {
+            return parseNumericFieldValue($('.js-quotation-qty[data-request-item-id="' + requestItemId + '"]').val());
+        };
+
+        var updateRowTotal = function ($row) {
+            var requestItemId = $row.data("request-item-id");
+            var qty = getQtyForItem(requestItemId);
+            var unitPrice = parseNumericFieldValue($row.find(".js-unit-price").val());
+            var freight = parseNumericFieldValue($row.find(".js-freight-value").val());
+            var total = (qty * unitPrice) + freight;
+
+            $row.find(".js-line-total").text(formatMoneyDisplay(total));
+            return total;
+        };
+
+        var updateSummaryTotals = function () {
+            var totalsBySupplier = {};
+            var winnerTotalsBySupplier = {};
+
+            $(".js-quotation-price-row").each(function () {
+                var $row = $(this);
+                var supplierId = $row.data("supplier-id");
+                var requestItemId = $row.data("request-item-id");
+                var rowTotal = updateRowTotal($row);
+
+                totalsBySupplier[supplierId] = (totalsBySupplier[supplierId] || 0) + rowTotal;
+
+                var $winner = $('.js-winner-supplier[data-request-item-id="' + requestItemId + '"]:checked');
+                var winnerSupplierId = $winner.data("supplier-id");
+
+                $row.toggleClass("winner-row", parseInt(winnerSupplierId, 10) === parseInt(supplierId, 10));
+
+                if (parseInt(winnerSupplierId, 10) === parseInt(supplierId, 10)) {
+                    winnerTotalsBySupplier[supplierId] = (winnerTotalsBySupplier[supplierId] || 0) + rowTotal;
+                }
+            });
+
+            $(".js-supplier-total").each(function () {
+                var supplierId = $(this).data("supplier-id");
+                $(this).text(formatMoneyDisplay(totalsBySupplier[supplierId] || 0));
+            });
+
+            $(".js-supplier-winner-total").each(function () {
+                var supplierId = $(this).data("supplier-id");
+                $(this).text(formatMoneyDisplay(winnerTotalsBySupplier[supplierId] || 0));
+            });
+        };
+
+        $(document).on("input blur", ".js-quotation-qty, .js-unit-price, .js-freight-value", function () {
+            updateSummaryTotals();
+        });
+
+        $(document).on("change", ".js-winner-supplier", function () {
+            updateSummaryTotals();
+        });
+
+        updateSummaryTotals();
 
         $("#quotation-prices-form").appForm({
             onSuccess: function () {
