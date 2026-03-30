@@ -4,6 +4,13 @@ namespace RestApi\Models;
 use App\Models\Crud_model; //access main app's models
 
 class LabelsModel extends Crud_model {
+	protected $table = null;
+
+	public function __construct() {
+		$this->table = 'labels';
+		parent::__construct($this->table);
+	}
+
 	public function get_details($options = []) {
 		$labels_table = $this->db->prefixTable('labels');
 

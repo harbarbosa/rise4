@@ -4,6 +4,13 @@ namespace RestApi\Models;
 use App\Models\Crud_model; //access main app's models
 
 class ProjectsModel extends Crud_model {
+	protected $table = null;
+
+	public function __construct() {
+		$this->table = 'projects';
+		parent::__construct($this->table);
+	}
+
 	public function get_search_suggestion($search = "", $options = []) {
 		$projects_table        = $this->db->prefixTable('projects');
 		$project_members_table = $this->db->prefixTable('project_members');
