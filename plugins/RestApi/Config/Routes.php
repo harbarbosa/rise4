@@ -31,6 +31,8 @@ $routes->group('api', $rest_api_namespace, function ($routes) {
 	$routes->add('ticket_type', 'UtilitiesController::getTicketType');
 	$routes->add('staff_owner', 'UtilitiesController::getStaffOwner');
 	$routes->add('project_members', 'UtilitiesController::getProjectMembers');
+	$routes->get('contaazul/endpoints', 'ContaAzulController::endpoints');
+	$routes->get('contaazul/query/(:segment)', 'ContaAzulController::query/$1');
 });
 
 $routes->group('api', $rest_api_namespace, function ($routes) {
