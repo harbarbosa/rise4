@@ -28,6 +28,7 @@ class ContaAzulController extends Rest_api_Controller
                 'label' => $endpoint['label'] ?? $key,
                 'path' => $endpoint['path'] ?? '',
                 'path_params' => array_values($endpoint['path_params'] ?? []),
+                'query_params' => array_values($endpoint['query_params'] ?? []),
                 'docs_url' => $endpoint['docs_url'] ?? null,
                 'route' => get_uri('api/contaazul/query/' . $key),
             ];
@@ -80,6 +81,7 @@ class ContaAzulController extends Rest_api_Controller
                 'path_params' => $pathParams,
                 'query' => $query,
             ],
+            'supported_query_params' => array_values($definition['query_params'] ?? []),
             'data' => $response['data'],
         ];
 

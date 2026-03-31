@@ -141,12 +141,12 @@ class ContaAzulClient
         return $this->queryEndpoint('/v1/servicos', array_merge([
             'pagina' => max(1, (int) $page),
             'tamanho_pagina' => max(1, (int) $size)
-        ], $query), [], ['/v1/servico']);
+        ], $query));
     }
 
     public function getService($id)
     {
-        return $this->queryEndpoint('/v1/servicos/{id}', [], ['id' => $id], ['/v1/servico/{id}']);
+        return $this->queryEndpoint('/v1/servicos/{id}', [], ['id' => $id]);
     }
 
     
@@ -162,8 +162,6 @@ class ContaAzulClient
         $endpoints = [
             self::API_BASE . '/v1/centro-de-custo?' . $query,
             self::API_BASE . '/v1/centro-de-custo',
-            self::API_BASE . '/v1/centros-de-custo?' . $query,
-            self::API_BASE . '/v1/centros-de-custo'
         ];
 
         $headers = [
@@ -215,7 +213,6 @@ class ContaAzulClient
 
         $endpoints = [
             self::API_BASE . '/v1/centro-de-custo',
-            self::API_BASE . '/v1/centros-de-custo'
         ];
 
         $last = ["ok" => false, "status" => 0, "data" => null, "body" => ""];
@@ -248,8 +245,6 @@ class ContaAzulClient
         $paramSets = $this->buildPayableReceivableParamSets($costCenterId, $page, $size);
         $endpoints = [
             self::API_BASE . '/v1/financeiro/eventos-financeiros/contas-a-pagar/buscar',
-            self::API_BASE . '/v1/financeiro/contas-a-pagar',
-            self::API_BASE . '/v1/contas-a-pagar'
         ];
 
         return $this->getWithFallback($endpoints, $paramSets);
@@ -263,8 +258,6 @@ class ContaAzulClient
         $paramSets = $this->buildPayableReceivableParamSets($costCenterId, $page, $size);
         $endpoints = [
             self::API_BASE . '/v1/financeiro/eventos-financeiros/contas-a-receber/buscar',
-            self::API_BASE . '/v1/financeiro/contas-a-receber',
-            self::API_BASE . '/v1/contas-a-receber'
         ];
 
         return $this->getWithFallback($endpoints, $paramSets);
