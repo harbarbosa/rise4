@@ -67,47 +67,86 @@ class ContaAzulClient
 
     public function listPeople($page = 0, $size = 50)
     {
-        $page = max(0, (int) $page);
-        $size = max(1, (int) $size);
-        $query = http_build_query([
-            'pagina' => $page,
-            'tamanho_pagina' => $size
+        return $this->queryEndpoint('/v1/pessoas', [
+            'pagina' => max(0, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
         ]);
-        $url = self::API_BASE . '/v1/pessoas?' . $query;
-        $headers = [
-            'Authorization: Bearer ' . $this->accessToken,
-            'Content-Type: application/json'
-        ];
+    }
 
-        return $this->getRequest($url, $headers);
+    public function getPerson($id)
+    {
+        return $this->queryEndpoint('/v1/pessoas/{id}', [], ['id' => $id]);
+    }
+
+    public function getLegacyPerson($id)
+    {
+        return $this->queryEndpoint('/v1/pessoas/legado/{id}', [], ['id' => $id]);
     }
 
     public function listProducts($page = 0, $size = 50)
     {
-        $page = max(0, (int) $page);
-        $size = max(1, (int) $size);
-        $query = http_build_query([
-            'pagina' => $page,
-            'tamanho_pagina' => $size
+        return $this->queryEndpoint('/v1/produtos', [
+            'pagina' => max(0, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
         ]);
-        $url = self::API_BASE . '/v1/produtos?' . $query;
-        $headers = [
-            'Authorization: Bearer ' . $this->accessToken,
-            'Content-Type: application/json'
-        ];
-
-        return $this->getRequest($url, $headers);
     }
 
     public function listProductCategories()
     {
-        $url = self::API_BASE . '/v1/produtos/categorias';
-        $headers = [
-            'Authorization: Bearer ' . $this->accessToken,
-            'Content-Type: application/json'
-        ];
+        return $this->queryEndpoint('/v1/produtos/categorias');
+    }
 
-        return $this->getRequest($url, $headers);
+    public function listProductCests($page = 1, $size = 50, $query = [])
+    {
+        return $this->queryEndpoint('/v1/produtos/cest', array_merge([
+            'pagina' => max(1, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
+        ], $query));
+    }
+
+    public function listProductNcms($page = 1, $size = 50, $query = [])
+    {
+        return $this->queryEndpoint('/v1/produtos/ncm', array_merge([
+            'pagina' => max(1, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
+        ], $query));
+    }
+
+    public function listProductUnits($page = 1, $size = 50, $query = [])
+    {
+        return $this->queryEndpoint('/v1/produtos/unidades-medida', array_merge([
+            'pagina' => max(1, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
+        ], $query));
+    }
+
+    public function listProductEcommerceCategories($page = 1, $size = 50, $query = [])
+    {
+        return $this->queryEndpoint('/v1/produtos/ecommerce-categorias', array_merge([
+            'pagina' => max(1, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
+        ], $query));
+    }
+
+    public function listProductEcommerceBrands($page = 1, $size = 50, $query = [])
+    {
+        return $this->queryEndpoint('/v1/produtos/ecommerce-marcas', array_merge([
+            'pagina' => max(1, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
+        ], $query));
+    }
+
+    public function listServices($page = 1, $size = 50, $query = [])
+    {
+        return $this->queryEndpoint('/v1/servicos', array_merge([
+            'pagina' => max(1, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
+        ], $query), [], ['/v1/servico']);
+    }
+
+    public function getService($id)
+    {
+        return $this->queryEndpoint('/v1/servicos/{id}', [], ['id' => $id], ['/v1/servico/{id}']);
     }
 
     
@@ -198,18 +237,7 @@ class ContaAzulClient
 
     public function getProduct($id)
     {
-        $id = trim((string)$id);
-        if (!$id) {
-            return ["ok" => false, "status" => 0, "data" => null, "body" => "ID vazio"];
-        }
-
-        $url = self::API_BASE . '/v1/produtos/' . $id;
-        $headers = [
-            'Authorization: Bearer ' . $this->accessToken,
-            'Content-Type: application/json'
-        ];
-
-        return $this->getRequest($url, $headers);
+        return $this->queryEndpoint('/v1/produtos/{id}', [], ['id' => $id]);
     }
 
     public function listPayables($costCenterId = null, $page = 1, $size = 100)
@@ -265,6 +293,144 @@ class ContaAzulClient
             'refresh_token' => $this->refreshToken,
             'expires_at' => $this->expiresAt
         ];
+    }
+
+    public function listCategories($page = 1, $size = 50, $query = [])
+    {
+        return $this->queryEndpoint('/v1/categorias', array_merge([
+            'pagina' => max(1, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
+        ], $query));
+    }
+
+    public function listDreCategories($page = 1, $size = 50, $query = [])
+    {
+        return $this->queryEndpoint('/v1/financeiro/categorias-dre', array_merge([
+            'pagina' => max(1, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
+        ], $query));
+    }
+
+    public function listFinancialAccounts($page = 1, $size = 50, $query = [])
+    {
+        return $this->queryEndpoint('/v1/conta-financeira', array_merge([
+            'pagina' => max(1, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
+        ], $query));
+    }
+
+    public function getFinancialAccountBalance($id)
+    {
+        return $this->queryEndpoint('/v1/conta-financeira/{id_conta_financeira}/saldo-atual', [], [
+            'id_conta_financeira' => $id
+        ]);
+    }
+
+    public function listEventInstallments($eventId, $page = 1, $size = 50, $query = [])
+    {
+        return $this->queryEndpoint('/v1/financeiro/eventos-financeiros/{id_evento}/parcelas', array_merge([
+            'pagina' => max(1, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
+        ], $query), ['id_evento' => $eventId]);
+    }
+
+    public function listSales($page = 1, $size = 50, $query = [])
+    {
+        return $this->queryEndpoint('/v1/venda/busca', array_merge([
+            'pagina' => max(1, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
+        ], $query));
+    }
+
+    public function getSale($id)
+    {
+        return $this->queryEndpoint('/v1/venda/{id}', [], ['id' => $id]);
+    }
+
+    public function listSaleItems($saleId, $page = 1, $size = 50, $query = [])
+    {
+        return $this->queryEndpoint('/v1/venda/{id_venda}/itens', array_merge([
+            'pagina' => max(1, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
+        ], $query), ['id_venda' => $saleId]);
+    }
+
+    public function listSellers()
+    {
+        return $this->queryEndpoint('/v1/venda/vendedores');
+    }
+
+    public function getNextSaleNumber()
+    {
+        return $this->queryEndpoint('/v1/venda/proximo-numero');
+    }
+
+    public function listContracts($page = 1, $size = 50, $query = [])
+    {
+        return $this->queryEndpoint('/v1/contratos', array_merge([
+            'pagina' => max(1, (int) $page),
+            'tamanho_pagina' => max(1, (int) $size)
+        ], $query));
+    }
+
+    public function getNextContractNumber()
+    {
+        return $this->queryEndpoint('/v1/contratos/proximo-numero');
+    }
+
+    public function listInvoices(array $query)
+    {
+        return $this->queryEndpoint('/v1/notas-fiscais', $query);
+    }
+
+    public function listServiceInvoices(array $query)
+    {
+        return $this->queryEndpoint('/v1/notas-fiscais-servico', $query);
+    }
+
+    public function getInvoice($key)
+    {
+        return $this->queryEndpoint('/v1/notas-fiscais/{chave}', [], ['chave' => $key]);
+    }
+
+    public function listTransfers(array $query = [])
+    {
+        return $this->queryEndpoint('/v1/financeiro/transferencias', $query);
+    }
+
+    public function queryEndpoint($path, array $query = [], array $pathParams = [], array $fallbackPaths = [])
+    {
+        $paths = array_merge([$path], $fallbackPaths);
+        $headers = [
+            'Authorization: Bearer ' . $this->accessToken,
+            'Content-Type: application/json'
+        ];
+
+        $last = ["ok" => false, "status" => 0, "data" => null, "body" => ""];
+        foreach ($paths as $candidatePath) {
+            $resolved = $this->resolvePath($candidatePath, $pathParams);
+            if (!$resolved['ok']) {
+                return $resolved;
+            }
+
+            $url = self::API_BASE . $resolved['path'];
+            $filteredQuery = array_filter($query, function ($value) {
+                return $value !== null && $value !== '';
+            });
+
+            if ($filteredQuery) {
+                $url .= '?' . http_build_query($filteredQuery);
+            }
+
+            $response = $this->getRequest($url, $headers);
+            if ($response['ok']) {
+                return $response;
+            }
+
+            $last = $response;
+        }
+
+        return $last;
     }
 
     private function tokenRequest($body)
@@ -444,6 +610,29 @@ class ContaAzulClient
         }
 
         return $last;
+    }
+
+    private function resolvePath($path, array $pathParams)
+    {
+        $resolvedPath = $path;
+
+        preg_match_all('/\{([a-zA-Z0-9_]+)\}/', $path, $matches);
+        foreach ($matches[1] ?? [] as $placeholder) {
+            $value = trim((string) ($pathParams[$placeholder] ?? ''));
+            if ($value === '') {
+                return ["ok" => false, "status" => 0, "data" => null, "body" => "Parametro de caminho ausente: {$placeholder}"];
+            }
+
+            $resolvedPath = str_replace('{' . $placeholder . '}', rawurlencode($value), $resolvedPath);
+        }
+
+        return [
+            "ok" => true,
+            "status" => 200,
+            "data" => null,
+            "body" => '',
+            "path" => $resolvedPath
+        ];
     }
 
     /**

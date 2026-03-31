@@ -16,4 +16,6 @@ $routes
 $routes->post('contaazul/import-cost-center-transactions', 'ContaAzulSettings::import_cost_center_transactions', ['namespace' => 'ContaAzul\\Controllers']);
 $routes->get('contaazul/cost-centers-preview', 'ContaAzulSettings::cost_centers_preview', ['namespace' => 'ContaAzul\Controllers']);
 $routes->get('contaazul/cron-import', 'ContaAzulSettings::cron_import', ['namespace' => 'ContaAzul\Controllers']);
+$routes->get('contaazul/api/endpoints', 'ContaAzulQuery::endpoints', ['namespace' => 'ContaAzul\Controllers']);
+$routes->get('contaazul/api/query/(:segment)', 'ContaAzulQuery::query/$1', ['namespace' => 'ContaAzul\Controllers']);
 
