@@ -96,17 +96,17 @@ class ContaAzulController extends Rest_api_Controller
 
     protected function makeClient(): ContaAzulClient
     {
-        $redirectUri = get_setting('contaazul_redirect_uri') ?: get_uri('contaazul/callback');
-        $scope = get_setting('contaazul_scope') ?: 'openid profile aws.cognito.signin.user.admin';
+        $redirectUri = $this->settingsModel->get_setting('contaazul_redirect_uri') ?: get_uri('contaazul/callback');
+        $scope = $this->settingsModel->get_setting('contaazul_scope') ?: 'openid profile aws.cognito.signin.user.admin';
 
         return new ContaAzulClient(
-            get_setting('contaazul_client_id'),
-            get_setting('contaazul_client_secret'),
+            $this->settingsModel->get_setting('contaazul_client_id'),
+            $this->settingsModel->get_setting('contaazul_client_secret'),
             $redirectUri,
             $scope,
-            get_setting('contaazul_access_token'),
-            get_setting('contaazul_refresh_token'),
-            get_setting('contaazul_token_expires_at')
+            $this->settingsModel->get_setting('contaazul_access_token'),
+            $this->settingsModel->get_setting('contaazul_refresh_token'),
+            $this->settingsModel->get_setting('contaazul_token_expires_at')
         );
     }
 
@@ -116,7 +116,7 @@ class ContaAzulController extends Rest_api_Controller
             return null;
         }
 
-        $refreshToken = get_setting('contaazul_refresh_token');
+        $refreshToken = $this->settingsModel->get_setting('contaazul_refresh_token');
         if (!$refreshToken) {
             return ['message' => 'Conta Azul refresh token is not configured.'];
         }
