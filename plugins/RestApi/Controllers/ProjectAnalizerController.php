@@ -3,6 +3,7 @@
 namespace RestApi\Controllers;
 
 use App\Models\Timesheets_model;
+use Config\Database;
 use ProjectAnalizer\Models\Photos_model;
 use ProjectAnalizer\Models\Team_activities_model;
 
@@ -11,11 +12,13 @@ class ProjectAnalizerController extends Rest_api_Controller
     protected Team_activities_model $teamActivitiesModel;
     protected Timesheets_model $timesheetsModel;
     protected Photos_model $photosModel;
+    protected $db;
 
     public function __construct()
     {
         parent::__construct();
 
+        $this->db = Database::connect('default');
         $this->teamActivitiesModel = model('ProjectAnalizer\Models\Team_activities_model');
         $this->timesheetsModel = model('App\Models\Timesheets_model');
         $this->photosModel = model('ProjectAnalizer\Models\Photos_model');
@@ -50,7 +53,7 @@ class ProjectAnalizerController extends Rest_api_Controller
 
     public function teamActivities()
     {
-        if ($this->request->getMethod() === 'get') {
+        if ($this->request->getMethod(true) === 'GET') {
             return $this->listTeamActivities();
         }
 
@@ -59,7 +62,7 @@ class ProjectAnalizerController extends Rest_api_Controller
 
     public function timelogs()
     {
-        if ($this->request->getMethod() === 'get') {
+        if ($this->request->getMethod(true) === 'GET') {
             return $this->listTimelogs();
         }
 
@@ -158,8 +161,7 @@ class ProjectAnalizerController extends Rest_api_Controller
             $percentageExecuted = null;
         }
 
-        $apiUser = $this->api_settings_model->get_one_where(['token' => get_token()]);
-        $createdBy = (int) ($apiUser->id ?? 0);
+        $createdBy = 0;
 
         $data = [
             'project_id' => $projectId,
@@ -347,8 +349,7 @@ class ProjectAnalizerController extends Rest_api_Controller
             mkdir($targetDir, 0777, true);
         }
 
-        $apiUser = $this->api_settings_model->get_one_where(['token' => get_token()]);
-        $uploadedBy = (int) ($apiUser->id ?? 0);
+        $uploadedBy = 0;
         $saved = [];
 
         foreach ($photos as $file) {

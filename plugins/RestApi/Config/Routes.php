@@ -34,8 +34,8 @@ $routes->group('api', $rest_api_namespace, function ($routes) {
 	$routes->get('contaazul/endpoints', 'ContaAzulController::endpoints');
 	$routes->get('contaazul/query/(:segment)', 'ContaAzulController::query/$1');
 	$routes->get('projectanalizer/endpoints', 'ProjectAnalizerController::endpoints');
-	$routes->match(['get', 'post'], 'projectanalizer/team-activities', 'ProjectAnalizerController::teamActivities');
-	$routes->match(['get', 'post'], 'projectanalizer/timelogs', 'ProjectAnalizerController::timelogs');
+	$routes->match(['GET', 'POST'], 'projectanalizer/team-activities', 'ProjectAnalizerController::teamActivities');
+	$routes->match(['GET', 'POST'], 'projectanalizer/timelogs', 'ProjectAnalizerController::timelogs');
 	$routes->get('projectanalizer/timelogs/(:num)/photos', 'ProjectAnalizerController::timelogPhotos/$1');
 });
 
