@@ -407,8 +407,19 @@ class Team_members extends Security_Controller {
             app_redirect("forbidden");
         }
 
-        if ($this->Users_model->delete($id)) {
-            echo json_encode(array("success" => true, 'message' => app_lang('record_deleted')));
+        $account_data = array(
+            "status" => "inactive",
+            "disable_login" => 1
+        );
+
+        if ($this->request->getPost('undo')) {
+            $account_data["status"] = "active";
+            $account_data["disable_login"] = 0;
+        }
+
+        if ($this->Users_model->ci_save($account_data, $id)) {
+            $message = $this->request->getPost('undo') ? app_lang('record_undone') : app_lang('record_updated');
+            echo json_encode(array("success" => true, 'message' => $message));
         } else {
             echo json_encode(array("success" => false, 'message' => app_lang('record_cannot_be_deleted')));
         }

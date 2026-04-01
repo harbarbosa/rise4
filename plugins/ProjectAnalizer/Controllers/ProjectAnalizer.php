@@ -1900,7 +1900,7 @@ class ProjectAnalizer extends Security_Controller {
             $this->Tasks_model = new \App\Models\Tasks_model();
         
             // 🔹 converte resultado de membros em array
-            $members_result = $this->Project_members_model->get_project_members_dropdown_list($project_id)->getResultArray();
+            $members_result = $this->Project_members_model->get_project_members_dropdown_list($project_id, array(), false, true)->getResultArray();
             $members_dropdown = [];
             
             foreach ($members_result as $m) {
@@ -2857,7 +2857,7 @@ class ProjectAnalizer extends Security_Controller {
 
      private function _prepare_members_dropdown_for_timesheet_filter($members)
      {
-         $where = array("user_type" => "staff");
+         $where = array("user_type" => "staff", "status" => "active");
  
          if ($members != "all" && is_array($members) && count($members)) {
              $where["where_in"] = array("id" => $members);
@@ -2961,9 +2961,9 @@ class ProjectAnalizer extends Security_Controller {
             $project_members = "";
 
             if ($allowed_members === "all") {
-                $project_members = $this->Project_members_model->get_project_members_dropdown_list($project_id)->getResult(); //get all members of this project
+                $project_members = $this->Project_members_model->get_project_members_dropdown_list($project_id, array(), false, true)->getResult(); //get all active members of this project
             } else {
-                $project_members = $this->Project_members_model->get_project_members_dropdown_list($project_id, $allowed_members)->getResult();
+                $project_members = $this->Project_members_model->get_project_members_dropdown_list($project_id, $allowed_members, false, true)->getResult();
             }
 
             $project_members_dropdown = array();
@@ -3101,7 +3101,7 @@ class ProjectAnalizer extends Security_Controller {
     private function _get_project_members_dropdown_list_for_filter($project_id)
     {
 
-        $project_members = $this->Project_members_model->get_project_members_dropdown_list($project_id)->getResult();
+        $project_members = $this->Project_members_model->get_project_members_dropdown_list($project_id, array(), false, true)->getResult();
         
         
         foreach ($project_members as $member) {
