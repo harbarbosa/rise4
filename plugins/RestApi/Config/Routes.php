@@ -33,6 +33,10 @@ $routes->group('api', $rest_api_namespace, function ($routes) {
 	$routes->add('project_members', 'UtilitiesController::getProjectMembers');
 	$routes->get('contaazul/endpoints', 'ContaAzulController::endpoints');
 	$routes->get('contaazul/query/(:segment)', 'ContaAzulController::query/$1');
+	$routes->get('projectanalizer/endpoints', 'ProjectAnalizerController::endpoints');
+	$routes->match(['get', 'post'], 'projectanalizer/team-activities', 'ProjectAnalizerController::teamActivities');
+	$routes->match(['get', 'post'], 'projectanalizer/timelogs', 'ProjectAnalizerController::timelogs');
+	$routes->get('projectanalizer/timelogs/(:num)/photos', 'ProjectAnalizerController::timelogPhotos/$1');
 });
 
 $routes->group('api', $rest_api_namespace, function ($routes) {
