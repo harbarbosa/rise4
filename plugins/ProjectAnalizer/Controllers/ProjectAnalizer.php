@@ -3064,10 +3064,16 @@ class ProjectAnalizer extends Security_Controller {
             $collaborators_array = explode(",", $collaborator_list);
          
             foreach ($collaborators_array as $collaborator) {
+                $collaborator = trim((string) $collaborator);
+                if ($collaborator === '') {
+                    continue;
+                }
 
-                $Collabor = $this->Users_model->get_details(array('id'=>$collaborator))->getRow();
+                $Collabor = $this->Users_model->get_details(array('id' => $collaborator))->getRow();
+                if (!$Collabor || empty($Collabor->id)) {
+                    continue;
+                }
 
-                
                 $collaborator_id = $Collabor->id;
                 $collaborator_name = $Collabor->first_name.' '.$Collabor->last_name;
                 $image_url = get_avatar($Collabor->image);
@@ -3085,11 +3091,10 @@ class ProjectAnalizer extends Security_Controller {
                 } else {
                     $collaborators .= "<span title='$collaborator_name'>$collaboratr_image</span>";
                 }
-
-               
             }
         }
-        return $collaborators;
+
+        return $collaborators ?: "-";
     }
 
 
