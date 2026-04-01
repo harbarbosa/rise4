@@ -18,6 +18,7 @@ class ProjectAnalizerController extends Rest_api_Controller
     {
         parent::__construct();
 
+        helper('date_time');
         $this->db = Database::connect('default');
         $this->teamActivitiesModel = model('ProjectAnalizer\Models\Team_activities_model');
         $this->timesheetsModel = model('App\Models\Timesheets_model');
