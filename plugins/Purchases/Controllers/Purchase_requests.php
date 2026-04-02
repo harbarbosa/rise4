@@ -112,6 +112,7 @@ class Purchase_requests extends Security_Controller
 
         $id = (int)$id;
         $view_data = array();
+        $old_items = $this->_get_old_request_items();
 
         if ($id) {
             $request = $this->Purchases_requests_model->get_details(array(
@@ -125,7 +126,7 @@ class Purchase_requests extends Security_Controller
                 app_redirect('forbidden');
             }
             $view_data['request_info'] = $request;
-            $view_data['request_items'] = $this->Purchases_request_items_model->get_details(array(
+            $view_data['request_items'] = $old_items ? $old_items : $this->Purchases_request_items_model->get_details(array(
                 'request_id' => $id,
                 'company_id' => $this->_get_company_id()
             ))->getResult();
@@ -140,7 +141,7 @@ class Purchase_requests extends Security_Controller
                 'priority' => 'medium',
                 'note' => ''
             );
-            $view_data['request_items'] = array();
+            $view_data['request_items'] = $old_items;
         }
 
         $view_data['projects_dropdown'] = $this->_get_projects_dropdown();
@@ -148,6 +149,64 @@ class Purchase_requests extends Security_Controller
         $view_data['items_dropdown_list'] = $this->_get_items_dropdown_list();
 
         return $this->template->rander('Purchases\\Views\\requests\\form', $view_data);
+    }
+
+    private function _get_old_request_items()
+    {
+        $item_ids = old('item_id');
+        $descriptions = old('description');
+        $quantities = old('quantity');
+        $units = old('unit');
+        $desired_dates = old('desired_date');
+        $notes = old('note');
+
+        if (!is_array($item_ids) && !is_array($descriptions) && !is_array($quantities) && !is_array($units) && !is_array($desired_dates) && !is_array($notes)) {
+            return array();
+        }
+
+        if (!is_array($item_ids)) {
+            $item_ids = array();
+        }
+        if (!is_array($descriptions)) {
+            $descriptions = array();
+        }
+        if (!is_array($quantities)) {
+            $quantities = array();
+        }
+        if (!is_array($units)) {
+            $units = array();
+        }
+        if (!is_array($desired_dates)) {
+            $desired_dates = array();
+        }
+        if (!is_array($notes)) {
+            $notes = array();
+        }
+
+        $max = max(
+            count($item_ids),
+            count($descriptions),
+            count($quantities),
+            count($units),
+            count($desired_dates),
+            count($notes)
+        );
+
+        $items = array();
+        for ($i = 0; $i < $max; $i++) {
+            $items[] = (object) array(
+                'id' => 0,
+                'item_id' => get_array_value($item_ids, $i),
+                'description' => get_array_value($descriptions, $i),
+                'quantity' => get_array_value($quantities, $i),
+                'unit' => get_array_value($units, $i),
+                'item_unit' => get_array_value($units, $i),
+                'desired_date' => get_array_value($desired_dates, $i),
+                'note' => get_array_value($notes, $i),
+            );
+        }
+
+        return $items;
     }
 
     public function download_items_template()

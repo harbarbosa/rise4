@@ -1,7 +1,19 @@
 <?php
 $info = $request_info;
 $is_edit = !empty($info->id);
+$old_project_id = old('project_id');
+$old_os_id = old('os_id');
+$old_cost_center = old('cost_center');
+$old_priority = old('priority');
+$old_note_header = old('note_header');
+$old_is_internal = old('is_internal');
 $items_dropdown_list = $items_dropdown_list ?? array('' => '-');
+$render_item_row_actions = function ($show_add = false) {
+    $add_button = $show_add
+        ? "<button type='button' class='btn btn-primary btn-sm add-item-row me-1' onclick=\"if (window.purchasesAddItemRow) { window.purchasesAddItemRow(); } return false;\"><i data-feather='plus' class='icon-16'></i></button>"
+        : '';
+    return $add_button . "<button type='button' class='btn btn-default btn-sm remove-item' onclick=\"if (window.purchasesRemoveItemRow) { window.purchasesRemoveItemRow(this); } return false;\"><i data-feather='x' class='icon-16'></i></button>";
+};
 $items_options_html = '';
 foreach ($items_dropdown_list as $key => $value) {
     $items_options_html .= "<option value='" . esc($key) . "'>" . esc($value) . "</option>";
@@ -30,17 +42,17 @@ foreach ($items_dropdown_list as $key => $value) {
                 </div>
                 <div class="col-md-3 mb15">
                     <label for="project_id" class="form-label"><?php echo app_lang('project'); ?></label>
-                    <?php echo form_dropdown('project_id', $projects_dropdown, $info->project_id, "class='select2' id='project_id'"); ?>
+                    <?php echo form_dropdown('project_id', $projects_dropdown, $old_project_id !== null ? $old_project_id : $info->project_id, "class='select2' id='project_id'"); ?>
                 </div>
                 <div class="col-md-3 mb15">
                     <label for="os_id" class="form-label"><?php echo app_lang('purchases_os'); ?></label>
-                    <?php echo form_dropdown('os_id', $os_dropdown, $info->os_id, "class='select2' id='os_id'"); ?>
+                    <?php echo form_dropdown('os_id', $os_dropdown, $old_os_id !== null ? $old_os_id : $info->os_id, "class='select2' id='os_id'"); ?>
                 </div>
             </div>
             <div class="row">
                 <div class="col-md-4 mb15">
                     <label for="cost_center" class="form-label"><?php echo app_lang('purchases_cost_center'); ?></label>
-                    <input type="text" id="cost_center" name="cost_center" value="<?php echo esc($info->cost_center); ?>" class="form-control" />
+                    <input type="text" id="cost_center" name="cost_center" value="<?php echo esc($old_cost_center !== null ? $old_cost_center : $info->cost_center); ?>" class="form-control" />
                 </div>
                 <div class="col-md-4 mb15">
                     <label for="priority" class="form-label"><?php echo app_lang('purchases_priority'); ?></label>
@@ -50,13 +62,13 @@ foreach ($items_dropdown_list as $key => $value) {
                         'medium' => app_lang('purchases_priority_medium'),
                         'high' => app_lang('purchases_priority_high')
                     );
-                    echo form_dropdown('priority', $priority_options, $info->priority ? $info->priority : 'medium', "class='select2' id='priority'");
+                    echo form_dropdown('priority', $priority_options, $old_priority !== null ? $old_priority : ($info->priority ? $info->priority : 'medium'), "class='select2' id='priority'");
                     ?>
                 </div>
                 <div class="col-md-4 mb15">
                     <label for="is_internal" class="form-label"><?php echo app_lang('purchases_internal'); ?></label>
                     <div>
-                        <?php echo form_checkbox("is_internal", "1", $info->is_internal ? true : false, "id='is_internal' class='form-check-input'"); ?>
+                        <?php echo form_checkbox("is_internal", "1", $old_is_internal !== null ? (bool)$old_is_internal : ($info->is_internal ? true : false), "id='is_internal' class='form-check-input'"); ?>
                         <span class="ms-1"><?php echo app_lang('purchases_internal_hint'); ?></span>
                     </div>
                 </div>
@@ -64,7 +76,7 @@ foreach ($items_dropdown_list as $key => $value) {
             <div class="row">
                 <div class="col-md-12 mb15">
                     <label for="note" class="form-label"><?php echo app_lang('purchases_note'); ?></label>
-                    <textarea id="note" name="note_header" class="form-control" rows="2"><?php echo esc($info->note); ?></textarea>
+                    <textarea id="note" name="note_header" class="form-control" rows="2"><?php echo esc($old_note_header !== null ? $old_note_header : $info->note); ?></textarea>
                 </div>
             </div>
 
@@ -104,12 +116,13 @@ foreach ($items_dropdown_list as $key => $value) {
                                 <th style="width: 10%;"><?php echo app_lang('purchases_unit'); ?></th>
                                 <th style="width: 15%;"><?php echo app_lang('purchases_desired_date'); ?></th>
                                 <th><?php echo app_lang('purchases_note'); ?></th>
-                                <th style="width: 50px;"></th>
+                                <th style="width: 90px;"></th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (!empty($request_items)) { ?>
-                                <?php foreach ($request_items as $item) { ?>
+                                <?php $last_index = count($request_items) - 1; ?>
+                                <?php foreach ($request_items as $index => $item) { ?>
                                     <tr>
                                         <td>
                                             <?php echo form_dropdown("item_id[]", $items_dropdown_list, $item->item_id, "class='form-control item-select'"); ?>
@@ -130,7 +143,7 @@ foreach ($items_dropdown_list as $key => $value) {
                                             <input type="text" name="note[]" class="form-control" value="<?php echo esc($item->note); ?>" />
                                         </td>
                                         <td class="text-center">
-                                            <button type="button" class="btn btn-default btn-sm remove-item" onclick="if (window.purchasesRemoveItemRow) { window.purchasesRemoveItemRow(this); } return false;"><i data-feather='x' class='icon-16'></i></button>
+                                            <?php echo $render_item_row_actions($index === $last_index); ?>
                                         </td>
                                     </tr>
                                 <?php } ?>
@@ -155,7 +168,7 @@ foreach ($items_dropdown_list as $key => $value) {
                                         <input type="text" name="note[]" class="form-control" />
                                     </td>
                                     <td class="text-center">
-                                        <button type="button" class="btn btn-default btn-sm remove-item" onclick="if (window.purchasesRemoveItemRow) { window.purchasesRemoveItemRow(this); } return false;"><i data-feather='x' class='icon-16'></i></button>
+                                        <?php echo $render_item_row_actions(true); ?>
                                     </td>
                                 </tr>
                             <?php } ?>
@@ -249,11 +262,15 @@ foreach ($items_dropdown_list as $key => $value) {
                 "<td><input type='text' name='unit[]' class='form-control' value='UN' /></td>" +
                 "<td><input type='date' name='desired_date[]' class='form-control' /></td>" +
                 "<td><input type='text' name='note[]' class='form-control' /></td>" +
-                "<td class='text-center'><button type='button' class='btn btn-default btn-sm remove-item' onclick=\"if (window.purchasesRemoveItemRow) { window.purchasesRemoveItemRow(this); } return false;\"><i data-feather='x' class='icon-16'></i></button></td>" +
+                "<td class='text-center'>" +
+                    "<button type='button' class='btn btn-primary btn-sm add-item-row me-1' onclick=\"if (window.purchasesAddItemRow) { window.purchasesAddItemRow(); } return false;\"><i data-feather='plus' class='icon-16'></i></button>" +
+                    "<button type='button' class='btn btn-default btn-sm remove-item' onclick=\"if (window.purchasesRemoveItemRow) { window.purchasesRemoveItemRow(this); } return false;\"><i data-feather='x' class='icon-16'></i></button>" +
+                "</td>" +
                 "</tr>";
             var $row = $(rowHtml);
             $tbody.append($row);
             window.purchasesInitItemSelect($row.find('.item-select'));
+            window.purchasesRefreshItemActions();
             if (typeof feather !== "undefined") {
                 feather.replace();
             }
@@ -301,6 +318,7 @@ foreach ($items_dropdown_list as $key => $value) {
             $row.find("input[name='unit[]']").val(row.unit || 'UN');
             $row.find("input[name='desired_date[]']").val(row.desired_date || '');
             $row.find("input[name='note[]']").val(row.note || '');
+            window.purchasesRefreshItemActions();
         };
 
         window.purchasesResetItemsTableForImport = function () {
@@ -368,6 +386,21 @@ foreach ($items_dropdown_list as $key => $value) {
         $(document).ready(function () {
             $(".select2").not(".item-select").select2();
             $(".item-select").each(function () { window.purchasesInitItemSelect($(this)); });
+
+            window.purchasesRefreshItemActions = function () {
+                var $rows = $("#purchases-items-table tbody tr");
+                $rows.each(function (index) {
+                    var $row = $(this);
+                    var isLast = index === $rows.length - 1;
+                    var $actions = $row.find("td:last");
+                    var html = "";
+                    if (isLast) {
+                        html += "<button type='button' class='btn btn-primary btn-sm add-item-row me-1' onclick=\"if (window.purchasesAddItemRow) { window.purchasesAddItemRow(); } return false;\"><i data-feather='plus' class='icon-16'></i></button>";
+                    }
+                    html += "<button type='button' class='btn btn-default btn-sm remove-item' onclick=\"if (window.purchasesRemoveItemRow) { window.purchasesRemoveItemRow(this); } return false;\"><i data-feather='x' class='icon-16'></i></button>";
+                    $actions.html(html);
+                });
+            };
 
             window.purchasesClearSelect = function ($el) {
                 if (!$el || !$el.length) {
@@ -460,12 +493,17 @@ foreach ($items_dropdown_list as $key => $value) {
                 };
                 reader.readAsText(file, 'UTF-8');
             });
+
+            window.purchasesRefreshItemActions();
         });
 
         window.purchasesRemoveItemRow = function (button) {
             var $row = $(button).closest('tr');
             if ($('#purchases-items-table tbody tr').length > 1) {
                 $row.remove();
+                if (window.purchasesRefreshItemActions) {
+                    window.purchasesRefreshItemActions();
+                }
                 return;
             }
 
@@ -473,6 +511,9 @@ foreach ($items_dropdown_list as $key => $value) {
             $row.find("select").val('').trigger('change');
             $row.find("input[name='quantity[]']").val('1');
             $row.find("input[name='unit[]']").val('UN');
+            if (window.purchasesRefreshItemActions) {
+                window.purchasesRefreshItemActions();
+            }
         };
     })();
 </script>
