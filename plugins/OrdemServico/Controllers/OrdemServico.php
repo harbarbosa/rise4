@@ -8,192 +8,10 @@ use App\Libraries\Dropdown_list;
 class OrdemServico extends Security_Controller
 {
     private $OrdemServico_model;
-
     public function __construct()
     {
         parent::__construct(true);
         $this->OrdemServico_model = model('OrdemServico\\Models\\OrdemServico_model');
-    }
-
-    private function egestor_http_request(string $method, string $url, array $query = [], array $body = []): array
-    {
-        $method = strtoupper($method);
-        if ($query) {
-            $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($query);
-        }
-
-        $headers = [
-            'Accept: application/json',
-        ];
-        if ($body && $method !== 'GET') {
-            $headers[] = 'Content-Type: application/json';
-        }
-
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CUSTOMREQUEST => $method,
-            CURLOPT_TIMEOUT => 20,
-            CURLOPT_HTTPHEADER => $headers,
-        ]);
-
-        if ($body && $method !== 'GET') {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
-        }
-
-        $response = curl_exec($ch);
-        $http_code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curl_error = curl_error($ch);
-        curl_close($ch);
-
-        if ($response === false) {
-            return [
-                'status' => false,
-                'code' => 500,
-                'message' => $curl_error ?: 'Erro de conexÃ£o com o eGestor.',
-            ];
-        }
-
-        $decoded = json_decode($response, true);
-        if (is_array($decoded)) {
-            $decoded['_http_status'] = $http_code;
-            return $decoded;
-        }
-
-        return [
-            'status' => false,
-            'code' => $http_code ?: 500,
-            'message' => 'Resposta invÃ¡lida do eGestor.',
-            'raw' => $response,
-        ];
-    }
-
-    private function get_egestor_personal_token(): ?string
-    {
-        $token = get_setting('egestor_personal_token');
-        if (!$token) {
-            $token = getenv('EGESTOR_PERSONAL_TOKEN');
-        }
-
-        $token = trim((string) $token);
-        return $token !== '' ? $token : null;
-    }
-
-    private function get_egestor_access_token(): ?string
-    {
-        $session = session();
-        $cached_token = $session->get('egestor_access_token');
-        $expires_at = (int) $session->get('egestor_access_token_expires_at');
-        if ($cached_token && $expires_at > (time() + 30)) {
-            return $cached_token;
-        }
-
-        $personal_token = $this->get_egestor_personal_token();
-        if (!$personal_token) {
-            return null;
-        }
-
-        try {
-            $payload = $this->egestor_http_request('POST', 'https://api.egestor.com.br/api/oauth/access_token', [], [
-                'grant_type' => 'personal',
-                'personal_token' => $personal_token,
-            ]);
-            $access_token = $payload['access_token'] ?? null;
-            if ($access_token) {
-                $session->set([
-                    'egestor_access_token' => $access_token,
-                    'egestor_access_token_expires_at' => time() + (int) ($payload['expires_in'] ?? 900),
-                ]);
-                return $access_token;
-            }
-        } catch (\Throwable $e) {
-            log_message('error', 'eGestor auth error: ' . $e->getMessage());
-        }
-
-        return null;
-    }
-
-    private function egestor_request(string $method, string $path, array $query = [], array $body = []): array
-    {
-        $access_token = $this->get_egestor_access_token();
-        if (!$access_token) {
-            return [
-                'status' => false,
-                'code' => 401,
-                'message' => 'Configure o personal_token do eGestor.',
-            ];
-        }
-
-        $options = [
-            'headers' => [
-                'Authorization' => 'Bearer ' . $access_token,
-                'Accept' => 'application/json',
-            ],
-        ];
-
-        $query = array_filter($query, static fn($value) => $value !== null && $value !== '');
-        if ($query) {
-            $options['query'] = $query;
-        }
-
-        if (strtoupper($method) !== 'GET' && $body) {
-            $options['json'] = $body;
-        }
-
-        try {
-            $payload = $this->egestor_http_request($method, 'https://api.egestor.com.br/api/v1' . $path, $query, $body);
-            return $payload;
-        } catch (\Throwable $e) {
-            log_message('error', 'eGestor request error [' . $method . ' ' . $path . ']: ' . $e->getMessage());
-            return [
-                'status' => false,
-                'code' => 500,
-                'message' => 'Erro ao consultar a API do eGestor.',
-            ];
-        }
-    }
-
-    private function find_or_create_client_from_egestor(array $contact_data): int
-    {
-        $db = db_connect('default');
-        $Clients = model('App\\Models\\Clients_model');
-
-        $company_name = trim((string) ($contact_data['fantasia'] ?? $contact_data['nome'] ?? ''));
-        if ($company_name === '') {
-            $company_name = 'Cliente eGestor';
-        }
-
-        $existing = $db->table($db->prefixTable('clients'))
-            ->select('id')
-            ->where('company_name', $company_name)
-            ->where('deleted', 0)
-            ->get()
-            ->getRow();
-
-        if ($existing && !empty($existing->id)) {
-            return (int) $existing->id;
-        }
-
-        $city = $contact_data['cidade'] ?? '';
-        if (is_array($city)) {
-            $city = get_array_value($city, 'nome') ?: get_array_value($city, 'descricao') ?: '';
-        }
-
-        $client_data = [
-            'company_name' => $company_name,
-            'address' => trim((string) ($contact_data['logradouro'] ?? '')) . ' ' . trim((string) ($contact_data['numero'] ?? '')) . ' ' . trim((string) ($contact_data['complemento'] ?? '')),
-            'city' => trim((string) $city),
-            'state' => trim((string) ($contact_data['uf'] ?? '')),
-            'zip' => trim((string) ($contact_data['cep'] ?? '')),
-            'phone' => trim((string) (is_array($contact_data['fones'] ?? null) ? ($contact_data['fones'][0] ?? '') : ($contact_data['fones'] ?? ''))),
-            'website' => trim((string) (is_array($contact_data['emails'] ?? null) ? ($contact_data['emails'][0] ?? '') : ($contact_data['emails'] ?? ''))),
-            'contact_email' => trim((string) (is_array($contact_data['emails'] ?? null) ? ($contact_data['emails'][0] ?? '') : ($contact_data['emails'] ?? ''))),
-            'created_date' => get_my_local_time('Y-m-d H:i:s'),
-            'created_by' => $this->login_user->id,
-        ];
-
-        $client_id = $Clients->ci_save($client_data);
-        return $client_id ? (int) $client_id : 0;
     }
 
     private function ensure_tables()
@@ -255,9 +73,6 @@ class OrdemServico extends Security_Controller
                     if (!in_array('contract_id', $fields)) {
                         $db->query("ALTER TABLE `{$os_table}` ADD `contract_id` INT(11) NULL AFTER `task_id`");
                     }
-                    if (!in_array('egestor_codigo', $fields)) {
-                        $db->query("ALTER TABLE `{$os_table}` ADD `egestor_codigo` INT(11) NULL AFTER `contract_id`");
-                    }
                 }
             } catch (\Throwable $e) {
                 // ignore upgrade errors to avoid fatal; listing will fallback
@@ -315,7 +130,7 @@ class OrdemServico extends Security_Controller
         $view_data = [];
         $dropdown_list = new Dropdown_list($this);
         $view_data['clients_dropdown'] = $dropdown_list->get_clients_id_and_text_dropdown();
-        // TÃ©cnicos: lista completa, ordenada alfabeticamente (sem exigir digitaÃ§Ã£o)
+        // Técnicos: lista completa, ordenada alfabeticamente (sem exigir digitação)
         $db = db_connect('default');
         $users_table = $db->prefixTable('users');
         $rows = $db->table($users_table)
@@ -529,7 +344,7 @@ class OrdemServico extends Security_Controller
         $view_data['model_info'] = $id ? $At->get_one($id) : (object)['os_id' => $os_id];
         $view_data['os_id'] = $os_id;
 
-        // build staff dropdown list (Aâ†’Z)
+        // build staff dropdown list (A?Z)
         $db = db_connect('default');
         $users_table = $db->prefixTable('users');
         $rows = $db->table($users_table)
@@ -565,7 +380,7 @@ class OrdemServico extends Security_Controller
         $id = (int)($this->request->getPost('id') ?? 0);
         $os_id = (int)($this->request->getPost('os_id') ?? 0);
        
-        if (!$os_id) { return $this->response->setJSON(['success' => false, 'message' => 'OS invÃ¡lida']); }
+        if (!$os_id) { return $this->response->setJSON(['success' => false, 'message' => 'OS inválida']); }
 
         $sd = trim((string)$this->request->getPost('start_date'));
         $st = trim((string)$this->request->getPost('start_time'));
@@ -992,7 +807,7 @@ class OrdemServico extends Security_Controller
         return $this->response->setJSON(['success' => false, 'message' => app_lang('error_occurred') ?: 'error']);
     }
 
-    // TÃ©cnicos (staff) para dropdown remoto
+    // Técnicos (staff) para dropdown remoto
     public function technicians_search()
     {
         $term = trim($this->request->getPost('search') ?? '');
@@ -1104,267 +919,7 @@ class OrdemServico extends Security_Controller
 
     public function settings()
     {
-        $view_data = [
-            'egestor_personal_token' => $this->get_egestor_personal_token(),
-        ];
-        return $this->template->rander('OrdemServico\\Views\\settings\\index', $view_data);
-    }
-
-    public function egestor_settings_save()
-    {
-        $this->access_only_admin_or_settings_admin();
-
-        $personal_token = trim((string) $this->request->getPost('egestor_personal_token'));
-        $this->Settings_model->save_setting('egestor_personal_token', $personal_token);
-
-        return $this->response->setJSON([
-            'success' => true,
-            'message' => app_lang('settings_updated') ?: 'settings_updated',
-        ]);
-    }
-
-    public function egestor_os_list()
-    {
-        $this->ensure_tables();
-
-        $filters = [
-            'filtro' => $this->request->getGet('filtro'),
-            'dtTipo' => $this->request->getGet('dtTipo') ?: 'dtVenda',
-            'dtIni' => $this->request->getGet('dtIni'),
-            'dtFim' => $this->request->getGet('dtFim'),
-            'vendedor' => $this->request->getGet('vendedor'),
-            'tipo' => $this->request->getGet('tipo'),
-            'formaPgto' => $this->request->getGet('formaPgto'),
-            'contaDest' => $this->request->getGet('contaDest'),
-            'situOS' => $this->request->getGet('situOS'),
-            'buscaObs' => $this->request->getGet('buscaObs'),
-            'fiscal' => $this->request->getGet('fiscal'),
-            'listarCanceladas' => $this->request->getGet('listarCanceladas'),
-            'fields' => $this->request->getGet('fields'),
-            'orderBy' => $this->request->getGet('orderBy'),
-            'page' => $this->request->getGet('page'),
-        ];
-
-        $response = $this->egestor_request('GET', '/vendas', $filters);
-        if (isset($response['status']) && $response['status'] === false) {
-            return $this->response->setJSON($response)->setStatusCode((int) ($response['code'] ?? 500));
-        }
-
-        return $this->response->setJSON([
-            'status' => true,
-            'filters' => array_filter($filters, static fn($value) => $value !== null && $value !== ''),
-            'data' => $response,
-        ]);
-    }
-
-    public function egestor_os_show($codigo = 0)
-    {
-        $this->ensure_tables();
-        $codigo = (int) $codigo;
-        if (!$codigo) {
-            return $this->response->setJSON([
-                'status' => false,
-                'message' => 'CÃ³digo da OS invÃ¡lido.',
-            ])->setStatusCode(422);
-        }
-
-        $response = $this->egestor_request('GET', '/vendas/' . $codigo);
-        if (isset($response['status']) && $response['status'] === false) {
-            return $this->response->setJSON($response)->setStatusCode((int) ($response['code'] ?? 500));
-        }
-
-        return $this->response->setJSON([
-            'status' => true,
-            'codigo' => $codigo,
-            'data' => $response,
-        ]);
-    }
-
-    public function egestor_sync_os($codigo = 0)
-    {
-        $this->ensure_tables();
-        $codigo = (int) ($codigo ?: $this->request->getPost('codigo'));
-        if (!$codigo) {
-            return $this->response->setJSON([
-                'status' => false,
-                'message' => 'Informe o cÃ³digo da OS.',
-            ])->setStatusCode(422);
-        }
-
-        $os_data = $this->egestor_request('GET', '/vendas/' . $codigo);
-        if (isset($os_data['status']) && $os_data['status'] === false) {
-            return $this->response->setJSON($os_data)->setStatusCode((int) ($os_data['code'] ?? 500));
-        }
-
-        $contact_code = (int) ($os_data['codContato'] ?? $os_data['contato'] ?? 0);
-        $contact_data = [];
-        if ($contact_code) {
-            $contact_data = $this->egestor_request('GET', '/contatos/' . $contact_code);
-            if (isset($contact_data['status']) && $contact_data['status'] === false) {
-                $contact_data = [];
-            }
-        }
-
-        $client_id = 0;
-        if ($contact_data) {
-            $client_id = $this->find_or_create_client_from_egestor($contact_data);
-        }
-
-        $status = 'aberta';
-        $situacao_os = (string) ($os_data['situOS'] ?? '');
-        if (stripos($situacao_os, 'exec') !== false) {
-            $status = 'em_andamento';
-        } elseif (stripos($situacao_os, 'final') !== false || stripos($situacao_os, 'entreg') !== false) {
-            $status = 'fechada';
-        }
-
-        $title = trim((string) ($os_data['descricao'] ?? $os_data['obs'] ?? $os_data['nomeContato'] ?? ('OS ' . $codigo)));
-        if ($title === '') {
-            $title = 'OS ' . $codigo;
-        }
-
-        $order_date = $os_data['dtCad'] ?? $os_data['dtVenda'] ?? $os_data['data'] ?? null;
-        $data_abertura = $order_date ? substr((string) $order_date, 0, 10) : get_my_local_time('Y-m-d');
-
-        $project_id = (int) ($this->request->getPost('project_id') ?: $this->request->getGet('project_id'));
-
-        $os_payload = [
-            'cliente_id' => $client_id,
-            'titulo' => $title,
-            'status' => $status,
-            'data_abertura' => $data_abertura,
-            'project_id' => $project_id ?: null,
-            'egestor_codigo' => $codigo,
-            'created_by' => $this->login_user->id,
-            'created_at' => get_my_local_time(),
-            'updated_at' => get_my_local_time(),
-        ];
-
-        $save_id = $this->OrdemServico_model->save_from_post($os_payload, 0);
-        if (!$save_id) {
-            return $this->response->setJSON([
-                'status' => false,
-                'message' => 'NÃ£o foi possÃ­vel salvar a OS localmente.',
-            ])->setStatusCode(500);
-        }
-
-        $this->sync_egestor_items_to_os((int) $save_id, $codigo, $os_data);
-
-        return $this->response->setJSON([
-            'status' => true,
-            'message' => 'OS sincronizada com sucesso.',
-            'os_id' => (int) $save_id,
-            'egestor_codigo' => $codigo,
-            'client_id' => $client_id ?: null,
-        ]);
-    }
-
-    private function sync_egestor_items_to_os(int $os_id, int $codigo, array $os_data = []): void
-    {
-        $Items = model('App\\Models\\Items_model');
-        $ProductsItems = model('OrdemServico\\Models\\OsProducts_items_model');
-        $ServicesItems = model('OrdemServico\\Models\\OsServices_items_model');
-
-        $produtos = $os_data['produtos'] ?? [];
-        if (!is_array($produtos) || !count($produtos)) {
-            $produtos = $os_data['itens'] ?? [];
-        }
-
-        $servicos = $os_data['servicos'] ?? [];
-        if (!is_array($servicos)) {
-            $servicos = [];
-        }
-
-        foreach ($produtos as $produto) {
-            $title = trim((string) ($produto['descricao'] ?? $produto['nome'] ?? $produto['nomeProduto'] ?? ''));
-            if ($title === '') {
-                continue;
-            }
-
-            $rate = (float) ($produto['valorUnitario'] ?? $produto['precoVenda'] ?? $produto['valor'] ?? 0);
-            $quantity = (float) ($produto['quantidade'] ?? 1);
-            $local_item = $this->find_or_create_local_item($title, $rate);
-
-            $existing = $ProductsItems->get_all_where([
-                'os_id' => $os_id,
-                'item_id' => $local_item,
-                'deleted' => 0,
-            ])->getRow();
-
-            $payload = [
-                'os_id' => $os_id,
-                'item_id' => $local_item,
-                'title' => $title,
-                'quantity' => $quantity,
-                'rate' => $rate,
-            ];
-
-            if ($existing) {
-                $ProductsItems->ci_save($payload, (int) $existing->id);
-            } else {
-                $ProductsItems->ci_save($payload);
-            }
-        }
-
-        foreach ($servicos as $servico) {
-            $title = trim((string) ($servico['descricao'] ?? $servico['nome'] ?? $servico['nomeServico'] ?? ''));
-            if ($title === '') {
-                continue;
-            }
-
-            $rate = (float) ($servico['valorUnitario'] ?? $servico['precoVenda'] ?? $servico['valor'] ?? 0);
-            $quantity = (float) ($servico['quantidade'] ?? 1);
-            $local_item = $this->find_or_create_local_item($title, $rate);
-
-            $existing = $ServicesItems->get_all_where([
-                'os_id' => $os_id,
-                'item_id' => $local_item,
-                'deleted' => 0,
-            ])->getRow();
-
-            $payload = [
-                'os_id' => $os_id,
-                'item_id' => $local_item,
-                'title' => $title,
-                'quantity' => $quantity,
-                'rate' => $rate,
-            ];
-
-            if ($existing) {
-                $ServicesItems->ci_save($payload, (int) $existing->id);
-            } else {
-                $ServicesItems->ci_save($payload);
-            }
-        }
-    }
-
-    private function find_or_create_local_item(string $title, float $rate = 0.0): int
-    {
-        $db = db_connect('default');
-        $items_table = $db->prefixTable('items');
-
-        $existing = $db->table($items_table)
-            ->select('id')
-            ->where('title', $title)
-            ->where('deleted', 0)
-            ->get()
-            ->getRow();
-
-        if ($existing && !empty($existing->id)) {
-            return (int) $existing->id;
-        }
-
-        $Items = model('App\\Models\\Items_model');
-        $item_id = $Items->ci_save([
-            'title' => $title,
-            'rate' => $rate,
-            'unit_type' => 'un',
-            'show_in_client_portal' => 0,
-            'created_by' => $this->login_user->id,
-            'created_date' => get_my_local_time(),
-        ]);
-
-        return $item_id ? (int) $item_id : 0;
+        return $this->template->rander('OrdemServico\\Views\\settings\\index');
     }
 
     // -------------------- ARQUIVOS (similar a files de projetos) --------------------
@@ -1453,7 +1008,7 @@ class OrdemServico extends Security_Controller
         return $this->response->setJSON(['success' => $ok ? true : false, 'message'=>'Arquivo excluido com sucesso!']);
     }
 
-    // OS ServiÃ§os: listagem por tipo
+    // OS Serviços: listagem por tipo
     public function os_services_list_data($os_id )
     {
         $this->ensure_tables();
@@ -1473,7 +1028,7 @@ class OrdemServico extends Security_Controller
             $line_total = $qtd * $vu;
             $total = ($it->tipo_cobranca === 'nao_cobrado') ? 0 : ($line_total - $desc);
             $tag = ($it->tipo_cobranca === 'nao_cobrado')
-                ? "<span class='badge bg-secondary'>Sem CobranÃ§a</span>"
+                ? "<span class='badge bg-secondary'>Sem Cobrança</span>"
                 : "<span class='badge bg-success'>Cobrado</span>";
             $rows[] = [
                 esc($it->descricao),
@@ -1500,7 +1055,7 @@ class OrdemServico extends Security_Controller
         $view_data['model_info'] = $Items->get_one($id);
         if (!$id && $os_id) { $view_data['model_info']->os_id = $os_id; }
 
-        // CatÃ¡logo de serviÃ§os cadastrados (os_servicos) para auto-preenchimento
+        // Catálogo de serviços cadastrados (os_servicos) para auto-preenchimento
         try {
             $Serv = model('OrdemServico\\Models\\OsServicos_model');
             $svc_rs = $Serv->get_all();
@@ -1563,7 +1118,7 @@ class OrdemServico extends Security_Controller
         $save_id = $id ?: (is_int($ok) ? $ok : db_connect('default')->insertID());
         $it = $Items->get_one($save_id);
         $tag = ($it->tipo_cobranca === 'nao_cobrado')
-            ? "<span class='badge bg-secondary'>Sem CobranÃ§a</span>"
+            ? "<span class='badge bg-secondary'>Sem Cobrança</span>"
             : "<span class='badge bg-success'>Cobrado</span>";
         $row = [
             esc($it->descricao),
@@ -1576,7 +1131,7 @@ class OrdemServico extends Security_Controller
             modal_anchor(get_uri('ordemservico/os_services_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar item', 'data-post-id' => $it->id, 'class' => 'btn btn-sm btn-outline-secondary']) .
             js_anchor("<i data-feather='x' class='icon-16'></i>", [ 'title' => app_lang('delete'), 'class' => 'btn btn-sm btn-outline-danger delete', 'data-id' => $it->id, 'data-action-url' => get_uri('ordemservico/os_services_delete'), 'data-action' => 'delete-confirmation', 'data-success-callback' => 'reloadOsItems'])
         ];
-        return $this->response->setJSON(['success'=>true,'id'=>$save_id,'data'=>$row,'message'=>'ServiÃ§o salvo com sucesso!']);
+        return $this->response->setJSON(['success'=>true,'id'=>$save_id,'data'=>$row,'message'=>'Serviço salvo com sucesso!']);
     }
 
     public function os_services_delete()
@@ -1610,7 +1165,7 @@ class OrdemServico extends Security_Controller
         ]);
     }
 
-    // Produtos: listagem, salvar, excluir e totais (espelho de serviÃ§os) usando itens do Rise
+    // Produtos: listagem, salvar, excluir e totais (espelho de serviços) usando itens do Rise
     public function os_products_list_data( $os_id)
     {
         $this->ensure_tables();
@@ -1621,7 +1176,7 @@ class OrdemServico extends Security_Controller
         foreach ($rs as $it) {
             $qtd=(float)$it->quantidade; $vu=(float)$it->valor_unitario; $desc=(float)$it->desconto;
             $line_total = $qtd*$vu; $total = ($it->tipo_cobranca==='nao_cobrado')?0:($line_total-$desc);
-            $tag = ($it->tipo_cobranca==='nao_cobrado')?"<span class='badge bg-secondary'>Sem CobranÃ§a</span>":"<span class='badge bg-success'>Cobrado</span>";
+            $tag = ($it->tipo_cobranca==='nao_cobrado')?"<span class='badge bg-secondary'>Sem Cobrança</span>":"<span class='badge bg-success'>Cobrado</span>";
             $rows[] = [
                 esc($it->descricao),
                 number_format($qtd,2),
@@ -1698,7 +1253,7 @@ class OrdemServico extends Security_Controller
         $ok=$Items->ci_save($data,$id); if($ok===false){ return $this->response->setJSON(['success'=>false]); }
         $save_id=$id?: (is_int($ok)?$ok:db_connect('default')->insertID());
         $it=$Items->get_one($save_id);
-        $tag=($it->tipo_cobranca==='nao_cobrado')?"<span class='badge bg-secondary'>Sem CobranÃ§a</span>":"<span class='badge bg-success'>Cobrado</span>";
+        $tag=($it->tipo_cobranca==='nao_cobrado')?"<span class='badge bg-secondary'>Sem Cobrança</span>":"<span class='badge bg-success'>Cobrado</span>";
         $row=[
             esc($it->descricao),
             number_format((float)$it->quantidade,2),
@@ -1731,7 +1286,7 @@ class OrdemServico extends Security_Controller
         return $this->response->setJSON(['total_geral'=>$sum,'formatted'=>['total_geral'=>to_currency($sum,'R$')]]);
     }
 
-    // CatÃ¡logo: obter informaÃ§Ã£o atual do serviÃ§o selecionado (valor/descriÃ§Ã£o) direto do banco
+    // Catálogo: obter informação atual do serviço selecionado (valor/descrição) direto do banco
     public function service_info()
     {
         $this->ensure_tables();
@@ -1801,7 +1356,7 @@ class OrdemServico extends Security_Controller
         return $this->response->setJSON(['success' => true, 'id' => (int)$saved->id, 'data' => $row, 'message' => app_lang('record_saved') ?? 'saved']);
     }
 
-    // ServiÃ§os catalogÃ¡veis
+    // Serviços catalogáveis
     public function services()
     {
         $this->ensure_tables();
@@ -1824,7 +1379,7 @@ class OrdemServico extends Security_Controller
         $rows = [];
         $rs = $Serv->get_all()->getResult();
         foreach ($rs as $s) {
-            $tipo = $s->tipo === 'contrato' ? 'Contrato' : 'Ordem de ServiÃ§o';
+            $tipo = $s->tipo === 'contrato' ? 'Contrato' : 'Ordem de Serviço';
             $cat_name = '';
             if (!empty($s->categoria_receita)) {
                 $cat_name = $cat_map[(int)$s->categoria_receita] ?? (string)$s->categoria_receita;
@@ -1836,7 +1391,7 @@ class OrdemServico extends Security_Controller
                 to_currency($s->custo, 'R$'),
                 number_format((float)$s->margem, 2) . '%',
                 to_currency($s->valor_venda, 'R$'),
-                modal_anchor(get_uri('ordemservico/services_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar serviÃ§o', 'data-post-id' => $s->id, 'class' => 'btn btn-sm btn-outline-secondary']) .
+                modal_anchor(get_uri('ordemservico/services_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar serviço', 'data-post-id' => $s->id, 'class' => 'btn btn-sm btn-outline-secondary']) .
                 js_anchor("<i data-feather='x' class='icon-16'></i>", [ 'title' => app_lang('delete'), 'class' => 'btn btn-sm btn-outline-danger delete', 'data-id' => $s->id, 'data-action-url' => get_uri('ordemservico/services_delete'), 'data-action' => 'delete-confirmation'])
             ];
         }
@@ -1897,15 +1452,15 @@ class OrdemServico extends Security_Controller
         } catch (\Throwable $e) {}
         $row = [
             esc($s->descricao),
-            ($s->tipo === 'contrato' ? 'Contrato' : 'Ordem de ServiÃ§o'),
+            ($s->tipo === 'contrato' ? 'Contrato' : 'Ordem de Serviço'),
             esc($cat_name),
             to_currency($s->custo, 'R$'),
             number_format((float)$s->margem, 2) . '%',
             to_currency($s->valor_venda, 'R$'),
-            modal_anchor(get_uri('ordemservico/services_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar serviÃ§o', 'data-post-id' => $s->id, 'class' => 'btn btn-sm btn-outline-secondary']) .
+            modal_anchor(get_uri('ordemservico/services_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar serviço', 'data-post-id' => $s->id, 'class' => 'btn btn-sm btn-outline-secondary']) .
             js_anchor("<i data-feather='x' class='icon-16'></i>", [ 'title' => app_lang('delete'), 'class' => 'btn btn-sm btn-outline-danger delete', 'data-id' => $s->id, 'data-action-url' => get_uri('ordemservico/services_delete'), 'data-action' => 'delete-confirmation'])
         ];
-        return $this->response->setJSON(['success'=>true,'id'=>$save_id,'data'=>$row,'message'=>'ServiÃ§o salvo com sucesso!']);
+        return $this->response->setJSON(['success'=>true,'id'=>$save_id,'data'=>$row,'message'=>'Serviço salvo com sucesso!']);
     }
 
     public function services_delete()
