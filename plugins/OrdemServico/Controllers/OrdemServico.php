@@ -11,6 +11,9 @@ class OrdemServico extends Security_Controller
     public function __construct()
     {
         parent::__construct(true);
+        if (!$this->login_user->is_admin && get_array_value($this->login_user->permissions, 'ordemservico_manage') != '1') {
+            app_redirect('forbidden');
+        }
         $this->OrdemServico_model = model('OrdemServico\\Models\\OrdemServico_model');
     }
 
@@ -130,7 +133,7 @@ class OrdemServico extends Security_Controller
         $view_data = [];
         $dropdown_list = new Dropdown_list($this);
         $view_data['clients_dropdown'] = $dropdown_list->get_clients_id_and_text_dropdown();
-        // Técnicos: lista completa, ordenada alfabeticamente (sem exigir digitação)
+        // TÃ©cnicos: lista completa, ordenada alfabeticamente (sem exigir digitaÃ§Ã£o)
         $db = db_connect('default');
         $users_table = $db->prefixTable('users');
         $rows = $db->table($users_table)
@@ -380,7 +383,7 @@ class OrdemServico extends Security_Controller
         $id = (int)($this->request->getPost('id') ?? 0);
         $os_id = (int)($this->request->getPost('os_id') ?? 0);
        
-        if (!$os_id) { return $this->response->setJSON(['success' => false, 'message' => 'OS inválida']); }
+        if (!$os_id) { return $this->response->setJSON(['success' => false, 'message' => 'OS invÃ¡lida']); }
 
         $sd = trim((string)$this->request->getPost('start_date'));
         $st = trim((string)$this->request->getPost('start_time'));
@@ -807,7 +810,7 @@ class OrdemServico extends Security_Controller
         return $this->response->setJSON(['success' => false, 'message' => app_lang('error_occurred') ?: 'error']);
     }
 
-    // Técnicos (staff) para dropdown remoto
+    // TÃ©cnicos (staff) para dropdown remoto
     public function technicians_search()
     {
         $term = trim($this->request->getPost('search') ?? '');
@@ -1008,7 +1011,7 @@ class OrdemServico extends Security_Controller
         return $this->response->setJSON(['success' => $ok ? true : false, 'message'=>'Arquivo excluido com sucesso!']);
     }
 
-    // OS Serviços: listagem por tipo
+    // OS ServiÃ§os: listagem por tipo
     public function os_services_list_data($os_id )
     {
         $this->ensure_tables();
@@ -1028,7 +1031,7 @@ class OrdemServico extends Security_Controller
             $line_total = $qtd * $vu;
             $total = ($it->tipo_cobranca === 'nao_cobrado') ? 0 : ($line_total - $desc);
             $tag = ($it->tipo_cobranca === 'nao_cobrado')
-                ? "<span class='badge bg-secondary'>Sem Cobrança</span>"
+                ? "<span class='badge bg-secondary'>Sem CobranÃ§a</span>"
                 : "<span class='badge bg-success'>Cobrado</span>";
             $rows[] = [
                 esc($it->descricao),
@@ -1055,7 +1058,7 @@ class OrdemServico extends Security_Controller
         $view_data['model_info'] = $Items->get_one($id);
         if (!$id && $os_id) { $view_data['model_info']->os_id = $os_id; }
 
-        // Catálogo de serviços cadastrados (os_servicos) para auto-preenchimento
+        // CatÃ¡logo de serviÃ§os cadastrados (os_servicos) para auto-preenchimento
         try {
             $Serv = model('OrdemServico\\Models\\OsServicos_model');
             $svc_rs = $Serv->get_all();
@@ -1118,7 +1121,7 @@ class OrdemServico extends Security_Controller
         $save_id = $id ?: (is_int($ok) ? $ok : db_connect('default')->insertID());
         $it = $Items->get_one($save_id);
         $tag = ($it->tipo_cobranca === 'nao_cobrado')
-            ? "<span class='badge bg-secondary'>Sem Cobrança</span>"
+            ? "<span class='badge bg-secondary'>Sem CobranÃ§a</span>"
             : "<span class='badge bg-success'>Cobrado</span>";
         $row = [
             esc($it->descricao),
@@ -1131,7 +1134,7 @@ class OrdemServico extends Security_Controller
             modal_anchor(get_uri('ordemservico/os_services_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar item', 'data-post-id' => $it->id, 'class' => 'btn btn-sm btn-outline-secondary']) .
             js_anchor("<i data-feather='x' class='icon-16'></i>", [ 'title' => app_lang('delete'), 'class' => 'btn btn-sm btn-outline-danger delete', 'data-id' => $it->id, 'data-action-url' => get_uri('ordemservico/os_services_delete'), 'data-action' => 'delete-confirmation', 'data-success-callback' => 'reloadOsItems'])
         ];
-        return $this->response->setJSON(['success'=>true,'id'=>$save_id,'data'=>$row,'message'=>'Serviço salvo com sucesso!']);
+        return $this->response->setJSON(['success'=>true,'id'=>$save_id,'data'=>$row,'message'=>'ServiÃ§o salvo com sucesso!']);
     }
 
     public function os_services_delete()
@@ -1165,7 +1168,7 @@ class OrdemServico extends Security_Controller
         ]);
     }
 
-    // Produtos: listagem, salvar, excluir e totais (espelho de serviços) usando itens do Rise
+    // Produtos: listagem, salvar, excluir e totais (espelho de serviÃ§os) usando itens do Rise
     public function os_products_list_data( $os_id)
     {
         $this->ensure_tables();
@@ -1176,7 +1179,7 @@ class OrdemServico extends Security_Controller
         foreach ($rs as $it) {
             $qtd=(float)$it->quantidade; $vu=(float)$it->valor_unitario; $desc=(float)$it->desconto;
             $line_total = $qtd*$vu; $total = ($it->tipo_cobranca==='nao_cobrado')?0:($line_total-$desc);
-            $tag = ($it->tipo_cobranca==='nao_cobrado')?"<span class='badge bg-secondary'>Sem Cobrança</span>":"<span class='badge bg-success'>Cobrado</span>";
+            $tag = ($it->tipo_cobranca==='nao_cobrado')?"<span class='badge bg-secondary'>Sem CobranÃ§a</span>":"<span class='badge bg-success'>Cobrado</span>";
             $rows[] = [
                 esc($it->descricao),
                 number_format($qtd,2),
@@ -1253,7 +1256,7 @@ class OrdemServico extends Security_Controller
         $ok=$Items->ci_save($data,$id); if($ok===false){ return $this->response->setJSON(['success'=>false]); }
         $save_id=$id?: (is_int($ok)?$ok:db_connect('default')->insertID());
         $it=$Items->get_one($save_id);
-        $tag=($it->tipo_cobranca==='nao_cobrado')?"<span class='badge bg-secondary'>Sem Cobrança</span>":"<span class='badge bg-success'>Cobrado</span>";
+        $tag=($it->tipo_cobranca==='nao_cobrado')?"<span class='badge bg-secondary'>Sem CobranÃ§a</span>":"<span class='badge bg-success'>Cobrado</span>";
         $row=[
             esc($it->descricao),
             number_format((float)$it->quantidade,2),
@@ -1286,7 +1289,7 @@ class OrdemServico extends Security_Controller
         return $this->response->setJSON(['total_geral'=>$sum,'formatted'=>['total_geral'=>to_currency($sum,'R$')]]);
     }
 
-    // Catálogo: obter informação atual do serviço selecionado (valor/descrição) direto do banco
+    // CatÃ¡logo: obter informaÃ§Ã£o atual do serviÃ§o selecionado (valor/descriÃ§Ã£o) direto do banco
     public function service_info()
     {
         $this->ensure_tables();
@@ -1356,7 +1359,7 @@ class OrdemServico extends Security_Controller
         return $this->response->setJSON(['success' => true, 'id' => (int)$saved->id, 'data' => $row, 'message' => app_lang('record_saved') ?? 'saved']);
     }
 
-    // Serviços catalogáveis
+    // ServiÃ§os catalogÃ¡veis
     public function services()
     {
         $this->ensure_tables();
@@ -1379,7 +1382,7 @@ class OrdemServico extends Security_Controller
         $rows = [];
         $rs = $Serv->get_all()->getResult();
         foreach ($rs as $s) {
-            $tipo = $s->tipo === 'contrato' ? 'Contrato' : 'Ordem de Serviço';
+            $tipo = $s->tipo === 'contrato' ? 'Contrato' : 'Ordem de ServiÃ§o';
             $cat_name = '';
             if (!empty($s->categoria_receita)) {
                 $cat_name = $cat_map[(int)$s->categoria_receita] ?? (string)$s->categoria_receita;
@@ -1391,7 +1394,7 @@ class OrdemServico extends Security_Controller
                 to_currency($s->custo, 'R$'),
                 number_format((float)$s->margem, 2) . '%',
                 to_currency($s->valor_venda, 'R$'),
-                modal_anchor(get_uri('ordemservico/services_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar serviço', 'data-post-id' => $s->id, 'class' => 'btn btn-sm btn-outline-secondary']) .
+                modal_anchor(get_uri('ordemservico/services_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar serviÃ§o', 'data-post-id' => $s->id, 'class' => 'btn btn-sm btn-outline-secondary']) .
                 js_anchor("<i data-feather='x' class='icon-16'></i>", [ 'title' => app_lang('delete'), 'class' => 'btn btn-sm btn-outline-danger delete', 'data-id' => $s->id, 'data-action-url' => get_uri('ordemservico/services_delete'), 'data-action' => 'delete-confirmation'])
             ];
         }
@@ -1452,15 +1455,15 @@ class OrdemServico extends Security_Controller
         } catch (\Throwable $e) {}
         $row = [
             esc($s->descricao),
-            ($s->tipo === 'contrato' ? 'Contrato' : 'Ordem de Serviço'),
+            ($s->tipo === 'contrato' ? 'Contrato' : 'Ordem de ServiÃ§o'),
             esc($cat_name),
             to_currency($s->custo, 'R$'),
             number_format((float)$s->margem, 2) . '%',
             to_currency($s->valor_venda, 'R$'),
-            modal_anchor(get_uri('ordemservico/services_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar serviço', 'data-post-id' => $s->id, 'class' => 'btn btn-sm btn-outline-secondary']) .
+            modal_anchor(get_uri('ordemservico/services_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar serviÃ§o', 'data-post-id' => $s->id, 'class' => 'btn btn-sm btn-outline-secondary']) .
             js_anchor("<i data-feather='x' class='icon-16'></i>", [ 'title' => app_lang('delete'), 'class' => 'btn btn-sm btn-outline-danger delete', 'data-id' => $s->id, 'data-action-url' => get_uri('ordemservico/services_delete'), 'data-action' => 'delete-confirmation'])
         ];
-        return $this->response->setJSON(['success'=>true,'id'=>$save_id,'data'=>$row,'message'=>'Serviço salvo com sucesso!']);
+        return $this->response->setJSON(['success'=>true,'id'=>$save_id,'data'=>$row,'message'=>'ServiÃ§o salvo com sucesso!']);
     }
 
     public function services_delete()
@@ -1473,3 +1476,4 @@ class OrdemServico extends Security_Controller
         return $this->response->setJSON(['success'=>$ok?true:false]);
     }
 }
+

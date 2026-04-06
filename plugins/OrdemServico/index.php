@@ -10,8 +10,21 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
   Author: Codex
  */
 
+use App\Controllers\Security_Controller;
+
 // Menu lateral
 app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
+    $ci = new Security_Controller(false);
+    if (!isset($ci->login_user) || $ci->login_user->user_type !== "staff") {
+        return $sidebar_menu;
+    }
+
+    $permissions = $ci->login_user->permissions ?? array();
+    $has_access = $ci->login_user->is_admin || get_array_value($permissions, 'ordemservico_manage') == '1';
+    if (!$has_access) {
+        return $sidebar_menu;
+    }
+
     if (!is_array($sidebar_menu)) { $sidebar_menu = array(); }
     $sidebar_menu['ordemservico'] = array(
         'name' => 'os_menu_title',
@@ -50,6 +63,38 @@ app_hooks()->add_action('app_hook_head_extension', function (){
     if (strpos($uri, '/ordemservico') !== false) {
         echo '<script src="' . base_url('plugins/OrdemServico/assets/js/ordemservico.js') . '"></script>';
     }
+});
+
+app_hooks()->add_action('app_hook_role_permissions_extension', function () {
+    try {
+        $request = \Config\Services::request();
+        $role_id = (int)$request->getUri()->getSegment(3);
+
+        $permissions = array();
+        if ($role_id) {
+            $Roles_model = model('App\\Models\\Roles_model');
+            $role = $Roles_model->get_one($role_id);
+            $permissions = $role && $role->permissions ? unserialize($role->permissions) : array();
+        }
+        if (!is_array($permissions)) {
+            $permissions = array();
+        }
+
+        $view_path = PLUGINPATH . 'OrdemServico/Views/permissions/role_permissions.php';
+        if (file_exists($view_path)) {
+            include $view_path;
+        } else {
+            log_message('error', '[OrdemServico] role_permissions view not found at ' . $view_path);
+        }
+    } catch (\Throwable $e) {
+        log_message('error', '[OrdemServico] Permissions hook error: ' . $e->getMessage());
+    }
+});
+
+app_hooks()->add_filter('app_filter_role_permissions_save_data', function ($permissions) {
+    $request = \Config\Services::request();
+    $permissions['ordemservico_manage'] = $request->getPost('ordemservico_manage') ? '1' : '';
+    return $permissions;
 });
 
 // InstalaÃ§Ã£o (executa Migrations/install.sql)

@@ -11,6 +11,7 @@ return [
     'os_edit_type' => 'Editar Tipo',
     'os_edit_reason' => 'Editar Motivo',
     'Serviços' => 'Serviços',
-    'ordemservico_settings' => 'Ordem de Serviço'
+    'ordemservico_settings' => 'Ordem de Serviço',
+    'ordemservico_permissions' => 'Permissões de Ordem de Serviço',
+    'ordemservico_manage_permission' => 'Pode acessar a Ordem de Serviço'
 ];
-
