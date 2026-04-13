@@ -40,6 +40,7 @@ app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
     $sidebar_menu["purchases"]["submenu"] = array(
         "purchases_dashboard" => array("name" => "purchases_dashboard", "url" => "purchases", "class" => "home"),
         "purchases_requests" => array("name" => "purchases_requests", "url" => "purchases_requests", "class" => "list"),
+        "purchases_quotations" => array("name" => "purchases_quotations", "url" => "purchases_quotations", "class" => "layers"),
         "purchases_approvals" => array("name" => "purchases_approvals", "url" => "purchases_requests/approvals", "class" => "check-square"),
         "purchases_orders" => array("name" => "purchases_purchase_orders", "url" => "purchases_orders", "class" => "shopping-cart"),
         "purchases_reports" => array("name" => "purchases_reports", "url" => "purchases_reports", "class" => "bar-chart-2")

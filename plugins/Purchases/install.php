@@ -136,6 +136,15 @@ try {
     $quote_prices_table = $db->prefixTable('purchases_quotation_item_prices');
     $quote_fields = $db->getFieldNames($quote_prices_table);
     if (is_array($quote_fields)) {
+        if (!in_array('quotation_item_id', $quote_fields)) {
+            $statement = "ALTER TABLE `{$quote_prices_table}` ADD `quotation_item_id` INT(11) NULL AFTER `quotation_id`";
+            $ok = $db->query($statement);
+            $result["executed"][] = $statement;
+            if (!$ok) {
+                $result["success"] = false;
+                $result["errors"][] = "Failed: " . $statement;
+            }
+        }
         if (!in_array('is_winner', $quote_fields)) {
             $statement = "ALTER TABLE `{$quote_prices_table}` ADD `is_winner` TINYINT(1) NOT NULL DEFAULT 0 AFTER `notes`";
             $ok = $db->query($statement);
@@ -154,6 +163,64 @@ try {
                 $result["errors"][] = "Failed: " . $statement;
             }
         }
+
+        $statement = "ALTER TABLE `{$quote_prices_table}` MODIFY `request_item_id` INT(11) NULL";
+        $ok = $db->query($statement);
+        $result["executed"][] = $statement;
+    }
+
+    $quotations_table = $db->prefixTable('purchases_quotations');
+    $quotation_fields = $db->getFieldNames($quotations_table);
+    if (is_array($quotation_fields)) {
+        $quotation_columns = array(
+            'quotation_type' => "ALTER TABLE `{$quotations_table}` ADD `quotation_type` VARCHAR(20) NOT NULL DEFAULT 'request' AFTER `company_id`",
+            'quotation_code_number' => "ALTER TABLE `{$quotations_table}` ADD `quotation_code_number` INT(11) NULL AFTER `quotation_type`",
+            'quotation_code' => "ALTER TABLE `{$quotations_table}` ADD `quotation_code` VARCHAR(50) NULL AFTER `quotation_code_number`",
+            'title' => "ALTER TABLE `{$quotations_table}` ADD `title` VARCHAR(255) NULL AFTER `quotation_code`",
+            'note' => "ALTER TABLE `{$quotations_table}` ADD `note` TEXT NULL AFTER `title`"
+        );
+
+        foreach ($quotation_columns as $field => $statement) {
+            if (!in_array($field, $quotation_fields)) {
+                $ok = $db->query($statement);
+                $result["executed"][] = $statement;
+                if (!$ok) {
+                    $result["success"] = false;
+                    $result["errors"][] = "Failed: " . $statement;
+                }
+            }
+        }
+
+        $statement = "ALTER TABLE `{$quotations_table}` MODIFY `request_id` INT(11) NULL";
+        $ok = $db->query($statement);
+        $result["executed"][] = $statement;
+    }
+
+    $quotation_items_table = $db->prefixTable('purchases_quotation_items');
+    $quotation_item_fields = $db->getFieldNames($quotation_items_table);
+    if (is_array($quotation_item_fields)) {
+        $quotation_item_columns = array(
+            'item_id' => "ALTER TABLE `{$quotation_items_table}` ADD `item_id` INT(11) NULL AFTER `quotation_id`",
+            'description' => "ALTER TABLE `{$quotation_items_table}` ADD `description` TEXT NULL AFTER `item_id`",
+            'unit' => "ALTER TABLE `{$quotation_items_table}` ADD `unit` VARCHAR(50) NULL AFTER `description`",
+            'desired_date' => "ALTER TABLE `{$quotation_items_table}` ADD `desired_date` DATE NULL AFTER `unit`",
+            'note' => "ALTER TABLE `{$quotation_items_table}` ADD `note` TEXT NULL AFTER `desired_date`"
+        );
+
+        foreach ($quotation_item_columns as $field => $statement) {
+            if (!in_array($field, $quotation_item_fields)) {
+                $ok = $db->query($statement);
+                $result["executed"][] = $statement;
+                if (!$ok) {
+                    $result["success"] = false;
+                    $result["errors"][] = "Failed: " . $statement;
+                }
+            }
+        }
+
+        $statement = "ALTER TABLE `{$quotation_items_table}` MODIFY `request_item_id` INT(11) NULL";
+        $ok = $db->query($statement);
+        $result["executed"][] = $statement;
     }
 
     $receipts_table = $db->prefixTable('purchases_goods_receipts');

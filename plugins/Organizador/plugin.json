@@ -1,0 +1,7 @@
+{
+  "name": "Organizador",
+  "description": "Modulo de tarefas pessoais, pendencias, quadro Kanban, calendario e notificacoes integradas ao Rise CRM.",
+  "version": "0.1.0",
+  "requires_at_least": "3.9.0",
+  "author": "Internal"
+}

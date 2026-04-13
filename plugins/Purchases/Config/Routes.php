@@ -56,12 +56,17 @@ $routes->post('purchases_reports/purchases_by_period', 'Purchases_reports::purch
 $routes->post('purchases_reports/open_overdue', 'Purchases_reports::open_overdue', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_reports/top_items', 'Purchases_reports::top_items', ['namespace' => 'Purchases\\Controllers']);
 
+$routes->get('purchases_quotations', 'Purchase_quotations::index', ['namespace' => 'Purchases\\Controllers']);
+$routes->post('purchases_quotations/list_data', 'Purchase_quotations::list_data', ['namespace' => 'Purchases\\Controllers']);
+$routes->get('purchases_quotations/create', 'Purchase_quotations::create', ['namespace' => 'Purchases\\Controllers']);
+$routes->post('purchases_quotations/save', 'Purchase_quotations::save', ['namespace' => 'Purchases\\Controllers']);
 $routes->get('purchases_quotations/create_from_request/(:num)', 'Purchase_quotations::create_from_request/$1', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_quotations/save_from_request', 'Purchase_quotations::save_from_request', ['namespace' => 'Purchases\\Controllers']);
 $routes->get('purchases_quotations/view/(:num)', 'Purchase_quotations::view/$1', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_quotations/save_prices/(:num)', 'Purchase_quotations::save_prices/$1', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_quotations/update_suppliers/(:num)', 'Purchase_quotations::update_suppliers/$1', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_quotations/finalize/(:num)', 'Purchase_quotations::finalize/$1', ['namespace' => 'Purchases\\Controllers']);
+$routes->post('purchases_quotations/reopen/(:num)', 'Purchase_quotations::reopen/$1', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_quotations/choose_winner/(:num)', 'Purchase_quotations::choose_winner/$1', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_quotations/generate_po/(:num)', 'Purchase_quotations::generate_po/$1', ['namespace' => 'Purchases\\Controllers']);
 

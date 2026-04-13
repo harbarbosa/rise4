@@ -35,6 +35,11 @@ class Purchases_quotation_item_prices_model extends Crud_model
             $where .= " AND $table.quotation_id=$quotation_id";
         }
 
+        $quotation_item_id = $this->_get_clean_value($options, "quotation_item_id");
+        if ($quotation_item_id) {
+            $where .= " AND $table.quotation_item_id=$quotation_item_id";
+        }
+
         $request_item_id = $this->_get_clean_value($options, "request_item_id");
         if ($request_item_id) {
             $where .= " AND $table.request_item_id=$request_item_id";

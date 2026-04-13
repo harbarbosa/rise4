@@ -1,8 +1,15 @@
 <?php
 $quotation = $quotation_info;
 $request = $request_info;
+$is_standalone = !empty($is_standalone);
 $status = $quotation->status ? $quotation->status : 'draft';
-$request_code = $request->request_code ? $request->request_code : ('#' . $request->id);
+$request_code = $request ? ($request->request_code ? $request->request_code : ('#' . $request->id)) : '';
+$header_code = $quotation->quotation_code ? $quotation->quotation_code : ('#' . $quotation->id);
+$header_title = trim((string) ($quotation->title ?? ''));
+if ($header_title === '') {
+    $header_title = $is_standalone ? app_lang('purchases_standalone_quotation') : app_lang('purchases_quotation');
+}
+$back_url = $is_standalone ? get_uri('purchases_quotations') : get_uri('purchases_requests/view/' . $request->id);
 $quotation_status_class = get_array_value(array(
     'draft' => 'secondary',
     'finalized' => 'success',
@@ -193,15 +200,22 @@ foreach ($suppliers as $supplier) {
 <div id="page-content" class="page-wrapper clearfix purchases-quotation-layout">
     <div class="card">
         <div class="page-title clearfix">
-            <h1><?php echo app_lang('purchases_quotation'); ?> #<?php echo esc($quotation->id); ?></h1>
+            <h1><?php echo esc($header_title); ?> <?php echo esc($header_code); ?></h1>
             <div class="title-button-group">
-                <?php echo anchor(get_uri('purchases_requests/view/' . $request->id), app_lang('back_to_list'), array('class' => 'btn btn-default')); ?>
+                <?php echo anchor($back_url, app_lang('back_to_list'), array('class' => 'btn btn-default')); ?>
             </div>
         </div>
         <div class="card-body">
             <div class="row">
                 <div class="col-md-6 mb10">
-                    <div class="text-muted"><?php echo app_lang('purchases_request_code'); ?>: <strong><?php echo esc($request_code); ?></strong></div>
+                    <?php if ($is_standalone) { ?>
+                        <div class="text-muted"><?php echo app_lang('purchases_quotation_code'); ?>: <strong><?php echo esc($header_code); ?></strong></div>
+                    <?php } else { ?>
+                        <div class="text-muted"><?php echo app_lang('purchases_request_code'); ?>: <strong><?php echo esc($request_code); ?></strong></div>
+                    <?php } ?>
+                    <?php if (!empty($quotation->note)) { ?>
+                        <div class="text-muted mt5"><?php echo esc($quotation->note); ?></div>
+                    <?php } ?>
                 </div>
                 <div class="col-md-6 mb10 text-end">
                     <span class="badge bg-<?php echo esc($quotation_status_class); ?>"><?php echo app_lang('purchases_quotation_status_' . $status); ?></span>
@@ -247,19 +261,20 @@ foreach ($suppliers as $supplier) {
             <div class="quotation-items-stack mt15" id="quotation-items-accordion">
                 <?php foreach ($items as $index => $item) { ?>
                     <?php
-                    $winner_supplier_id = (int) ($winner_map[$item->request_item_id] ?? 0);
+                    $item_key = !empty($item->request_item_id) ? 'r' . $item->request_item_id : 'q' . $item->id;
+                    $winner_supplier_id = (int) ($winner_map[$item_key] ?? 0);
                     $winner_supplier_name = $winner_supplier_id ? get_array_value($supplier_name_map, $winner_supplier_id, '-') : '-';
-                    $desired_date = $item->request_desired_date ?? '';
+                    $desired_date = $item->item_desired_date ?? ($item->request_desired_date ?? '');
                     $item_title = trim((string) ($item->item_title ?? ''));
                     if (!$item_title) {
-                        $item_title = trim((string) ($item->request_description ?? ''));
+                        $item_title = trim((string) ($item->item_description ?? $item->request_description ?? ''));
                     }
                     if (!$item_title) {
                         $item_title = '-';
                     }
                     ?>
                     <div class="quotation-item-card">
-                        <button class="quotation-item-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#quotation-item-<?php echo $item->request_item_id; ?>" aria-expanded="<?php echo $index === 0 ? 'true' : 'false'; ?>">
+                        <button class="quotation-item-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#quotation-item-<?php echo esc($item_key); ?>" aria-expanded="<?php echo $index === 0 ? 'true' : 'false'; ?>">
                             <div class="quotation-item-main">
                                 <div class="quotation-item-title"><?php echo esc($item_title); ?></div>
                                 <div class="quotation-item-meta">
@@ -269,7 +284,7 @@ foreach ($suppliers as $supplier) {
                                     </span>
                                     <span class="quotation-meta-chip">
                                         <span class="quotation-meta-label"><?php echo app_lang('purchases_unit'); ?></span>
-                                        <span class="quotation-meta-value"><?php echo esc($item->request_unit ? $item->request_unit : '-'); ?></span>
+                                        <span class="quotation-meta-value"><?php echo esc($item->item_unit ? $item->item_unit : ($item->request_unit ? $item->request_unit : '-')); ?></span>
                                     </span>
                                     <span class="quotation-meta-chip">
                                         <span class="quotation-meta-label"><?php echo app_lang('purchases_supplier'); ?></span>
@@ -286,11 +301,11 @@ foreach ($suppliers as $supplier) {
                             </div>
                         </button>
 
-                        <div id="quotation-item-<?php echo $item->request_item_id; ?>" class="collapse <?php echo $index === 0 ? 'show' : ''; ?>" data-bs-parent="#quotation-items-accordion">
+                        <div id="quotation-item-<?php echo esc($item_key); ?>" class="collapse <?php echo $index === 0 ? 'show' : ''; ?>" data-bs-parent="#quotation-items-accordion">
                             <div class="quotation-item-body">
                                 <div class="mb10">
                                     <label class="form-label"><?php echo app_lang('purchases_qty'); ?></label>
-                                    <input type="text" name="qty[<?php echo $item->request_item_id; ?>]" class="form-control text-right w150 js-quotation-qty" data-request-item-id="<?php echo esc($item->request_item_id); ?>" value="<?php echo esc(to_decimal_format($item->qty)); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
+                                    <input type="text" name="qty[<?php echo esc($item_key); ?>]" class="form-control text-right w150 js-quotation-qty" data-item-key="<?php echo esc($item_key); ?>" value="<?php echo esc(to_decimal_format($item->qty)); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
                                 </div>
 
                                 <div class="table-responsive">
@@ -310,7 +325,7 @@ foreach ($suppliers as $supplier) {
                                         <tbody>
                                             <?php foreach ($suppliers as $supplier) { ?>
                                                 <?php
-                                                $price = get_array_value(get_array_value($price_map, $item->request_item_id, array()), $supplier->supplier_id);
+                                                $price = get_array_value(get_array_value($price_map, $item_key, array()), $supplier->supplier_id);
                                                 $unit_price = $price ? to_decimal_format($price->unit_price) : '';
                                                 $delivery_date = $price ? $price->delivery_date : '';
                                                 $freight = $price ? to_decimal_format($price->freight_value) : '';
@@ -321,33 +336,33 @@ foreach ($suppliers as $supplier) {
                                                 if ($desired_date && $delivery_date) {
                                                     $late_delivery = (strtotime($delivery_date) > strtotime($desired_date));
                                                 }
-                                                $is_winner = (($winner_map[$item->request_item_id] ?? 0) == $supplier->supplier_id);
+                                                $is_winner = (($winner_map[$item_key] ?? 0) == $supplier->supplier_id);
                                                 ?>
-                                                <tr class="<?php echo $is_winner ? 'winner-row' : ''; ?> js-quotation-price-row" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" data-request-item-id="<?php echo esc($item->request_item_id); ?>">
+                                                <tr class="<?php echo $is_winner ? 'winner-row' : ''; ?> js-quotation-price-row" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" data-item-key="<?php echo esc($item_key); ?>">
                                                     <td>
                                                         <span class="supplier-pill"><?php echo esc($supplier->supplier_name); ?></span>
                                                     </td>
                                                     <td class="text-center">
-                                                        <input type="radio" name="winner_supplier[<?php echo $item->request_item_id; ?>]" value="<?php echo $supplier->supplier_id; ?>" class="js-winner-supplier" data-request-item-id="<?php echo esc($item->request_item_id); ?>" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" <?php echo $is_winner ? 'checked' : ''; ?> <?php echo $can_edit ? '' : 'disabled'; ?> />
+                                                        <input type="radio" name="winner_supplier[<?php echo esc($item_key); ?>]" value="<?php echo $supplier->supplier_id; ?>" class="js-winner-supplier" data-item-key="<?php echo esc($item_key); ?>" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" <?php echo $is_winner ? 'checked' : ''; ?> <?php echo $can_edit ? '' : 'disabled'; ?> />
                                                     </td>
                                                     <td>
-                                                        <input type="text" name="unit_price[<?php echo $supplier->supplier_id; ?>][<?php echo $item->request_item_id; ?>]" class="form-control js-currency-field js-unit-price" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" data-request-item-id="<?php echo esc($item->request_item_id); ?>" value="<?php echo esc($unit_price); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
+                                                        <input type="text" name="unit_price[<?php echo $supplier->supplier_id; ?>][<?php echo esc($item_key); ?>]" class="form-control js-currency-field js-unit-price" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" data-item-key="<?php echo esc($item_key); ?>" value="<?php echo esc($unit_price); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
                                                     </td>
                                                     <td>
-                                                        <input type="text" name="freight_value[<?php echo $supplier->supplier_id; ?>][<?php echo $item->request_item_id; ?>]" class="form-control js-currency-field js-freight-value" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" data-request-item-id="<?php echo esc($item->request_item_id); ?>" value="<?php echo esc($freight); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
+                                                        <input type="text" name="freight_value[<?php echo $supplier->supplier_id; ?>][<?php echo esc($item_key); ?>]" class="form-control js-currency-field js-freight-value" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" data-item-key="<?php echo esc($item_key); ?>" value="<?php echo esc($freight); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
                                                     </td>
-                                                    <td class="fw-bold js-line-total" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" data-request-item-id="<?php echo esc($item->request_item_id); ?>"><?php echo $line_total > 0 ? to_currency($line_total) : '-'; ?></td>
+                                                    <td class="fw-bold js-line-total" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>" data-item-key="<?php echo esc($item_key); ?>"><?php echo $line_total > 0 ? to_currency($line_total) : '-'; ?></td>
                                                     <td>
-                                                        <input type="date" name="delivery_date[<?php echo $supplier->supplier_id; ?>][<?php echo $item->request_item_id; ?>]" class="form-control" value="<?php echo esc($delivery_date); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
+                                                        <input type="date" name="delivery_date[<?php echo $supplier->supplier_id; ?>][<?php echo esc($item_key); ?>]" class="form-control" value="<?php echo esc($delivery_date); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
                                                         <?php if ($late_delivery) { ?>
                                                             <div class="is-late"><?php echo app_lang('purchases_delivery_date_late'); ?></div>
                                                         <?php } ?>
                                                     </td>
                                                     <td>
-                                                        <input type="text" name="payment_terms[<?php echo $supplier->supplier_id; ?>][<?php echo $item->request_item_id; ?>]" class="form-control" value="<?php echo esc($payment_terms); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
+                                                        <input type="text" name="payment_terms[<?php echo $supplier->supplier_id; ?>][<?php echo esc($item_key); ?>]" class="form-control" value="<?php echo esc($payment_terms); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
                                                     </td>
                                                     <td class="notes-cell">
-                                                        <input type="text" name="notes[<?php echo $supplier->supplier_id; ?>][<?php echo $item->request_item_id; ?>]" class="form-control" value="<?php echo esc($notes); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
+                                                        <input type="text" name="notes[<?php echo $supplier->supplier_id; ?>][<?php echo esc($item_key); ?>]" class="form-control" value="<?php echo esc($notes); ?>" <?php echo $can_edit ? '' : 'readonly'; ?> />
                                                     </td>
                                                 </tr>
                                             <?php } ?>
@@ -374,7 +389,13 @@ foreach ($suppliers as $supplier) {
                     <?php echo form_close(); ?>
                 <?php } ?>
 
-                <?php if (!$can_generate_po && $quotation->status === 'finalized' && !$has_order) { ?>
+                <?php if (!empty($can_reopen)) { ?>
+                    <?php echo form_open(get_uri('purchases_quotations/reopen/' . $quotation->id), array('id' => 'quotation-reopen-form', 'class' => 'general-form')); ?>
+                    <button type="submit" class="btn btn-warning btn-sm mt10"><i data-feather='rotate-ccw' class='icon-16'></i> <?php echo app_lang('purchases_reopen_quotation'); ?></button>
+                    <?php echo form_close(); ?>
+                <?php } ?>
+
+                <?php if (!$is_standalone && !$can_generate_po && $quotation->status === 'finalized' && !$has_order) { ?>
                     <div class="text-muted small mt10">
                         <?php echo app_lang('purchases_waiting_approval_before_po'); ?>
                     </div>
@@ -490,13 +511,13 @@ foreach ($suppliers as $supplier) {
             return "R$ " + value.toFixed(2).replace(".", ",");
         };
 
-        var getQtyForItem = function (requestItemId) {
-            return parseNumericFieldValue($('.js-quotation-qty[data-request-item-id="' + requestItemId + '"]').val());
+        var getQtyForItem = function (itemKey) {
+            return parseNumericFieldValue($('.js-quotation-qty[data-item-key="' + itemKey + '"]').val());
         };
 
         var updateRowTotal = function ($row) {
-            var requestItemId = $row.data("request-item-id");
-            var qty = getQtyForItem(requestItemId);
+            var itemKey = $row.data("item-key");
+            var qty = getQtyForItem(itemKey);
             var unitPrice = parseNumericFieldValue($row.find(".js-unit-price").val());
             var freight = parseNumericFieldValue($row.find(".js-freight-value").val());
             var total = (qty * unitPrice) + freight;
@@ -512,12 +533,12 @@ foreach ($suppliers as $supplier) {
             $(".js-quotation-price-row").each(function () {
                 var $row = $(this);
                 var supplierId = $row.data("supplier-id");
-                var requestItemId = $row.data("request-item-id");
+                var itemKey = $row.data("item-key");
                 var rowTotal = updateRowTotal($row);
 
                 totalsBySupplier[supplierId] = (totalsBySupplier[supplierId] || 0) + rowTotal;
 
-                var $winner = $('.js-winner-supplier[data-request-item-id="' + requestItemId + '"]:checked');
+                var $winner = $('.js-winner-supplier[data-item-key="' + itemKey + '"]:checked');
                 var winnerSupplierId = $winner.data("supplier-id");
 
                 $row.toggleClass("winner-row", parseInt(winnerSupplierId, 10) === parseInt(supplierId, 10));
@@ -582,9 +603,20 @@ foreach ($suppliers as $supplier) {
                 if (result && result.message) {
                     appAlert.success(result.message, {duration: 3000});
                 }
-                var requestViewUrl = "<?php echo get_uri('purchases_requests/view/' . $request->id); ?>";
+                var requestViewUrl = "<?php echo $is_standalone ? get_uri('purchases_quotations/view/' . $quotation->id) : get_uri('purchases_requests/view/' . $request->id); ?>";
                 setTimeout(function () {
-                    window.location = requestViewUrl + "?purchases_success=quotation_finalized";
+                    window.location = requestViewUrl + "<?php echo $is_standalone ? '' : '?purchases_success=quotation_finalized'; ?>";
+                }, 600);
+            }
+        });
+
+        $("#quotation-reopen-form").appForm({
+            onSuccess: function (result) {
+                if (result && result.message) {
+                    appAlert.success(result.message, {duration: 3000});
+                }
+                setTimeout(function () {
+                    window.location.reload();
                 }, 600);
             }
         });

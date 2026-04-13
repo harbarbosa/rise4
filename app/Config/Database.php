@@ -33,9 +33,9 @@ class Database extends Config
 	public $default = [
 		'DSN'      => '',
 		'hostname' => 'localhost',
-		'username' => 'alfahp79_erp',
-		'password' => '@alfahp2015',
-		'database' => 'alfahp79_intranet',
+		'username' => 'root',
+		'password' => '',
+		'database' => 'rise4',
 		'DBDriver' => 'MySQLi',
 		'DBPrefix' => '',
 		'pConnect' => false,

@@ -1,0 +1,17 @@
+ERROR - 2026-03-27 03:56:08 --> Unknown column 'slug' in 'SELECT'
+in SYSTEMPATH/Database/MySQLi/Connection.php on line 300.
+ 1 SYSTEMPATH/Database/MySQLi/Connection.php(300): mysqli->query()
+ 2 SYSTEMPATH/Database/BaseConnection.php(769): CodeIgniter\Database\MySQLi\Connection->execute()
+ 3 SYSTEMPATH/Database/BaseConnection.php(686): CodeIgniter\Database\BaseConnection->simpleQuery()
+ 4 SYSTEMPATH/Database/BaseBuilder.php(1649): CodeIgniter\Database\BaseConnection->query()
+ 5 APPPATH/Database/Migrations/2026-03-23-017000_AddAgencySlugForPublicPages.php(28): CodeIgniter\Database\BaseBuilder->get()
+ 6 SYSTEMPATH/Database/MigrationRunner.php(1014): App\Database\Migrations\AddAgencySlugForPublicPages->up()
+ 7 SYSTEMPATH/Database/MigrationRunner.php(202): CodeIgniter\Database\MigrationRunner->migrate()
+ 8 SYSTEMPATH/Commands/Database/Migrate.php(89): CodeIgniter\Database\MigrationRunner->latest()
+ 9 SYSTEMPATH/CLI/SignalTrait.php(245): CodeIgniter\Commands\Database\Migrate::CodeIgniter\Commands\Database\{closure}()
+10 SYSTEMPATH/Commands/Database/Migrate.php(88): CodeIgniter\Commands\Database\Migrate->withSignalsBlocked()
+11 SYSTEMPATH/CLI/Commands.php(74): CodeIgniter\Commands\Database\Migrate->run()
+12 SYSTEMPATH/CLI/Console.php(47): CodeIgniter\CLI\Commands->run()
+13 SYSTEMPATH/Boot.php(442): CodeIgniter\CLI\Console->run()
+14 SYSTEMPATH/Boot.php(166): CodeIgniter\Boot::runCommand()
+15 ROOTPATH/spark(87): CodeIgniter\Boot::bootSpark()

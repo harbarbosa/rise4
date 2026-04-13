@@ -36,15 +36,24 @@ class Purchases_quotation_items_model extends Crud_model
             $where .= " AND $table.quotation_id=$quotation_id";
         }
 
+        $request_item_id = $this->_get_clean_value($options, "request_item_id");
+        if ($request_item_id) {
+            $where .= " AND $table.request_item_id=$request_item_id";
+        }
+
         $sql = "SELECT $table.*,
             $request_items_table.description AS request_description,
             $request_items_table.unit AS request_unit,
-            $request_items_table.item_id AS item_id,
+            COALESCE($table.item_id, $request_items_table.item_id) AS item_id,
             $request_items_table.desired_date AS request_desired_date,
-            $items_table.title AS item_title
+            $items_table.title AS item_title,
+            COALESCE($table.description, $request_items_table.description, $items_table.title) AS item_description,
+            COALESCE($table.unit, $request_items_table.unit, '') AS item_unit,
+            COALESCE($table.desired_date, $request_items_table.desired_date) AS item_desired_date,
+            COALESCE($table.note, $request_items_table.note, '') AS item_note
         FROM $table
         LEFT JOIN $request_items_table ON $request_items_table.id=$table.request_item_id
-        LEFT JOIN $items_table ON $items_table.id=$request_items_table.item_id
+        LEFT JOIN $items_table ON $items_table.id=COALESCE($table.item_id, $request_items_table.item_id)
         WHERE $table.deleted=0 $where
         ORDER BY $table.id ASC";
 
