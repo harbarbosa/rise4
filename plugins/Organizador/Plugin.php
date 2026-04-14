@@ -98,17 +98,17 @@ class Plugin
 
     public static function canManageCategories($login_user)
     {
-        return $login_user && ($login_user->is_admin || get_array_value($login_user->permissions ?? array(), 'mytasks_manage_categories') == '1');
+        return self::canManageSettings($login_user);
     }
 
     public static function canManageTags($login_user)
     {
-        return $login_user && ($login_user->is_admin || get_array_value($login_user->permissions ?? array(), 'mytasks_manage_tags') == '1');
+        return self::canManageSettings($login_user);
     }
 
     public static function canManagePhases($login_user)
     {
-        return $login_user && ($login_user->is_admin || get_array_value($login_user->permissions ?? array(), 'mytasks_manage_phases') == '1');
+        return self::canManageSettings($login_user);
     }
 
     public static function canViewAllTasks($login_user)
@@ -419,22 +419,6 @@ class Plugin
                 'organizador_calendar' => array('name' => 'organizador_calendar', 'url' => 'organizador/calendar', 'class' => 'calendar'),
             );
 
-            if (self::canManageCategories($ci->login_user)) {
-                $submenu['organizador_categories'] = array('name' => 'organizador_categories', 'url' => 'organizador/categories', 'class' => 'tag');
-            }
-
-            if (self::canManageTags($ci->login_user)) {
-                $submenu['organizador_tags'] = array('name' => 'organizador_tags', 'url' => 'organizador/tags', 'class' => 'tag');
-            }
-
-            if (self::canManagePhases($ci->login_user)) {
-                $submenu['organizador_phases'] = array('name' => 'organizador_phases', 'url' => 'organizador/phases', 'class' => 'columns');
-            }
-
-            if (self::canManageSettings($ci->login_user)) {
-                $submenu['organizador_settings'] = array('name' => 'organizador_settings', 'url' => 'organizador/settings', 'class' => 'settings');
-            }
-
             $sidebar_menu['organizador']['submenu'] = $submenu;
 
             return $sidebar_menu;
@@ -448,7 +432,7 @@ class Plugin
             }
 
             $settings_menu['plugins'][] = array(
-                'name' => 'organizador_settings',
+                'name' => 'organizador',
                 'url' => 'organizador/settings',
             );
 

@@ -15,7 +15,7 @@ if (!defined('WHATSAPP_NOTIFICATIONS_MODULE')) {
 
 app_hooks()->add_filter('app_filter_admin_settings_menu', function ($settings_menu) {
     $settings_menu["plugins"][] = array(
-        "name" => "WhatsApp",
+        "name" => "whatsapp_notifications",
         "url" => "whatsapp_notifications_settings"
     );
 

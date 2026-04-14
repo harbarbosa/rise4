@@ -9,6 +9,16 @@ $public_api_token = $settings['organizador_public_api_token'] ?? '';
             <h1><?php echo app_lang('organizador_settings'); ?></h1>
         </div>
         <div class="card-body">
+            <div class="mb-4">
+                <h4 class="mb-3"><?php echo app_lang('settings'); ?></h4>
+                <div class="d-flex flex-wrap gap-2">
+                    <?php echo anchor(get_uri('organizador/categories'), "<i data-feather='tag' class='icon-16'></i> " . app_lang('organizador_categories'), array('class' => 'btn btn-outline-secondary')); ?>
+                    <?php echo anchor(get_uri('organizador/tags'), "<i data-feather='tag' class='icon-16'></i> " . app_lang('organizador_tags'), array('class' => 'btn btn-outline-secondary')); ?>
+                    <?php echo anchor(get_uri('organizador/phases'), "<i data-feather='columns' class='icon-16'></i> " . app_lang('organizador_phases'), array('class' => 'btn btn-outline-secondary')); ?>
+                </div>
+                <div class="form-text mt-2">Essas configuracoes sao globais do plugin e afetam todos os usuarios.</div>
+            </div>
+
             <?php echo form_open(get_uri('organizador/settings/save'), array('id' => 'organizador-settings-form', 'class' => 'general-form', 'role' => 'form')); ?>
             <div class="form-check mb-3">
                 <?php echo form_checkbox('organizador_enable_internal_notifications', '1', !empty($settings['organizador_enable_internal_notifications']), "id='organizador_enable_internal_notifications' class='form-check-input'"); ?>

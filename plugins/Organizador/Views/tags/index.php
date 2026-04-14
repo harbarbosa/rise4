@@ -3,6 +3,7 @@
         <div class="page-title clearfix">
             <h1><?php echo app_lang('organizador_tags'); ?></h1>
             <div class="title-button-group">
+                <?php echo anchor(get_uri('organizador/settings'), "<i data-feather='arrow-left' class='icon-16'></i> " . app_lang('organizador_settings'), array('class' => 'btn btn-default')); ?>
                 <?php echo modal_anchor(get_uri('organizador/tags/modal_form'), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add'), array('class' => 'btn btn-primary', 'title' => app_lang('organizador_tags'))); ?>
             </div>
         </div>
