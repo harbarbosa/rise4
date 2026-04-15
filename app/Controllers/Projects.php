@@ -1436,18 +1436,8 @@ class Projects extends Security_Controller {
         $tasks_dropdown = array("" => "-");
         $tasks_dropdown_json = array(array("id" => "", "text" => "- " . app_lang("task") . " -"));
 
-        $show_assigned_tasks_only_user_id = $this->show_assigned_tasks_only_user_id();
-        if (!$show_assigned_tasks_only_user_id) {
-            $timesheet_manage_permission = get_array_value($this->login_user->permissions, "timesheet_manage_permission");
-            if (!$timesheet_manage_permission || $timesheet_manage_permission === "own") {
-                //show only own tasks when the permission is no/own
-                $show_assigned_tasks_only_user_id = $this->login_user->id;
-            }
-        }
-
         $options = array(
-            "project_id" => $project_id,
-            "show_assigned_tasks_only_user_id" => $show_assigned_tasks_only_user_id
+            "project_id" => $project_id
         );
 
         $tasks = $this->Tasks_model->get_details($options)->getResult();

@@ -3,6 +3,10 @@
 $lang['organizador_menu'] = 'Organizer';
 $lang['organizador'] = 'Organizer';
 $lang['organizador_dashboard'] = 'Dashboard';
+$lang['organizador_dashboard_kanban_widget'] = 'Organizer kanban';
+$lang['organizador_dashboard_my_day_widget'] = 'My day activities';
+$lang['organizador_dashboard_my_day_empty'] = 'No critical activities right now.';
+$lang['organizador_open_full_kanban'] = 'Open kanban';
 $lang['organizador_tasks'] = 'My tasks';
 $lang['organizador_kanban'] = 'Kanban';
 $lang['organizador_calendar'] = 'Calendar';

@@ -14,6 +14,7 @@ class Plugin
         self::registerNotificationHooks();
         self::registerEmailTemplates();
         self::registerCronHooks();
+        self::registerDashboardWidgets();
     }
 
     public static function taskStatuses()
@@ -129,6 +130,51 @@ class Plugin
     public static function canDeleteTasks($login_user)
     {
         return $login_user && ($login_user->is_admin || get_array_value($login_user->permissions ?? array(), 'mytasks_delete') == '1');
+    }
+
+    public static function renderDashboardKanbanWidget($login_user)
+    {
+        if (!$login_user || !self::canAccessModule($login_user)) {
+            return '';
+        }
+
+        $tasks_model = model('Organizador\\Models\\My_tasks_model');
+        $phases_model = model(My_task_phases_model::class);
+        $tags_model = model('Organizador\\Models\\My_task_tags_model');
+
+        $tasks_list = $tasks_model->get_kanban_data($login_user->id, self::canViewAllTasks($login_user));
+
+        foreach ($tasks_list as $status => $tasks) {
+            foreach ($tasks as $task) {
+                $task->tags_html = $tags_model->get_badges_html($task->labels ?? '');
+            }
+        }
+
+        return view('Organizador\\Views\\dashboard\\kanban_widget', array(
+            'phases' => $phases_model->get_all_phases(),
+            'tasks_list' => $tasks_list,
+            'login_user' => $login_user,
+            'can_edit' => self::canEditTasks($login_user),
+        ));
+    }
+
+    public static function renderDashboardMyDayWidget($login_user)
+    {
+        if (!$login_user || !self::canAccessModule($login_user)) {
+            return '';
+        }
+
+        $tasks_model = model('Organizador\\Models\\My_tasks_model');
+        $view_all = self::canViewAllTasks($login_user);
+        $dashboard = $tasks_model->get_dashboard_intelligence($login_user->id, $view_all);
+
+        $summary = get_array_value($dashboard, 'summary') ?: array();
+        $focus_tasks = self::buildDashboardFocusTasks($tasks_model, $login_user->id, $view_all, $dashboard);
+
+        return view('Organizador\\Views\\dashboard\\my_day_widget', array(
+            'summary' => $summary,
+            'focus_tasks' => $focus_tasks,
+        ));
     }
 
     public static function sendTaskNotification($event, $actor_user_id, $options = array())
@@ -438,6 +484,99 @@ class Plugin
 
             return $settings_menu;
         });
+    }
+
+    private static function registerDashboardWidgets()
+    {
+        app_hooks()->add_filter('app_filter_dashboard_widgets', function ($widgets) {
+            $ci = new Security_Controller(false);
+            $login_user = $ci->login_user ?? null;
+
+            if (!$login_user || $login_user->user_type !== 'staff' || !self::canAccessModule($login_user)) {
+                return $widgets;
+            }
+
+            $widgets[] = array(
+                'widget' => 'organizador_dashboard_kanban_widget',
+                'widget_view' => self::renderDashboardKanbanWidget($login_user),
+            );
+
+            $widgets[] = array(
+                'widget' => 'organizador_dashboard_my_day_widget',
+                'widget_view' => self::renderDashboardMyDayWidget($login_user),
+            );
+
+            return $widgets;
+        });
+    }
+
+    private static function buildDashboardFocusTasks($tasks_model, $current_user_id, $view_all, $dashboard)
+    {
+        $rows = array();
+
+        $sources = array(
+            get_array_value($dashboard, 'urgent_not_started') ?: array(),
+            get_array_value($dashboard, 'procrastination_risks') ?: array(),
+            get_array_value($dashboard, 'forgotten_tasks') ?: array(),
+        );
+
+        foreach ($sources as $items) {
+            foreach ($items as $item) {
+                $task_id = (int) get_array_value($item, 'id');
+                if ($task_id && !isset($rows[$task_id])) {
+                    $rows[$task_id] = array(
+                        'id' => $task_id,
+                        'title' => get_array_value($item, 'title'),
+                        'priority' => get_array_value($item, 'priority') ?: 'medium',
+                        'status' => get_array_value($item, 'status'),
+                        'status_title' => $tasks_model->get_status_title(get_array_value($item, 'status')),
+                        'status_color' => $tasks_model->get_status_color(get_array_value($item, 'status')),
+                        'assigned_to' => get_array_value($item, 'assigned_to') ?: '-',
+                        'due_date' => get_array_value($item, 'due_date') ?: '-',
+                        'reason' => get_array_value($item, 'reason') ?: '',
+                        'url' => get_uri('organizador/tasks/view/' . $task_id),
+                    );
+                }
+            }
+        }
+
+        $query_groups = array(
+            array('quick_filter' => 'overdue', 'limit' => 4),
+            array('quick_filter' => 'today', 'limit' => 4),
+            array('priority' => 'urgent', 'limit' => 4),
+        );
+
+        foreach ($query_groups as $query_options) {
+            $options = array_merge($query_options, array(
+                'current_user_id' => $current_user_id,
+                'view_all' => $view_all,
+            ));
+
+            $query = $tasks_model->get_details($options);
+            if (!$query) {
+                continue;
+            }
+
+            foreach ($query->getResult() as $task) {
+                $task_id = (int) $task->id;
+                if ($task_id && !isset($rows[$task_id])) {
+                    $rows[$task_id] = array(
+                        'id' => $task_id,
+                        'title' => $task->title,
+                        'priority' => $task->priority ?: 'medium',
+                        'status' => $task->status,
+                        'status_title' => $task->status_title ?: $tasks_model->get_status_title($task->status),
+                        'status_color' => $task->status_color ?: $tasks_model->get_status_color($task->status),
+                        'assigned_to' => trim((string) ($task->assigned_to_name ?? '')) ?: '-',
+                        'due_date' => $task->due_date ? format_to_datetime($task->due_date) : '-',
+                        'reason' => '',
+                        'url' => get_uri('organizador/tasks/view/' . $task_id),
+                    );
+                }
+            }
+        }
+
+        return array_slice(array_values($rows), 0, 8);
     }
 
     private static function registerPermissions()
