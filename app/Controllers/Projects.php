@@ -1436,11 +1436,12 @@ class Projects extends Security_Controller {
         $tasks_dropdown = array("" => "-");
         $tasks_dropdown_json = array(array("id" => "", "text" => "- " . app_lang("task") . " -"));
 
-        $options = array(
-            "project_id" => $project_id
-        );
-
-        $tasks = $this->Tasks_model->get_details($options)->getResult();
+        $tasks_table = $this->db->prefixTable('tasks');
+        $sql = "SELECT id, title
+                FROM $tasks_table
+                WHERE deleted=0 AND project_id=?
+                ORDER BY id DESC";
+        $tasks = $this->db->query($sql, array((int) $project_id))->getResult();
 
         foreach ($tasks as $task) {
             $tasks_dropdown_json[] = array("id" => $task->id, "text" => $task->id . " - " . $task->title);

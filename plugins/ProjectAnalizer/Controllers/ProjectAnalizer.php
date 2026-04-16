@@ -2991,6 +2991,20 @@ class ProjectAnalizer extends Security_Controller {
         );
     }
 
+    function get_all_related_data_of_selected_project_for_timelog($project_id = "")
+    {
+        validate_numeric_value($project_id);
+
+        if ($project_id) {
+            $related_data = $this->_prepare_all_related_data_for_timelog($project_id);
+
+            echo json_encode(array(
+                "project_members_dropdown" => get_array_value($related_data, "project_members_dropdown"),
+                "tasks_dropdown" => json_decode(get_array_value($related_data, "tasks_dropdown"))
+            ));
+        }
+    }
+
 
     private function _make_timesheet_row($data, $custom_fields) 
     {
@@ -3115,21 +3129,13 @@ class ProjectAnalizer extends Security_Controller {
         $tasks_dropdown = array("" => "-");
         $tasks_dropdown_json = array(array("id" => "", "text" => "- " . app_lang("task") . " -"));
 
-        $show_assigned_tasks_only_user_id = $this->show_assigned_tasks_only_user_id();
-        if (!$show_assigned_tasks_only_user_id) {
-            $timesheet_manage_permission = get_array_value($this->login_user->permissions, "timesheet_manage_permission");
-            if (!$timesheet_manage_permission || $timesheet_manage_permission === "own") {
-                //show only own tasks when the permission is no/own
-                $show_assigned_tasks_only_user_id = $this->login_user->id;
-            }
-        }
-
-        $options = array(
-            "project_id" => $project_id,
-            "show_assigned_tasks_only_user_id" => $show_assigned_tasks_only_user_id
-        );
-
-        $tasks = $this->Tasks_model->get_details($options)->getResult();
+        $db = db_connect();
+        $tasks_table = $db->prefixTable('tasks');
+        $sql = "SELECT id, title
+                FROM $tasks_table
+                WHERE deleted = 0 AND project_id = ?
+                ORDER BY id DESC";
+        $tasks = $db->query($sql, array((int) $project_id))->getResult();
 
         foreach ($tasks as $task) {
             $tasks_dropdown_json[] = array("id" => $task->id, "text" => $task->id . " - " . $task->title);

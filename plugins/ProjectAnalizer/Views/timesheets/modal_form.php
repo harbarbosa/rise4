@@ -563,7 +563,7 @@
                 $("#task_id").hide();
                 appLoader.show({container: "#dropdown-apploader-section"});
                 appAjaxRequest({
-                    url: "<?php echo get_uri('projects/get_all_related_data_of_selected_project_for_timelog') ?>" + "/" + projectId,
+                    url: "<?php echo get_uri('projectanalizer/get_all_related_data_of_selected_project_for_timelog') ?>" + "/" + projectId,
                     dataType: "json",
                     success: function (result) {
                         $("#user_id").show().val("");
