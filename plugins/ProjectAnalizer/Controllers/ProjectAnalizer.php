@@ -3648,7 +3648,8 @@ class ProjectAnalizer extends Security_Controller {
             return $this->execution_schedule_technician_members;
         }
 
-        $users_table = $this->db->prefixTable("users");
+        $db = db_connect("default");
+        $users_table = $db->prefixTable("users");
         $role_id = (int) $role_id;
 
         $sql = "SELECT $users_table.id,
@@ -3660,7 +3661,7 @@ class ProjectAnalizer extends Security_Controller {
                     AND $users_table.role_id = $role_id
                 ORDER BY $users_table.first_name ASC, $users_table.last_name ASC";
 
-        $this->execution_schedule_technician_members = $this->db->query($sql)->getResult();
+        $this->execution_schedule_technician_members = $db->query($sql)->getResult();
         return $this->execution_schedule_technician_members;
     }
 
@@ -3670,12 +3671,13 @@ class ProjectAnalizer extends Security_Controller {
             return $this->execution_schedule_technician_role_id;
         }
 
-        $roles_table = $this->db->prefixTable("roles");
+        $db = db_connect("default");
+        $roles_table = $db->prefixTable("roles");
         $titles = array("Técnicos", "Tecnicos");
         $quoted_titles = array();
 
         foreach ($titles as $title) {
-            $quoted_titles[] = "'" . $this->db->escapeString($title) . "'";
+            $quoted_titles[] = "'" . $db->escapeString($title) . "'";
         }
 
         $sql = "SELECT $roles_table.id
@@ -3685,7 +3687,7 @@ class ProjectAnalizer extends Security_Controller {
                 ORDER BY $roles_table.id ASC
                 LIMIT 1";
 
-        $row = $this->db->query($sql)->getRow();
+        $row = $db->query($sql)->getRow();
         $this->execution_schedule_technician_role_id = $row ? (int) $row->id : 0;
 
         return $this->execution_schedule_technician_role_id;
