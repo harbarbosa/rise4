@@ -6,6 +6,7 @@ use Config\Services;
 $routes = Services::routes();
 
 $routes->get('projectanalizer', 'ProjectAnalizer::index', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->get('projectanalizer/execution_schedule/(:num)', 'ProjectAnalizer::execution_schedule/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/evolution_project/(:num)', 'Tasks::evolution_project/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/evolucao/(:num)', 'Projectanalizer_projects::evolucao/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/revenues_expenses/(:num)', 'Projectanalizer_projects::revenues_expenses/$1', ['namespace' => 'ProjectAnalizer\Controllers']);

@@ -23,7 +23,7 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
     
 app_hooks()->add_action('app_hook_after_signin', function () {
  
-    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,teamactivities';
+    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities';
  
 
     $save_setting = new \App\Models\Settings_model();
@@ -40,7 +40,7 @@ app_hooks()->add_action('app_hook_after_signin', function () {
 // "evolucao_ff" exista mesmo sem precisar sair/entrar no sistema.
 app_hooks()->add_action('app_hook_before_app_access', function () {
     try {
-        $desired_default = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,teamactivities';
+        $desired_default = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities';
 
         $normalize = function ($value) use ($desired_default) {
             $value = is_string($value) ? trim($value) : "";
@@ -76,6 +76,14 @@ app_hooks()->add_action('app_hook_before_app_access', function () {
                     $tabs[] = "revenues_expenses_section";
                 } else {
                     array_splice($tabs, $pos + 1, 0, array("revenues_expenses_section"));
+                }
+            }
+            if (!in_array("execution_schedule", $tabs, true)) {
+                $pos = array_search("comments", $tabs, true);
+                if ($pos === false) {
+                    $tabs[] = "execution_schedule";
+                } else {
+                    array_splice($tabs, $pos + 1, 0, array("execution_schedule"));
                 }
             }
 
@@ -173,6 +181,18 @@ app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
         "url" => "projectanalizer",
         "class" => "bar-chart-2",
         "position" => 3,
+        "submenu" => array(
+            "projectanalizer_overview" => array(
+                "name" => "projectanalizer",
+                "url" => "projectanalizer",
+                "class" => "bar-chart-2"
+            ),
+            "projectanalizer_execution_schedule" => array(
+                "name" => "execution_schedule",
+                "url" => "projectanalizer/execution_schedule",
+                "class" => "calendar"
+            )
+        )
     );
 
     return $sidebar_menu;
@@ -186,6 +206,7 @@ app_hooks()->add_filter('app_filter_team_members_project_details_tab', function 
     $project_tabs_of_hook_of_staff["evolucao_ff"] = "projectanalizer/evolucao/".$project_id;
     $project_tabs_of_hook_of_staff["revenues_expenses_section"] = "projectanalizer/revenues_expenses/".$project_id;
     $project_tabs_of_hook_of_staff["evolution_project"] = "projectanalizer/evolution_project/".$project_id;
+    $project_tabs_of_hook_of_staff["execution_schedule"] = "projectanalizer/execution_schedule/".$project_id;
     $project_tabs_of_hook_of_staff["teamactivities"] = "projectanalizer/timesheets/".$project_id;
     $project_tabs_of_hook_of_staff["project_items"] = "projectanalizer/projectitens/".$project_id;
     //$project_tabs_of_hook_of_staff["my_tab_another_title_with_available_language_key_value"] = "my_plugin/my_another_tab_url";
@@ -205,7 +226,7 @@ app_hooks()->add_filter('app_filter_admin_settings_menu', function ($settings_me
 register_installation_hook("ProjectAnalizer", function ($item_purchase_code) {
     
 
-    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,teamactivities';
+    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities';
  
 
     $save_setting = new \App\Models\Settings_model();
@@ -421,6 +442,25 @@ register_installation_hook("ProjectAnalizer", function ($item_purchase_code) {
             INDEX `idx_pa_revenue_realized_project_date` (`project_id`, `realized_date`),
             INDEX `idx_pa_revenue_realized_planned` (`planned_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+        $db->query("CREATE TABLE IF NOT EXISTS `" . $dbprefix . "projectanalizer_execution_schedule` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `project_id` INT(11) NOT NULL,
+            `group_key` VARCHAR(50) NULL DEFAULT NULL,
+            `user_id` INT(11) NOT NULL,
+            `start_date` DATE NOT NULL,
+            `end_date` DATE NOT NULL,
+            `status` VARCHAR(25) NOT NULL DEFAULT 'planned',
+            `notes` TEXT NULL,
+            `created_by` INT(11) NULL,
+            `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+            PRIMARY KEY (`id`),
+            INDEX `idx_pa_execution_schedule_group_key` (`group_key`),
+            INDEX `idx_pa_execution_schedule_project_date` (`project_id`, `start_date`, `end_date`),
+            INDEX `idx_pa_execution_schedule_user_date` (`user_id`, `start_date`, `end_date`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
    
     });
 
@@ -440,7 +480,7 @@ register_update_hook("ProjectAnalizer", function () {
     $dbprefix = get_db_prefix();
     $messages = array();
 
-    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,teamactivities';
+    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities';
     $save_setting = new \App\Models\Settings_model();
     $save_setting->save_setting('project_tab_order', $project_tabs);
     $messages[] = "Updated project_tab_order";
@@ -670,6 +710,33 @@ register_update_hook("ProjectAnalizer", function () {
         INDEX `idx_pa_revenue_realized_planned` (`planned_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     $messages[] = "Ensured projectanalizer_revenue_realized";
+
+    $db->query("CREATE TABLE IF NOT EXISTS `" . $dbprefix . "projectanalizer_execution_schedule` (
+        `id` INT(11) NOT NULL AUTO_INCREMENT,
+        `project_id` INT(11) NOT NULL,
+        `group_key` VARCHAR(50) NULL DEFAULT NULL,
+        `user_id` INT(11) NOT NULL,
+        `start_date` DATE NOT NULL,
+        `end_date` DATE NOT NULL,
+        `status` VARCHAR(25) NOT NULL DEFAULT 'planned',
+        `notes` TEXT NULL,
+        `created_by` INT(11) NULL,
+        `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+        `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+        PRIMARY KEY (`id`),
+        INDEX `idx_pa_execution_schedule_group_key` (`group_key`),
+        INDEX `idx_pa_execution_schedule_project_date` (`project_id`, `start_date`, `end_date`),
+        INDEX `idx_pa_execution_schedule_user_date` (`user_id`, `start_date`, `end_date`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    $messages[] = "Ensured projectanalizer_execution_schedule";
+
+    $execution_schedule_group_key = $db->query("SHOW COLUMNS FROM `" . $dbprefix . "projectanalizer_execution_schedule` LIKE 'group_key'")->getRow();
+    if (!$execution_schedule_group_key) {
+        $db->query("ALTER TABLE `" . $dbprefix . "projectanalizer_execution_schedule` ADD COLUMN `group_key` VARCHAR(50) NULL DEFAULT NULL AFTER `project_id`;");
+        $db->query("ALTER TABLE `" . $dbprefix . "projectanalizer_execution_schedule` ADD INDEX `idx_pa_execution_schedule_group_key` (`group_key`);");
+        $messages[] = "Added projectanalizer_execution_schedule.group_key";
+    }
 
     // Garantir colunas de compatibilidade (soft delete) e defaults, caso as tabelas já existam.
     $tables_to_check = array(

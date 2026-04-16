@@ -159,4 +159,17 @@ $lang["pa_log_files"] = "Arquivos de log";
 $lang["pa_log_content"] = "ConteÃºdo do log";
 $lang["pa_no_logs"] = "Nenhum log encontrado";
 
+$lang["execution_schedule"] = "Agenda de execucao";
+$lang["execution_schedule_helper_text"] = "Planeje onde cada colaborador estara por projeto e por periodo.";
+$lang["allocation_planned"] = "Planejado";
+$lang["allocation_confirmed"] = "Confirmado";
+$lang["allocation_done"] = "Concluido";
+$lang["allocation_cancelled"] = "Cancelado";
+$lang["execution_schedule_conflict"] = "Este colaborador ja possui uma alocacao no periodo informado.";
+$lang["execution_schedule_conflict_members"] = "Os seguintes colaboradores ja possuem alocacao no periodo informado:";
+$lang["execution_schedule_invalid_range"] = "A data final nao pode ser menor que a data inicial.";
+$lang["execution_schedule_member_required"] = "Selecione ao menos um colaborador.";
+$lang["execution_schedule_multiple_members_help"] = "Voce pode selecionar mais de um colaborador para criar varias alocacoes de uma vez.";
+$lang["execution_schedule_multiple_members_saved"] = "%s alocacoes foram salvas com sucesso.";
+
 return $lang;

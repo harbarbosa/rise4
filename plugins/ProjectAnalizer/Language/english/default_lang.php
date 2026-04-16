@@ -115,5 +115,18 @@ $lang['cumulative'] = 'Cumulative';
 $lang['cashflow_negative'] = 'Negative cashflow';
 $lang['billing_delayed'] = 'Billing delayed';
 
+$lang['execution_schedule'] = 'Execution schedule';
+$lang['execution_schedule_helper_text'] = 'Plan where each team member will be assigned by project and period.';
+$lang['allocation_planned'] = 'Planned';
+$lang['allocation_confirmed'] = 'Confirmed';
+$lang['allocation_done'] = 'Done';
+$lang['allocation_cancelled'] = 'Cancelled';
+$lang['execution_schedule_conflict'] = 'This team member already has an allocation in the selected period.';
+$lang['execution_schedule_conflict_members'] = 'The following team members already have allocations in the selected period:';
+$lang['execution_schedule_invalid_range'] = 'End date cannot be earlier than start date.';
+$lang['execution_schedule_member_required'] = 'Select at least one team member.';
+$lang['execution_schedule_multiple_members_help'] = 'You can select more than one team member to create multiple allocations at once.';
+$lang['execution_schedule_multiple_members_saved'] = '%s allocations were saved successfully.';
+
 return $lang;
 

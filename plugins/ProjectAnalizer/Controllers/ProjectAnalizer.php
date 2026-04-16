@@ -5,12 +5,17 @@ use App\Models\Project_settings_model;
 use App\Controllers\Security_Controller;
 use App\Controllers\Projects;
 use App\Controllers\Tasks;
+use ProjectAnalizer\Models\Execution_schedule_model;
 use ProjectAnalizer\Models\Team_activities_model;
 use ContaAzul\Libraries\ContaAzulClient;
 use ProjectAnalizer\Libraries\ProjectAnalizerCashflowService;
 
 class ProjectAnalizer extends Security_Controller {
     protected $Team_activities_model;
+    protected $Project_settings_model;
+    protected $Task_priority_model;
+    protected $Checklist_items_model;
+    protected $Pin_comments_model;
 
     function __construct() {
         $this->Project_settings_model = new Project_settings_model();
@@ -2024,6 +2029,344 @@ class ProjectAnalizer extends Security_Controller {
         return $this->template->view("ProjectAnalizer\Views\\timesheets/index", $view_data);
     }
 
+    function execution_schedule($project_id = 0)
+    {
+        $this->access_only_team_members();
+
+        $project_id = $project_id ? $project_id : get_only_numeric_value($this->request->getGet("project_id"));
+        $project_info = null;
+
+        if ($project_id) {
+            validate_numeric_value($project_id);
+            $this->init_project_permission_checker($project_id);
+
+            if (!$this->_can_view_project_tasks($project_id)) {
+                app_redirect("forbidden");
+            }
+
+            $project_info = $this->Projects_model->get_one($project_id);
+        }
+
+        $view_data = array(
+            "project_id" => $project_id,
+            "project_info" => $project_info,
+            "projects_dropdown" => $this->_get_execution_schedule_projects_dropdown(),
+            "members_dropdown" => $this->_get_execution_schedule_members_dropdown()
+        );
+
+        if ($project_id) {
+            return $this->template->view("ProjectAnalizer\Views\\execution_schedule/index", $view_data);
+        }
+
+        return $this->template->render("ProjectAnalizer\Views\\execution_schedule/index", $view_data);
+    }
+
+    function execution_schedule_events()
+    {
+        $this->access_only_team_members();
+
+        $project_id = get_only_numeric_value($this->request->getGet("project_id"));
+        if ($project_id) {
+            $this->init_project_permission_checker($project_id);
+
+            if (!$this->_can_view_project_tasks($project_id)) {
+                app_redirect("forbidden");
+            }
+        }
+
+        $options = array(
+            "project_id" => $project_id,
+            "user_id" => get_only_numeric_value($this->request->getGet("user_id")),
+            "start_date" => $this->request->getGet("start"),
+            "end_date" => $this->request->getGet("end")
+        );
+
+        $events = array();
+        $schedule_model = new Execution_schedule_model();
+        $rows = $schedule_model->get_details($options)->getResult();
+        $grouped_rows = array();
+
+        foreach ($rows as $row) {
+            $grouping_key = $row->group_key ? $row->group_key : "single_" . $row->id;
+            if (!isset($grouped_rows[$grouping_key])) {
+                $grouped_rows[$grouping_key] = array(
+                    "anchor_id" => $row->id,
+                    "project_id" => $row->project_id,
+                    "project_title" => $row->project_title,
+                    "start_date" => $row->start_date,
+                    "end_date" => $row->end_date,
+                    "status" => $row->status,
+                    "notes" => $row->notes,
+                    "member_names" => array()
+                );
+            }
+
+            $grouped_rows[$grouping_key]["member_names"][] = $row->member_name;
+        }
+
+        foreach ($grouped_rows as $group_key => $group_row) {
+            $member_names = array_values(array_unique($group_row["member_names"]));
+            $member_count = count($member_names);
+            $title = $project_id
+                ? ($member_count > 1 ? $member_count . " colaboradores" : $member_names[0])
+                : $group_row["project_title"];
+
+            $events[] = array(
+                "id" => $group_row["anchor_id"],
+                "title" => $title,
+                "start" => $group_row["start_date"],
+                "end" => date("Y-m-d", strtotime($group_row["end_date"] . " +1 day")),
+                "allDay" => true,
+                "backgroundColor" => $this->_get_execution_schedule_color($group_row["project_id"]),
+                "borderColor" => $this->_get_execution_schedule_color($group_row["project_id"]),
+                "extendedProps" => array(
+                    "group_key" => $group_key,
+                    "project_id" => $group_row["project_id"],
+                    "project_title" => $group_row["project_title"],
+                    "member_names" => $member_names,
+                    "member_names_text" => implode(", ", $member_names),
+                    "status" => $group_row["status"],
+                    "notes" => $group_row["notes"]
+                )
+            );
+        }
+
+        echo json_encode($events);
+    }
+
+    function execution_schedule_modal_form()
+    {
+        $this->access_only_team_members();
+        $this->validate_submitted_data(array(
+            "id" => "numeric",
+            "project_id" => "numeric"
+        ));
+
+        $id = $this->request->getPost("id");
+        $project_id = get_only_numeric_value($this->request->getPost("project_id"));
+
+        $schedule_model = new Execution_schedule_model();
+        $model_info = $schedule_model->get_one($id);
+        $group_rows = array();
+
+        if ($model_info->id) {
+            $project_id = (int) $model_info->project_id;
+            $group_rows = $schedule_model->get_group_rows($model_info->group_key, $model_info->id);
+        }
+
+        if ($project_id) {
+            $this->init_project_permission_checker($project_id);
+
+            if (!$this->_can_view_project_tasks($project_id)) {
+                app_redirect("forbidden");
+            }
+        }
+
+        $view_data = array(
+            "model_info" => $model_info,
+            "selected_project_id" => $project_id,
+            "fixed_project" => $project_id ? true : false,
+            "selected_member_ids" => $group_rows ? array_map(function ($row) {
+                return (string) $row->user_id;
+            }, $group_rows) : array(),
+            "projects_dropdown" => $this->_get_execution_schedule_projects_dropdown(true),
+            "members_dropdown" => $this->_get_execution_schedule_members_dropdown(true),
+            "status_dropdown" => array(
+                "planned" => app_lang("allocation_planned"),
+                "confirmed" => app_lang("allocation_confirmed"),
+                "done" => app_lang("allocation_done"),
+                "cancelled" => app_lang("allocation_cancelled")
+            ),
+            "start_date" => $this->request->getPost("start_date") ?: get_my_local_time("Y-m-d"),
+            "end_date" => $this->request->getPost("end_date") ?: get_my_local_time("Y-m-d")
+        );
+
+        return $this->template->view("ProjectAnalizer\Views\\execution_schedule/modal_form", $view_data);
+    }
+
+    function save_execution_schedule()
+    {
+        $this->access_only_team_members();
+        $this->validate_submitted_data(array(
+            "id" => "numeric",
+            "project_id" => "required|numeric"
+        ));
+
+        $id = get_only_numeric_value($this->request->getPost("id"));
+        $project_id = get_only_numeric_value($this->request->getPost("project_id"));
+        $start_date = $this->request->getPost("start_date");
+        $end_date = $this->request->getPost("end_date");
+        $user_ids = $this->request->getPost("user_ids");
+        $user_ids = is_array($user_ids) ? $user_ids : array($user_ids);
+        $user_ids = array_values(array_unique(array_filter(array_map("get_only_numeric_value", $user_ids))));
+
+        $this->init_project_permission_checker($project_id);
+        if (!$this->_can_view_project_tasks($project_id)) {
+            app_redirect("forbidden");
+        }
+
+        if (!$start_date || !$end_date || strtotime($start_date) === false || strtotime($end_date) === false) {
+            echo json_encode(array("success" => false, "message" => app_lang("error_occurred")));
+            return;
+        }
+
+        if (strtotime($start_date) > strtotime($end_date)) {
+            echo json_encode(array("success" => false, "message" => app_lang("execution_schedule_invalid_range")));
+            return;
+        }
+
+        $schedule_model = new Execution_schedule_model();
+        $members_dropdown = $this->_get_execution_schedule_members_dropdown(true);
+        $group_key = null;
+        $existing_group_rows = array();
+        $existing_row_by_user = array();
+
+        if ($id) {
+            $existing_row = $schedule_model->get_one($id);
+            if (!$existing_row->id) {
+                echo json_encode(array("success" => false, "message" => app_lang("record_not_found")));
+                return;
+            }
+
+            $group_key = $existing_row->group_key;
+            $existing_group_rows = $schedule_model->get_group_rows($group_key, $existing_row->id, true);
+            foreach ($existing_group_rows as $group_row) {
+                $existing_row_by_user[(int) $group_row->user_id] = $group_row;
+            }
+        } else {
+            $group_key = uniqid("es_", true);
+        }
+
+        if (!$user_ids) {
+            echo json_encode(array("success" => false, "message" => app_lang("execution_schedule_member_required")));
+            return;
+        }
+
+        $conflicted_members = array();
+        foreach ($user_ids as $user_id) {
+            if ($schedule_model->has_conflict($user_id, $start_date, $end_date, $id, $group_key)) {
+                $conflicted_members[] = get_array_value($members_dropdown, $user_id, "#" . $user_id);
+            }
+        }
+
+        if ($conflicted_members) {
+            echo json_encode(array(
+                "success" => false,
+                "message" => app_lang("execution_schedule_conflict_members") . " " . implode(", ", $conflicted_members)
+            ));
+            return;
+        }
+
+        $data = array(
+            "project_id" => $project_id,
+            "group_key" => $group_key,
+            "start_date" => $start_date,
+            "end_date" => $end_date,
+            "status" => $this->request->getPost("status") ?: "planned",
+            "notes" => $this->request->getPost("notes")
+        );
+
+        if ($id) {
+            $last_save_id = 0;
+
+            foreach ($existing_group_rows as $group_row) {
+                if (!in_array((int) $group_row->user_id, $user_ids)) {
+                    $schedule_model->delete($group_row->id);
+                }
+            }
+
+            foreach ($user_ids as $user_id) {
+                $member_data = $data;
+                $member_data["user_id"] = $user_id;
+
+                if (isset($existing_row_by_user[$user_id])) {
+                    $last_save_id = $schedule_model->ci_save($member_data, $existing_row_by_user[$user_id]->id);
+                } else {
+                    $member_data["created_by"] = $this->login_user->id;
+                    $last_save_id = $schedule_model->ci_save($member_data);
+                }
+            }
+
+            if ($last_save_id) {
+                echo json_encode(array("success" => true, "id" => $last_save_id, "message" => app_lang("record_saved")));
+            } else {
+                echo json_encode(array("success" => false, "message" => app_lang("error_occurred")));
+            }
+            return;
+        }
+
+        $last_save_id = 0;
+        foreach ($user_ids as $user_id) {
+            $member_data = $data;
+            $member_data["user_id"] = $user_id;
+            $member_data["created_by"] = $this->login_user->id;
+            $last_save_id = $schedule_model->ci_save($member_data);
+        }
+
+        if ($last_save_id) {
+            echo json_encode(array(
+                "success" => true,
+                "id" => $last_save_id,
+                "message" => sprintf(app_lang("execution_schedule_multiple_members_saved"), count($user_ids))
+            ));
+        } else {
+            echo json_encode(array("success" => false, "message" => app_lang("error_occurred")));
+        }
+    }
+
+    function delete_execution_schedule()
+    {
+        $this->access_only_team_members();
+
+        $id = get_only_numeric_value($this->request->getPost("id"));
+        $schedule_model = new Execution_schedule_model();
+        $info = $schedule_model->get_one($id);
+
+        if (!$info || !$info->id) {
+            echo json_encode(array("success" => false, "message" => app_lang("record_not_found")));
+            return;
+        }
+
+        $this->init_project_permission_checker($info->project_id);
+        if (!$this->_can_view_project_tasks($info->project_id)) {
+            app_redirect("forbidden");
+        }
+
+        $group_rows = $schedule_model->get_group_rows($info->group_key, $info->id, true);
+        if (!$group_rows) {
+            $group_rows = array($info);
+        }
+
+        if ($this->request->getPost("undo")) {
+            $restored = true;
+            foreach ($group_rows as $group_row) {
+                if (!$schedule_model->delete($group_row->id, true)) {
+                    $restored = false;
+                }
+            }
+
+            if ($restored) {
+                echo json_encode(array("success" => true, "message" => app_lang("record_undone")));
+            } else {
+                echo json_encode(array("success" => false, "message" => app_lang("error_occurred")));
+            }
+            return;
+        }
+
+        $deleted = true;
+        foreach ($group_rows as $group_row) {
+            if (!$schedule_model->delete($group_row->id)) {
+                $deleted = false;
+            }
+        }
+
+        if ($deleted) {
+            echo json_encode(array("success" => true, "message" => app_lang("record_deleted")));
+        } else {
+            echo json_encode(array("success" => false, "message" => app_lang("record_cannot_be_deleted")));
+        }
+    }
+
     function timesheet_list_data($user_id = 0) //LISTA DIARIO DE OBRA
     {
 
@@ -3212,6 +3555,49 @@ class ProjectAnalizer extends Security_Controller {
                 return $this->is_user_a_project_member;
             }
         }
+    }
+
+    private function _get_execution_schedule_projects_dropdown($for_form = false)
+    {
+        $projects_options = array();
+        if (!$this->can_manage_all_projects()) {
+            $projects_options["user_id"] = $this->login_user->id;
+        }
+
+        $projects = $this->Projects_model->get_details($projects_options)->getResult();
+        $dropdown = $for_form ? array() : array(array("id" => "", "text" => "- " . app_lang("project") . " -"));
+
+        foreach ($projects as $project) {
+            if ($for_form) {
+                $dropdown[$project->id] = $project->title;
+            } else {
+                $dropdown[] = array("id" => $project->id, "text" => $project->title);
+            }
+        }
+
+        return $dropdown;
+    }
+
+    private function _get_execution_schedule_members_dropdown($for_form = false)
+    {
+        $members = $this->Users_model->get_team_members_id_and_name()->getResult();
+        $dropdown = $for_form ? array() : array(array("id" => "", "text" => "- " . app_lang("member") . " -"));
+
+        foreach ($members as $member) {
+            if ($for_form) {
+                $dropdown[$member->id] = $member->user_name;
+            } else {
+                $dropdown[] = array("id" => $member->id, "text" => $member->user_name);
+            }
+        }
+
+        return $dropdown;
+    }
+
+    private function _get_execution_schedule_color($project_id)
+    {
+        $palette = array("#0d6efd", "#198754", "#fd7e14", "#6f42c1", "#dc3545", "#20c997", "#0dcaf0", "#6610f2");
+        return $palette[$project_id % count($palette)];
     }
 
     private function _can_view_project_tasks($project_id) {
