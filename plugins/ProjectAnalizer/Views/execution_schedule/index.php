@@ -14,28 +14,6 @@ $page_title = isset($project_info) && $project_info ? $project_info->title : app
     <div class="page-title clearfix">
         <h1><?php echo $page_title; ?></h1>
         <div class="title-button-group">
-            <?php echo form_input(array(
-                "id" => "execution-schedule-date-from",
-                "class" => "form-control mr10",
-                "type" => "date",
-                "value" => $selected_date_from,
-                "title" => app_lang("execution_schedule_date_from")
-            )); ?>
-            <?php echo form_input(array(
-                "id" => "execution-schedule-date-to",
-                "class" => "form-control mr10",
-                "type" => "date",
-                "value" => $selected_date_to,
-                "title" => app_lang("execution_schedule_date_to")
-            )); ?>
-            <?php echo form_input(array(
-                "id" => "execution-schedule-project-filter",
-                "class" => "select2 w250 mr10" . ($project_id ? " hide" : "")
-            )); ?>
-            <?php echo form_input(array(
-                "id" => "execution-schedule-member-filter",
-                "class" => "select2 w250 mr10"
-            )); ?>
             <?php echo modal_anchor(get_uri("projectanalizer/execution_schedule_modal_form"), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang("add"), array(
                 "class" => "btn btn-default",
                 "title" => app_lang("execution_schedule"),
@@ -51,6 +29,42 @@ $page_title = isset($project_info) && $project_info ? $project_info->title : app
     )); ?>
 
     <div class="card-body">
+        <div class="bg-light rounded p15 mb15">
+            <div class="row">
+                <div class="col-md-3 mb10">
+                    <label class="text-off mb5"><?php echo app_lang("execution_schedule_date_from"); ?></label>
+                    <?php echo form_input(array(
+                        "id" => "execution-schedule-date-from",
+                        "class" => "form-control",
+                        "type" => "date",
+                        "value" => $selected_date_from
+                    )); ?>
+                </div>
+                <div class="col-md-3 mb10">
+                    <label class="text-off mb5"><?php echo app_lang("execution_schedule_date_to"); ?></label>
+                    <?php echo form_input(array(
+                        "id" => "execution-schedule-date-to",
+                        "class" => "form-control",
+                        "type" => "date",
+                        "value" => $selected_date_to
+                    )); ?>
+                </div>
+                <div class="col-md-3 mb10<?php echo $project_id ? " hide" : ""; ?>">
+                    <label class="text-off mb5"><?php echo app_lang("project"); ?></label>
+                    <?php echo form_input(array(
+                        "id" => "execution-schedule-project-filter",
+                        "class" => "select2 w-100"
+                    )); ?>
+                </div>
+                <div class="col-md-3 mb10">
+                    <label class="text-off mb5"><?php echo app_lang("member"); ?></label>
+                    <?php echo form_input(array(
+                        "id" => "execution-schedule-member-filter",
+                        "class" => "select2 w-100"
+                    )); ?>
+                </div>
+            </div>
+        </div>
         <div class="row mb15">
             <div class="col-md-4">
                 <div class="card bg-light">
@@ -220,7 +234,8 @@ $page_title = isset($project_info) && $project_info ? $project_info->title : app
         window.executionScheduleCalendar.render();
 
         $("#execution-schedule-project-filter").select2({
-            data: <?php echo json_encode($projects_dropdown); ?>
+            data: <?php echo json_encode($projects_dropdown); ?>,
+            width: "100%"
         }).on("change", function () {
             selectedProjectId = $(this).val() || "";
             window.executionScheduleCalendar.refetchEvents();
@@ -228,7 +243,8 @@ $page_title = isset($project_info) && $project_info ? $project_info->title : app
         });
 
         $("#execution-schedule-member-filter").select2({
-            data: <?php echo json_encode($members_dropdown); ?>
+            data: <?php echo json_encode($members_dropdown); ?>,
+            width: "100%"
         }).on("change", function () {
             selectedMemberId = $(this).val() || "";
             window.executionScheduleCalendar.refetchEvents();
