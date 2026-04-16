@@ -15,6 +15,20 @@ $page_title = isset($project_info) && $project_info ? $project_info->title : app
         <h1><?php echo $page_title; ?></h1>
         <div class="title-button-group">
             <?php echo form_input(array(
+                "id" => "execution-schedule-date-from",
+                "class" => "form-control mr10",
+                "type" => "date",
+                "value" => $selected_date_from,
+                "title" => app_lang("execution_schedule_date_from")
+            )); ?>
+            <?php echo form_input(array(
+                "id" => "execution-schedule-date-to",
+                "class" => "form-control mr10",
+                "type" => "date",
+                "value" => $selected_date_to,
+                "title" => app_lang("execution_schedule_date_to")
+            )); ?>
+            <?php echo form_input(array(
                 "id" => "execution-schedule-project-filter",
                 "class" => "select2 w250 mr10" . ($project_id ? " hide" : "")
             )); ?>
@@ -37,8 +51,48 @@ $page_title = isset($project_info) && $project_info ? $project_info->title : app
     )); ?>
 
     <div class="card-body">
+        <div class="row mb15">
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <div class="text-off"><?php echo app_lang("execution_schedule_not_allocated_today"); ?></div>
+                        <h3 class="mt10 mb0" id="execution-schedule-unallocated-today"><?php echo (int) get_array_value($availability_summary["totals"], "unallocated_today"); ?></h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <div class="text-off"><?php echo app_lang("execution_schedule_not_allocated_week"); ?></div>
+                        <h3 class="mt10 mb0" id="execution-schedule-unallocated-week"><?php echo (int) get_array_value($availability_summary["totals"], "unallocated_week"); ?></h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <div class="text-off"><?php echo app_lang("execution_schedule_not_allocated_period"); ?></div>
+                        <h3 class="mt10 mb0" id="execution-schedule-unallocated-period"><?php echo (int) get_array_value($availability_summary["totals"], "unallocated_period"); ?></h3>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="mb15 text-off">
             <?php echo app_lang("execution_schedule_helper_text"); ?>
+        </div>
+        <div class="card mb15">
+            <div class="card-body">
+                <div class="mb10"><strong><?php echo app_lang("execution_schedule_unallocated_list"); ?></strong></div>
+                <div id="execution-schedule-unallocated-list">
+                    <?php if (!empty($availability_summary["unallocated_members"])) { ?>
+                        <?php foreach ($availability_summary["unallocated_members"] as $member) { ?>
+                            <span class="badge bg-light text-dark mr5 mb5"><?php echo esc($member["name"]); ?></span>
+                        <?php } ?>
+                    <?php } else { ?>
+                        <span class="text-off"><?php echo app_lang("execution_schedule_no_unallocated_members"); ?></span>
+                    <?php } ?>
+                </div>
+            </div>
         </div>
         <div id="execution-schedule-calendar"></div>
     </div>
@@ -48,14 +102,54 @@ $page_title = isset($project_info) && $project_info ? $project_info->title : app
     $(document).ready(function () {
         var selectedProjectId = "<?php echo (int) $project_id; ?>";
         var selectedMemberId = "";
+        var selectedDateFrom = $("#execution-schedule-date-from").val();
+        var selectedDateTo = $("#execution-schedule-date-to").val();
         var $calendarEl = document.getElementById("execution-schedule-calendar");
 
         var getEventsUrl = function (fetchInfo) {
             return "<?php echo get_uri("projectanalizer/execution_schedule_events"); ?>?" + $.param({
                 project_id: selectedProjectId || "",
                 user_id: selectedMemberId || "",
-                start: moment(fetchInfo.start).format("YYYY-MM-DD"),
-                end: moment(fetchInfo.end).subtract(1, "day").format("YYYY-MM-DD")
+                start: selectedDateFrom || moment(fetchInfo.start).format("YYYY-MM-DD"),
+                end: selectedDateTo || moment(fetchInfo.end).subtract(1, "day").format("YYYY-MM-DD")
+            });
+        };
+
+        var updateAvailabilitySummary = function () {
+            appAjaxRequest({
+                url: "<?php echo get_uri("projectanalizer/execution_schedule_availability_summary"); ?>",
+                type: "GET",
+                dataType: "json",
+                data: {
+                    project_id: selectedProjectId || "",
+                    date_from: selectedDateFrom || "",
+                    date_to: selectedDateTo || ""
+                },
+                success: function (response) {
+                    if (!response || !response.success) {
+                        return;
+                    }
+
+                    var data = response.data || {};
+                    var totals = data.totals || {};
+                    var members = data.unallocated_members || [];
+
+                    $("#execution-schedule-unallocated-today").text(totals.unallocated_today || 0);
+                    $("#execution-schedule-unallocated-week").text(totals.unallocated_week || 0);
+                    $("#execution-schedule-unallocated-period").text(totals.unallocated_period || 0);
+
+                    if (!members.length) {
+                        $("#execution-schedule-unallocated-list").html("<span class='text-off'><?php echo app_lang("execution_schedule_no_unallocated_members"); ?></span>");
+                        return;
+                    }
+
+                    var html = "";
+                    $.each(members, function (index, member) {
+                        html += "<span class='badge bg-light text-dark mr5 mb5'>" + $("<div>").text(member.name || "").html() + "</span>";
+                    });
+
+                    $("#execution-schedule-unallocated-list").html(html);
+                }
             });
         };
 
@@ -130,6 +224,7 @@ $page_title = isset($project_info) && $project_info ? $project_info->title : app
         }).on("change", function () {
             selectedProjectId = $(this).val() || "";
             window.executionScheduleCalendar.refetchEvents();
+            updateAvailabilitySummary();
         });
 
         $("#execution-schedule-member-filter").select2({
@@ -139,8 +234,17 @@ $page_title = isset($project_info) && $project_info ? $project_info->title : app
             window.executionScheduleCalendar.refetchEvents();
         });
 
+        $("#execution-schedule-date-from, #execution-schedule-date-to").on("change", function () {
+            selectedDateFrom = $("#execution-schedule-date-from").val();
+            selectedDateTo = $("#execution-schedule-date-to").val();
+            window.executionScheduleCalendar.refetchEvents();
+            updateAvailabilitySummary();
+        });
+
         if (selectedProjectId) {
             $("#execution-schedule-project-filter").val(selectedProjectId).trigger("change");
         }
+
+        updateAvailabilitySummary();
     });
 </script>

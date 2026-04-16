@@ -128,6 +128,13 @@ $lang['execution_schedule_invalid_range'] = 'End date cannot be earlier than sta
 $lang['execution_schedule_member_required'] = 'Select at least one team member.';
 $lang['execution_schedule_multiple_members_help'] = 'You can select more than one team member to create multiple allocations at once.';
 $lang['execution_schedule_multiple_members_saved'] = '%s allocations were saved successfully.';
+$lang['execution_schedule_date_from'] = 'Start date';
+$lang['execution_schedule_date_to'] = 'End date';
+$lang['execution_schedule_not_allocated_today'] = 'Not allocated today';
+$lang['execution_schedule_not_allocated_week'] = 'Not allocated this week';
+$lang['execution_schedule_not_allocated_period'] = 'Not allocated in selected period';
+$lang['execution_schedule_unallocated_list'] = 'Unallocated technicians in the period';
+$lang['execution_schedule_no_unallocated_members'] = 'No unallocated technicians in the selected period.';
 
 return $lang;
 

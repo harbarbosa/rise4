@@ -172,5 +172,12 @@ $lang["execution_schedule_invalid_range"] = "A data final nao pode ser menor que
 $lang["execution_schedule_member_required"] = "Selecione ao menos um colaborador.";
 $lang["execution_schedule_multiple_members_help"] = "Voce pode selecionar mais de um colaborador para criar varias alocacoes de uma vez.";
 $lang["execution_schedule_multiple_members_saved"] = "%s alocacoes foram salvas com sucesso.";
+$lang["execution_schedule_date_from"] = "Data inicial";
+$lang["execution_schedule_date_to"] = "Data final";
+$lang["execution_schedule_not_allocated_today"] = "Sem alocacao hoje";
+$lang["execution_schedule_not_allocated_week"] = "Sem alocacao nesta semana";
+$lang["execution_schedule_not_allocated_period"] = "Sem alocacao no periodo";
+$lang["execution_schedule_unallocated_list"] = "Tecnicos nao alocados no periodo";
+$lang["execution_schedule_no_unallocated_members"] = "Nenhum tecnico sem alocacao no periodo informado.";
 
 return $lang;

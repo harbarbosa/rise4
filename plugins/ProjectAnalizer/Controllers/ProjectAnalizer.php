@@ -16,6 +16,8 @@ class ProjectAnalizer extends Security_Controller {
     protected $Task_priority_model;
     protected $Checklist_items_model;
     protected $Pin_comments_model;
+    protected $execution_schedule_technician_role_id = null;
+    protected $execution_schedule_technician_members = null;
 
     function __construct() {
         $this->Project_settings_model = new Project_settings_model();
@@ -2034,6 +2036,10 @@ class ProjectAnalizer extends Security_Controller {
         $this->access_only_team_members();
 
         $project_id = $project_id ? $project_id : get_only_numeric_value($this->request->getGet("project_id"));
+        $date_range = $this->_get_execution_schedule_date_range(
+            $this->request->getGet("date_from"),
+            $this->request->getGet("date_to")
+        );
         $project_info = null;
 
         if ($project_id) {
@@ -2050,8 +2056,11 @@ class ProjectAnalizer extends Security_Controller {
         $view_data = array(
             "project_id" => $project_id,
             "project_info" => $project_info,
+            "selected_date_from" => $date_range["start_date"],
+            "selected_date_to" => $date_range["end_date"],
             "projects_dropdown" => $this->_get_execution_schedule_projects_dropdown(),
-            "members_dropdown" => $this->_get_execution_schedule_members_dropdown()
+            "members_dropdown" => $this->_get_execution_schedule_members_dropdown(),
+            "availability_summary" => $this->_get_execution_schedule_availability_summary($project_id, $date_range["start_date"], $date_range["end_date"])
         );
 
         if ($project_id) {
@@ -2084,9 +2093,14 @@ class ProjectAnalizer extends Security_Controller {
         $events = array();
         $schedule_model = new Execution_schedule_model();
         $rows = $schedule_model->get_details($options)->getResult();
+        $eligible_members = $this->_get_execution_schedule_members_dropdown(true);
         $grouped_rows = array();
 
         foreach ($rows as $row) {
+            if (!isset($eligible_members[(int) $row->user_id])) {
+                continue;
+            }
+
             $grouping_key = $row->group_key ? $row->group_key : "single_" . $row->id;
             if (!isset($grouped_rows[$grouping_key])) {
                 $grouped_rows[$grouping_key] = array(
@@ -2132,6 +2146,30 @@ class ProjectAnalizer extends Security_Controller {
         }
 
         echo json_encode($events);
+    }
+
+    function execution_schedule_availability_summary()
+    {
+        $this->access_only_team_members();
+
+        $project_id = get_only_numeric_value($this->request->getGet("project_id"));
+        if ($project_id) {
+            $this->init_project_permission_checker($project_id);
+
+            if (!$this->_can_view_project_tasks($project_id)) {
+                app_redirect("forbidden");
+            }
+        }
+
+        $date_range = $this->_get_execution_schedule_date_range(
+            $this->request->getGet("date_from"),
+            $this->request->getGet("date_to")
+        );
+
+        echo json_encode(array(
+            "success" => true,
+            "data" => $this->_get_execution_schedule_availability_summary($project_id, $date_range["start_date"], $date_range["end_date"])
+        ));
     }
 
     function execution_schedule_modal_form()
@@ -2199,6 +2237,10 @@ class ProjectAnalizer extends Security_Controller {
         $user_ids = $this->request->getPost("user_ids");
         $user_ids = is_array($user_ids) ? $user_ids : array($user_ids);
         $user_ids = array_values(array_unique(array_filter(array_map("get_only_numeric_value", $user_ids))));
+        $eligible_members = $this->_get_execution_schedule_members_dropdown(true);
+        $user_ids = array_values(array_filter($user_ids, function ($user_id) use ($eligible_members) {
+            return isset($eligible_members[(int) $user_id]);
+        }));
 
         $this->init_project_permission_checker($project_id);
         if (!$this->_can_view_project_tasks($project_id)) {
@@ -2216,7 +2258,6 @@ class ProjectAnalizer extends Security_Controller {
         }
 
         $schedule_model = new Execution_schedule_model();
-        $members_dropdown = $this->_get_execution_schedule_members_dropdown(true);
         $group_key = null;
         $existing_group_rows = array();
         $existing_row_by_user = array();
@@ -2245,7 +2286,7 @@ class ProjectAnalizer extends Security_Controller {
         $conflicted_members = array();
         foreach ($user_ids as $user_id) {
             if ($schedule_model->has_conflict($user_id, $start_date, $end_date, $id, $group_key)) {
-                $conflicted_members[] = get_array_value($members_dropdown, $user_id, "#" . $user_id);
+                $conflicted_members[] = get_array_value($eligible_members, $user_id, "#" . $user_id);
             }
         }
 
@@ -3580,7 +3621,7 @@ class ProjectAnalizer extends Security_Controller {
 
     private function _get_execution_schedule_members_dropdown($for_form = false)
     {
-        $members = $this->Users_model->get_team_members_id_and_name()->getResult();
+        $members = $this->_get_execution_schedule_technician_members();
         $dropdown = $for_form ? array() : array(array("id" => "", "text" => "- " . app_lang("member") . " -"));
 
         foreach ($members as $member) {
@@ -3592,6 +3633,150 @@ class ProjectAnalizer extends Security_Controller {
         }
 
         return $dropdown;
+    }
+
+    private function _get_execution_schedule_technician_members()
+    {
+        if (is_array($this->execution_schedule_technician_members)) {
+            return $this->execution_schedule_technician_members;
+        }
+
+        $this->execution_schedule_technician_members = array();
+        $role_id = $this->_get_execution_schedule_technician_role_id();
+
+        if (!$role_id) {
+            return $this->execution_schedule_technician_members;
+        }
+
+        $users_table = $this->db->prefixTable("users");
+        $role_id = (int) $role_id;
+
+        $sql = "SELECT $users_table.id,
+                       CONCAT(TRIM($users_table.first_name), ' ', TRIM($users_table.last_name)) AS user_name
+                FROM $users_table
+                WHERE $users_table.deleted = 0
+                    AND $users_table.status = 'active'
+                    AND $users_table.user_type = 'staff'
+                    AND $users_table.role_id = $role_id
+                ORDER BY $users_table.first_name ASC, $users_table.last_name ASC";
+
+        $this->execution_schedule_technician_members = $this->db->query($sql)->getResult();
+        return $this->execution_schedule_technician_members;
+    }
+
+    private function _get_execution_schedule_technician_role_id()
+    {
+        if ($this->execution_schedule_technician_role_id !== null) {
+            return $this->execution_schedule_technician_role_id;
+        }
+
+        $roles_table = $this->db->prefixTable("roles");
+        $titles = array("Técnicos", "Tecnicos");
+        $quoted_titles = array();
+
+        foreach ($titles as $title) {
+            $quoted_titles[] = "'" . $this->db->escapeString($title) . "'";
+        }
+
+        $sql = "SELECT $roles_table.id
+                FROM $roles_table
+                WHERE $roles_table.deleted = 0
+                    AND $roles_table.title IN (" . implode(", ", $quoted_titles) . ")
+                ORDER BY $roles_table.id ASC
+                LIMIT 1";
+
+        $row = $this->db->query($sql)->getRow();
+        $this->execution_schedule_technician_role_id = $row ? (int) $row->id : 0;
+
+        return $this->execution_schedule_technician_role_id;
+    }
+
+    private function _get_execution_schedule_date_range($start_date = null, $end_date = null)
+    {
+        $start_date = $start_date ?: get_my_local_time("Y-m-01");
+        $end_date = $end_date ?: get_my_local_time("Y-m-t");
+
+        if (strtotime($start_date) === false) {
+            $start_date = get_my_local_time("Y-m-01");
+        }
+
+        if (strtotime($end_date) === false) {
+            $end_date = get_my_local_time("Y-m-t");
+        }
+
+        if (strtotime($start_date) > strtotime($end_date)) {
+            $tmp = $start_date;
+            $start_date = $end_date;
+            $end_date = $tmp;
+        }
+
+        return array(
+            "start_date" => $start_date,
+            "end_date" => $end_date
+        );
+    }
+
+    private function _get_execution_schedule_availability_summary($project_id = 0, $start_date = null, $end_date = null)
+    {
+        $technicians = $this->_get_execution_schedule_technician_members();
+        $technician_map = array();
+
+        foreach ($technicians as $technician) {
+            $technician_map[(int) $technician->id] = $technician->user_name;
+        }
+
+        $period_unallocated = $this->_get_execution_schedule_unallocated_members($technician_map, $project_id, $start_date, $end_date);
+        $today = get_my_local_time("Y-m-d");
+        $week_start = date("Y-m-d", strtotime("monday this week", strtotime($today)));
+        $week_end = date("Y-m-d", strtotime("sunday this week", strtotime($today)));
+
+        return array(
+            "totals" => array(
+                "technicians" => count($technician_map),
+                "unallocated_today" => count($this->_get_execution_schedule_unallocated_members($technician_map, $project_id, $today, $today)),
+                "unallocated_week" => count($this->_get_execution_schedule_unallocated_members($technician_map, $project_id, $week_start, $week_end)),
+                "unallocated_period" => count($period_unallocated)
+            ),
+            "period" => array(
+                "start_date" => $start_date,
+                "end_date" => $end_date
+            ),
+            "unallocated_members" => array_values($period_unallocated)
+        );
+    }
+
+    private function _get_execution_schedule_unallocated_members($technician_map, $project_id = 0, $start_date = null, $end_date = null)
+    {
+        if (!$technician_map) {
+            return array();
+        }
+
+        $schedule_model = new Execution_schedule_model();
+        $rows = $schedule_model->get_details(array(
+            "project_id" => $project_id,
+            "start_date" => $start_date,
+            "end_date" => $end_date
+        ))->getResult();
+
+        $allocated_ids = array();
+        foreach ($rows as $row) {
+            $user_id = (int) $row->user_id;
+            if (isset($technician_map[$user_id])) {
+                $allocated_ids[$user_id] = true;
+            }
+        }
+
+        $unallocated_members = array();
+        foreach ($technician_map as $user_id => $user_name) {
+            if (!isset($allocated_ids[$user_id])) {
+                $unallocated_members[] = array(
+                    "id" => $user_id,
+                    "name" => $user_name
+                );
+            }
+        }
+
+        return $unallocated_members;
     }
 
     private function _get_execution_schedule_color($project_id)
