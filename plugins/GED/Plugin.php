@@ -11,6 +11,7 @@ class Plugin
     public static function register()
     {
         self::runMigrations();
+        self::runSeeds();
         self::ensureNotificationSettings();
         self::registerMenus();
         self::registerPermissions();
@@ -20,12 +21,14 @@ class Plugin
     public static function runInstall()
     {
         self::runMigrations();
+        self::runSeeds();
         self::ensureNotificationSettings();
     }
 
     public static function runUpdate()
     {
         self::runMigrations();
+        self::runSeeds();
         self::ensureNotificationSettings();
     }
 
@@ -91,6 +94,21 @@ class Plugin
             }
         } catch (\Throwable $e) {
             log_message('error', '[GED] Migration hook error: ' . $e->getMessage());
+        }
+    }
+
+    public static function runSeeds()
+    {
+        try {
+            require_once __DIR__ . '/Database/Seeds/GedDocumentTypesSeeder.php';
+            require_once __DIR__ . '/Database/Seeds/GedSettingsSeeder.php';
+            require_once __DIR__ . '/Database/Seeds/GedSeeder.php';
+
+            $database_config = new \Config\Database();
+            $seeder = new \GED\Database\Seeds\GedSeeder($database_config);
+            $seeder->setSilent(true)->run();
+        } catch (\Throwable $e) {
+            log_message('error', '[GED] Seed hook error: ' . $e->getMessage());
         }
     }
 
