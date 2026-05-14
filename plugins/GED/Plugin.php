@@ -6,8 +6,12 @@ use App\Controllers\Security_Controller;
 
 class Plugin
 {
+    private static $schema_checked = false;
+
     public static function register()
     {
+        self::runMigrations();
+        self::ensureNotificationSettings();
         self::registerMenus();
         self::registerPermissions();
         self::registerNotificationHooks();
@@ -15,10 +19,14 @@ class Plugin
 
     public static function runInstall()
     {
+        self::runMigrations();
+        self::ensureNotificationSettings();
     }
 
     public static function runUpdate()
     {
+        self::runMigrations();
+        self::ensureNotificationSettings();
     }
 
     public static function canAccessModule($login_user)
@@ -54,6 +62,36 @@ class Plugin
     {
         $document_id = (int) $document_id;
         return $document_id ? get_uri('ged/documents/view/' . $document_id) : get_uri('ged/documents');
+    }
+
+    public static function runMigrations()
+    {
+        if (self::$schema_checked) {
+            return;
+        }
+
+        self::$schema_checked = true;
+
+        try {
+            $migration_map = array(
+                '2026-05-12-000001_CreateGedDocumentTypes.php' => 'GED\\Database\\Migrations\\CreateGedDocumentTypes',
+                '2026-05-12-000002_CreateGedSuppliers.php' => 'GED\\Database\\Migrations\\CreateGedSuppliers',
+                '2026-05-12-000003_CreateGedDocuments.php' => 'GED\\Database\\Migrations\\CreateGedDocuments',
+                '2026-05-12-000004_CreateGedDocumentSubmissions.php' => 'GED\\Database\\Migrations\\CreateGedDocumentSubmissions',
+                '2026-05-12-000005_CreateGedNotificationLogs.php' => 'GED\\Database\\Migrations\\CreateGedNotificationLogs',
+                '2026-05-12-000006_CreateGedSettings.php' => 'GED\\Database\\Migrations\\CreateGedSettings',
+                '2026-05-12-000007_AddGedNotificationColumns.php' => 'GED\\Database\\Migrations\\AddGedNotificationColumns',
+            );
+
+            foreach ($migration_map as $file => $class) {
+                require_once __DIR__ . '/Database/Migrations/' . $file;
+                if (class_exists($class)) {
+                    (new $class())->up();
+                }
+            }
+        } catch (\Throwable $e) {
+            log_message('error', '[GED] Migration hook error: ' . $e->getMessage());
+        }
     }
 
     private static function registerMenus()
@@ -177,5 +215,53 @@ class Plugin
 
             return $category_suggestions;
         });
+    }
+
+    private static function ensureNotificationSettings()
+    {
+        try {
+            $db = db_connect('default');
+            $table = $db->prefixTable('notification_settings');
+            if (!$db->tableExists($table)) {
+                return;
+            }
+
+            $sort = 1;
+            foreach (array_keys(self::getNotificationDefinitions()) as $event) {
+                $payload = array(
+                    'event' => $event,
+                    'category' => 'ged',
+                    'enable_email' => 1,
+                    'enable_web' => 1,
+                    'enable_slack' => 0,
+                    'notify_to_team' => '',
+                    'notify_to_team_members' => '',
+                    'notify_to_terms' => '',
+                    'sort' => $sort++,
+                    'deleted' => 0,
+                );
+
+                $exists = $db->table($table)->where('event', $event)->where('deleted', 0)->get()->getRow();
+                if ($exists) {
+                    $db->table($table)->where('id', $exists->id)->update($payload);
+                    continue;
+                }
+
+                $db->table($table)->insert($payload);
+            }
+        } catch (\Throwable $e) {
+            log_message('error', '[GED] Notification settings seed error: ' . $e->getMessage());
+        }
+    }
+
+    private static function getNotificationDefinitions()
+    {
+        return array(
+            'ged_document_due_30' => array('type' => 'document'),
+            'ged_document_due_15' => array('type' => 'document'),
+            'ged_document_due_7' => array('type' => 'document'),
+            'ged_document_due_today' => array('type' => 'document'),
+            'ged_document_overdue' => array('type' => 'document'),
+        );
     }
 }
