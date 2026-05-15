@@ -206,8 +206,10 @@ class Documents extends GedBaseController
             return $this->response->setJSON(array('success' => false, 'message' => $upload_result['message']));
         }
 
-        $status = $this->_resolve_status((int) $document_type->has_expiration, $expiration_date);
-        if (!$expiration_date && (int) $document_type->has_expiration === 1) {
+        $status = $this->_resolve_status((int) $document_type->has_expiration, $expiration_date, $existing ? (string) $existing->status : 'pending');
+        if ((int) $document_type->has_expiration === 0) {
+            $status = 'valid';
+        } elseif ($expiration_date === '') {
             $status = 'pending';
         }
 
@@ -393,7 +395,11 @@ class Documents extends GedBaseController
             return 'archived';
         }
 
-        if (!$has_expiration || !$expiration_date) {
+        if (!$has_expiration) {
+            return 'valid';
+        }
+
+        if (!$expiration_date) {
             return $current_status === 'pending' ? 'pending' : 'valid';
         }
 

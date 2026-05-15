@@ -5,9 +5,13 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
 /*
   Plugin Name: GED
   Description: Gestao Eletronica de Documentos para Rise CRM.
-  Version: 0.1.0
+  Version: 0.1.1
   Requires at least: 3.9.0
   Author: Internal
+  Update Repository URL: https://github.com/harbarbosa/rise4
+  Update Release Tag: v0.1.1
+  Update Manifest URL: https://raw.githubusercontent.com/harbarbosa/rise4/main/plugins/GED/update-manifest.json
+  Update Source Path: plugins/GED
 */
 
 require_once __DIR__ . '/Plugin.php';

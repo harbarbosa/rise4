@@ -57,11 +57,12 @@ Events::on('pre_system', static function (): void {
     //load php hooks library
     require_once(APPPATH . "ThirdParty/PHP-Hooks/php-hooks.php");
 
-    helper('plugin');
+    helper(array('plugin', 'app_files', 'filesystem'));
 
     define('PLUGINPATH', ROOTPATH . 'plugins/'); //define plugin path
     define('PLUGIN_URL_PATH', 'plugins/'); //define plugin path
 
+    apply_pending_plugin_updates();
     load_plugin_indexes();
 
     include APPPATH . 'Config/RiseHooks.php';

@@ -398,10 +398,289 @@ class Rise_plugins extends Security_Controller {
         return $description;
     }
 
+    private function _curl_get_contents($url) {
+        $ch = curl_init();
+
+        curl_setopt($ch, CURLOPT_HEADER, 0);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_HTTPGET, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+
+        $data = curl_exec($ch);
+        curl_close($ch);
+
+        return $data;
+    }
+
+    private function _get_remote_contents($url, $download = false) {
+        $contents = $this->_curl_get_contents($url);
+        if (!$contents) {
+            if ($download) {
+                $contents = fopen($url, "r");
+            } else {
+                $contents = @file_get_contents($url);
+            }
+        }
+
+        return $contents;
+    }
+
+    private function _get_update_manifest($plugin_name = "")
+    {
+        $plugin_info = get_plugin_meta_data($plugin_name);
+        $manifest_url = get_array_value($plugin_info, 'update_manifest_url');
+        $manifest = array(
+            'success' => false,
+            'message' => '',
+            'local_version' => get_array_value($plugin_info, 'version'),
+            'remote_version' => get_array_value($plugin_info, 'version'),
+            'repository_url' => get_array_value($plugin_info, 'update_repository_url'),
+            'release_tag' => get_array_value($plugin_info, 'update_release_tag'),
+            'zip_url' => get_array_value($plugin_info, 'update_zip_url'),
+            'source_path' => get_array_value($plugin_info, 'update_source_path') ?: ('plugins/' . $plugin_name),
+            'checksum' => get_array_value($plugin_info, 'update_checksum'),
+            'manifest_url' => $manifest_url,
+            'raw' => array(),
+        );
+
+        if (!$manifest_url && !$manifest['zip_url'] && (!$manifest['repository_url'] || !$manifest['release_tag'])) {
+            $manifest['message'] = 'Este plugin nao possui uma fonte de atualizacao configurada.';
+            return (object) $manifest;
+        }
+
+        if ($manifest_url) {
+            $raw_manifest = $this->_get_remote_contents($manifest_url);
+            if (!$raw_manifest) {
+                $manifest['message'] = 'Nao foi possivel consultar o manifest de atualizacao.';
+                return (object) $manifest;
+            }
+
+            $remote_manifest = json_decode($raw_manifest, true);
+            if (!is_array($remote_manifest)) {
+                $manifest['message'] = 'O manifest de atualizacao retornou um JSON invalido.';
+                return (object) $manifest;
+            }
+
+            $manifest['raw'] = $remote_manifest;
+            $manifest['remote_version'] = get_array_value($remote_manifest, 'version') ?: $manifest['remote_version'];
+            $manifest['repository_url'] = get_array_value($remote_manifest, 'repository_url') ?: $manifest['repository_url'];
+            $manifest['release_tag'] = get_array_value($remote_manifest, 'release_tag') ?: $manifest['release_tag'];
+            $manifest['zip_url'] = get_array_value($remote_manifest, 'zip_url') ?: $manifest['zip_url'];
+            $manifest['source_path'] = get_array_value($remote_manifest, 'source_path') ?: $manifest['source_path'];
+            $manifest['checksum'] = get_array_value($remote_manifest, 'checksum') ?: $manifest['checksum'];
+            $manifest['notes'] = get_array_value($remote_manifest, 'notes');
+            $manifest['success'] = true;
+            if (!$manifest['zip_url'] && $manifest['repository_url'] && $manifest['release_tag']) {
+                $manifest['zip_url'] = rtrim($manifest['repository_url'], '/').'/archive/refs/tags/'.rawurlencode($manifest['release_tag']).'.zip';
+            }
+            return (object) $manifest;
+        }
+
+        if (!$manifest['zip_url'] && $manifest['repository_url'] && $manifest['release_tag']) {
+            $manifest['zip_url'] = rtrim($manifest['repository_url'], '/').'/archive/refs/tags/'.rawurlencode($manifest['release_tag']).'.zip';
+        }
+
+        $manifest['success'] = true;
+        return (object) $manifest;
+    }
+
+    private function _find_update_source_dir($extract_root = "", $source_path = "", $plugin_name = "")
+    {
+        $extract_root = rtrim((string) $extract_root, "/\\");
+        $source_path = trim(str_replace('\\', '/', (string) $source_path), '/');
+        $plugin_name = trim((string) $plugin_name);
+
+        if (!$extract_root || !is_dir($extract_root)) {
+            return "";
+        }
+
+        $normalized_source_path = $source_path ? str_replace('/', DIRECTORY_SEPARATOR, $source_path) : '';
+        $top_level_dirs = glob($extract_root . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR);
+
+        foreach ($top_level_dirs as $top_level_dir) {
+            if ($normalized_source_path) {
+                $candidate = rtrim($top_level_dir, "/\\") . DIRECTORY_SEPARATOR . $normalized_source_path;
+                if (is_dir($candidate) && is_file($candidate . DIRECTORY_SEPARATOR . 'index.php')) {
+                    return $candidate;
+                }
+            }
+
+            if (!$normalized_source_path && basename($top_level_dir) === $plugin_name && is_file($top_level_dir . DIRECTORY_SEPARATOR . 'index.php')) {
+                return $top_level_dir;
+            }
+        }
+
+        if ($normalized_source_path) {
+            $candidate = $extract_root . DIRECTORY_SEPARATOR . $normalized_source_path;
+            if (is_dir($candidate) && is_file($candidate . DIRECTORY_SEPARATOR . 'index.php')) {
+                return $candidate;
+            }
+        }
+
+        return "";
+    }
+
+    function stage_update($plugin_name = "")
+    {
+        if (!$plugin_name) {
+            show_404();
+        }
+
+        $plugins = $this->get_plugins_array();
+        if (get_array_value($plugins, $plugin_name) !== "activated") {
+            return $this->response->setJSON(array("success" => false, "message" => "Ative o plugin antes de atualizar."));
+        }
+
+        $manifest = $this->_get_update_manifest($plugin_name);
+        if (!$manifest->success) {
+            return $this->response->setJSON(array("success" => false, "message" => $manifest->message));
+        }
+
+        if (!$manifest->zip_url) {
+            return $this->response->setJSON(array("success" => false, "message" => "O plugin nao informou uma URL de pacote para atualizacao."));
+        }
+
+        $local_version = (string) $manifest->local_version;
+        $remote_version = (string) $manifest->remote_version;
+
+        if ($remote_version && $local_version && version_compare($remote_version, $local_version, '<=')) {
+            return $this->response->setJSON(array(
+                "success" => false,
+                "message" => "Nao ha uma versao mais nova disponivel para este plugin."
+            ));
+        }
+
+        if (!class_exists('ZipArchive')) {
+            return $this->response->setJSON(array("success" => false, "message" => "Por favor, instale o pacote ZipArchive no servidor."));
+        }
+
+        $workdir = get_plugin_update_workdir($plugin_name);
+        $download_dir = $workdir . DIRECTORY_SEPARATOR . 'download';
+        $extract_dir = $workdir . DIRECTORY_SEPARATOR . 'extract';
+        $staged_dir = $workdir . DIRECTORY_SEPARATOR . 'staged';
+        $package_file = $download_dir . DIRECTORY_SEPARATOR . 'package.zip';
+        $stage_target = $staged_dir . DIRECTORY_SEPARATOR . $plugin_name;
+
+        helper('filesystem');
+
+        if (!is_dir($download_dir)) {
+            @mkdir($download_dir, 0755, true);
+        }
+        if (!is_dir($extract_dir)) {
+            @mkdir($extract_dir, 0755, true);
+        }
+        if (!is_dir($staged_dir)) {
+            @mkdir($staged_dir, 0755, true);
+        }
+
+        if (!is_dir(dirname($stage_target))) {
+            @mkdir(dirname($stage_target), 0755, true);
+        }
+
+        $zip_contents = $this->_get_remote_contents($manifest->zip_url, true);
+        if (!$zip_contents) {
+            return $this->response->setJSON(array("success" => false, "message" => "Nao foi possivel baixar o pacote de atualizacao."));
+        }
+
+        if (file_put_contents($package_file, is_string($zip_contents) ? $zip_contents : stream_get_contents($zip_contents)) === false) {
+            return $this->response->setJSON(array("success" => false, "message" => "Nao foi possivel salvar o pacote baixado."));
+        }
+
+        if (!empty($manifest->checksum)) {
+            $downloaded_checksum = hash_file('sha256', $package_file);
+            if ($downloaded_checksum !== trim((string) $manifest->checksum)) {
+                @unlink($package_file);
+                return $this->response->setJSON(array("success" => false, "message" => "A verificacao de integridade do pacote falhou."));
+            }
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($package_file) !== true) {
+            @unlink($package_file);
+            return $this->response->setJSON(array("success" => false, "message" => "Nao foi possivel abrir o pacote baixado."));
+        }
+
+        $extract_path = $extract_dir . DIRECTORY_SEPARATOR . uniqid($plugin_name . '_', true);
+        if (!is_dir($extract_path)) {
+            @mkdir($extract_path, 0755, true);
+        }
+
+        if (!$zip->extractTo($extract_path)) {
+            $zip->close();
+            @unlink($package_file);
+            return $this->response->setJSON(array("success" => false, "message" => "Nao foi possivel extrair o pacote de atualizacao."));
+        }
+        $zip->close();
+
+        $source_dir = $this->_find_update_source_dir($extract_path, $manifest->source_path, $plugin_name);
+        if (!$source_dir) {
+            delete_files($extract_path, true, false, true);
+            @rmdir($extract_path);
+            @unlink($package_file);
+            return $this->response->setJSON(array("success" => false, "message" => "Nao foi possivel localizar a pasta do plugin dentro do pacote."));
+        }
+
+        if (is_dir($stage_target)) {
+            delete_files($stage_target, true, false, true);
+            @rmdir($stage_target);
+        }
+
+        copy_recursively($source_dir, $stage_target);
+
+        $pending_data = array(
+            'plugin_name' => $plugin_name,
+            'local_version' => $local_version,
+            'remote_version' => $remote_version,
+            'manifest_url' => $manifest->manifest_url,
+            'zip_url' => $manifest->zip_url,
+            'source_path' => $manifest->source_path,
+            'checksum' => $manifest->checksum,
+            'staged_path' => $stage_target,
+            'package_file' => $package_file,
+            'created_at' => get_my_local_time(),
+            'notes' => get_array_value($manifest, 'notes'),
+        );
+
+        if (!queue_pending_plugin_update($plugin_name, $pending_data)) {
+            delete_files($stage_target, true, false, true);
+            @rmdir($stage_target);
+            delete_files($extract_path, true, false, true);
+            @rmdir($extract_path);
+            @unlink($package_file);
+
+            return $this->response->setJSON(array("success" => false, "message" => "Nao foi possivel agendar a atualizacao."));
+        }
+
+        delete_files($extract_path, true, false, true);
+        @rmdir($extract_path);
+
+        return $this->response->setJSON(array(
+            "success" => true,
+            "message" => "Atualizacao preparada. Ela sera aplicada antes do proximo carregamento do sistema."
+        ));
+    }
+
     function updates($plugin_name = "") {
         $plugins = $this->get_plugins_array();
-        if ($plugins[$plugin_name] !== "activated") {
+        if (get_array_value($plugins, $plugin_name) !== "activated") {
             show_404();
+        }
+
+        $plugin_info = get_plugin_meta_data($plugin_name);
+        if (get_array_value($plugin_info, 'update_manifest_url') || get_array_value($plugin_info, 'update_zip_url')) {
+            $update_info = $this->_get_update_manifest($plugin_name);
+            $view_data = array(
+                'plugin_name' => $plugin_name,
+                'plugin_info' => $plugin_info,
+                'update_info' => $update_info,
+                'can_stage_update' => $update_info->success && $update_info->zip_url && $update_info->remote_version && version_compare((string) $update_info->remote_version, (string) $update_info->local_version, '>'),
+            );
+
+            return $this->template->view('plugins/update_modal_form', $view_data);
         }
 
         if (app_hooks()->has_action("app_hook_update_plugin_$plugin_name")) {
