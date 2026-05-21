@@ -371,26 +371,93 @@ class TravelRefunds extends Security_Controller
     public function approvals()
     {
         $this->requirePermission('travelrefunds_approve');
-        $pending = $this->reimbursementsModel->get_details(array('status' => 'pending'))->getResult();
+        $submitted_trips = $this->tripsModel->get_details(array('status' => 'submitted'))->getResult();
+        $pending_trips = array();
+
+        foreach ($submitted_trips as $trip) {
+            $expenses = $this->reimbursementsModel->get_details(array('trip_id' => $trip->id))->getResult();
+            $trip->approval_summary = $this->buildTripSummary($trip, $expenses);
+            $pending_trips[] = $trip;
+        }
+
         $logs = $this->approvalsModel->get_details()->getResult();
 
         return $this->template->rander('travelrefunds\\Views\\approvals\\index', array(
-            'pending_items' => $pending,
+            'pending_trips' => $pending_trips,
             'logs' => $logs,
         ));
+    }
+
+    public function approvalView($id = 0)
+    {
+        $this->requirePermission('travelrefunds_approve');
+
+        $trip = $id ? $this->tripsModel->get_one((int) $id) : null;
+        if (!$trip || !$trip->id) {
+            show_404();
+        }
+
+        $expenses = $this->reimbursementsModel->get_details(array('trip_id' => $trip->id))->getResult();
+        foreach ($expenses as $expense) {
+            $expense->attachment_url = $this->buildExpenseAttachmentUrl($expense->attachment_id);
+            $expense->category_label = $expense->category_name ?: $expense->category_title ?: '-';
+        }
+
+        return $this->template->rander('travelrefunds\\Views\\approvals\\view', array(
+            'trip' => $trip,
+            'expenses' => $expenses,
+            'trip_summary' => $this->buildTripSummary($trip, $expenses),
+            'expense_summary' => $this->buildExpenseSummary($expenses),
+            'can_decide_trip' => $trip->status === 'submitted',
+            'status_options' => array('draft', 'submitted', 'approved', 'rejected', 'closed'),
+        ));
+    }
+
+    public function approveTrip($id)
+    {
+        $this->requirePermission('travelrefunds_approve');
+        $this->processTripDecision((int) $id, 'approved');
+        return redirect()->to(get_uri('travelrefunds/approvals'));
+    }
+
+    public function rejectTrip($id)
+    {
+        $this->requirePermission('travelrefunds_approve');
+        $this->processTripDecision((int) $id, 'rejected');
+        return redirect()->to(get_uri('travelrefunds/approvals'));
+    }
+
+    public function approveExpense($trip_id, $expense_id)
+    {
+        $this->requirePermission('travelrefunds_approve');
+        $this->processExpenseDecision((int) $trip_id, (int) $expense_id, 'approved');
+        return redirect()->to(get_uri('travelrefunds/approvals/view/' . (int) $trip_id));
+    }
+
+    public function rejectExpense($trip_id, $expense_id)
+    {
+        $this->requirePermission('travelrefunds_approve');
+        $this->processExpenseDecision((int) $trip_id, (int) $expense_id, 'rejected');
+        return redirect()->to(get_uri('travelrefunds/approvals/view/' . (int) $trip_id));
     }
 
     public function approve($id)
     {
         $this->requirePermission('travelrefunds_approve');
-        $this->updateApprovalStatus((int) $id, 'approved', 'Aprovado');
+        $expense = $this->reimbursementsModel->get_one((int) $id);
+        if ($expense && $expense->id) {
+            $this->processExpenseDecision((int) $expense->trip_id, (int) $expense->id, 'approved');
+        }
         return redirect()->to(get_uri('travelrefunds/approvals'));
     }
 
     public function reject($id)
     {
         $this->requirePermission('travelrefunds_approve');
-        $this->updateApprovalStatus((int) $id, 'rejected', 'Rejeitado');
+        $expense = $this->reimbursementsModel->get_one((int) $id);
+        if ($expense && $expense->id) {
+            $this->processExpenseDecision((int) $expense->trip_id, (int) $expense->id, 'rejected');
+        }
         return redirect()->to(get_uri('travelrefunds/approvals'));
     }
 
@@ -481,56 +548,139 @@ class TravelRefunds extends Security_Controller
         );
     }
 
-    protected function updateApprovalStatus(int $id, string $status, string $label)
+    protected function processTripDecision(int $id, string $status)
     {
-        $item = $this->reimbursementsModel->get_one($id);
-        if (!$item || !$item->id) {
+        $trip = $this->tripsModel->get_one($id);
+        if (!$trip || !$trip->id) {
             $this->session->setFlashdata('error_message', 'Registro nao encontrado.');
             return;
         }
 
-        $this->reimbursementsModel->ci_save(array(
-            'status' => $status,
-            'approved_by' => $this->login_user->id,
-            'approved_at' => get_current_utc_time(),
-        ), $id);
-
-        $this->approvalsModel->ci_save(array(
-            'reimbursement_id' => $id,
-            'approver_id' => $this->login_user->id,
-            'action' => $status,
-            'notes' => $label,
-        ));
-
-        if ($item->trip_id) {
-            $trip = $this->tripsModel->get_one((int) $item->trip_id);
-            if ($trip && $trip->id) {
-                $expenses = $this->reimbursementsModel->get_details(array('trip_id' => $trip->id))->getResult();
-                $pending = 0;
-                $rejected = 0;
-                foreach ($expenses as $expense) {
-                    if ($expense->status === 'pending') {
-                        $pending++;
-                    }
-                    if ($expense->status === 'rejected') {
-                        $rejected++;
-                    }
-                }
-
-                $trip_status = $trip->status;
-                if ($status === 'rejected') {
-                    $trip_status = 'rejected';
-                } else if ($status === 'approved' && $pending === 0 && $rejected === 0 && $trip_status === 'submitted') {
-                    $trip_status = 'approved';
-                }
-
-                $this->tripsModel->ci_save(array(
-                    'status' => $trip_status,
-                ), $trip->id);
-            }
+        if ($trip->status !== 'submitted') {
+            $this->session->setFlashdata('error_message', 'A viagem precisa estar submetida para aprovacao.');
+            return;
         }
 
-        $this->session->setFlashdata('success_message', 'Solicitacao ' . strtolower($label) . '.');
+        $approver_notes = trim((string) $this->request->getPost('approver_notes'));
+        $approved_amount = (float) ($this->request->getPost('approved_amount') ?: $trip->approved_amount ?: $trip->total_amount);
+        $rejection_reason = trim((string) $this->request->getPost('rejection_reason'));
+
+        if ($status === 'rejected' && !$rejection_reason) {
+            $this->session->setFlashdata('error_message', 'Motivo da rejeicao e obrigatorio.');
+            return;
+        }
+
+        $update = array(
+            'status' => $status,
+            'approver_notes' => $approver_notes ?: null,
+            'rejection_reason' => $status === 'rejected' ? $rejection_reason : null,
+        );
+
+        if ($status === 'approved') {
+            $update['approved_amount'] = $approved_amount;
+            $update['approved_by'] = $this->login_user->id;
+            $update['approved_at'] = get_current_utc_time();
+            $update['rejected_by'] = null;
+            $update['rejected_at'] = null;
+            $update['rejection_reason'] = null;
+        } else {
+            $update['approved_amount'] = 0;
+            $update['approved_by'] = null;
+            $update['approved_at'] = null;
+            $update['rejected_by'] = $this->login_user->id;
+            $update['rejected_at'] = get_current_utc_time();
+        }
+
+        $this->tripsModel->ci_save($update, $id);
+
+        if ($status === 'approved') {
+            $db = db_connect('default');
+            $db->table($db->prefixTable('travelrefunds_expenses'))
+                ->where('trip_id', $id)
+                ->where('deleted', 0)
+                ->where('status', 'pending')
+                ->update(array(
+                    'status' => 'approved',
+                    'approved_by' => $this->login_user->id,
+                    'approved_at' => get_current_utc_time(),
+                    'rejection_reason' => null,
+                ));
+        }
+
+        $this->approvalsModel->ci_save(array(
+            'reimbursement_id' => 0,
+            'trip_id' => $id,
+            'expense_id' => null,
+            'approver_id' => $this->login_user->id,
+            'action' => 'trip_' . $status,
+            'notes' => $status === 'approved' ? $approver_notes : $rejection_reason,
+        ));
+
+        $this->recalculateTripTotals($id);
+        $this->sendTripNotification($trip, $status, $approved_amount, $rejection_reason, $approver_notes);
+        $this->session->setFlashdata('success_message', $status === 'approved' ? 'Viagem aprovada.' : 'Viagem rejeitada.');
+    }
+
+    protected function processExpenseDecision(int $trip_id, int $expense_id, string $status)
+    {
+        $trip = $this->tripsModel->get_one($trip_id);
+        $expense = $this->reimbursementsModel->get_one($expense_id);
+        if (!$trip || !$trip->id || !$expense || !$expense->id || (int) $expense->trip_id !== $trip_id) {
+            $this->session->setFlashdata('error_message', 'Registro nao encontrado.');
+            return;
+        }
+
+        if ($trip->status !== 'submitted') {
+            $this->session->setFlashdata('error_message', 'A viagem precisa estar submetida para aprovacao.');
+            return;
+        }
+
+        $rejection_reason = trim((string) $this->request->getPost('rejection_reason'));
+        if ($status === 'rejected' && !$rejection_reason) {
+            $this->session->setFlashdata('error_message', 'Motivo da rejeicao e obrigatorio.');
+            return;
+        }
+
+        $update = array(
+            'status' => $status,
+            'rejection_reason' => $status === 'rejected' ? $rejection_reason : null,
+        );
+
+        if ($status === 'approved') {
+            $update['approved_by'] = $this->login_user->id;
+            $update['approved_at'] = get_current_utc_time();
+            $update['rejected_by'] = null;
+            $update['rejected_at'] = null;
+            $update['rejection_reason'] = null;
+        } else {
+            $update['approved_by'] = null;
+            $update['approved_at'] = null;
+            $update['rejected_by'] = $this->login_user->id;
+            $update['rejected_at'] = get_current_utc_time();
+            $this->tripsModel->ci_save(array(
+                'status' => 'rejected',
+                'approved_by' => null,
+                'approved_at' => null,
+                'rejection_reason' => $rejection_reason,
+                'approver_notes' => $rejection_reason,
+                'rejected_by' => $this->login_user->id,
+                'rejected_at' => get_current_utc_time(),
+            ), $trip_id);
+        }
+
+        $this->reimbursementsModel->ci_save($update, $expense_id);
+        $this->approvalsModel->ci_save(array(
+            'reimbursement_id' => $expense_id,
+            'trip_id' => $trip_id,
+            'expense_id' => $expense_id,
+            'approver_id' => $this->login_user->id,
+            'action' => 'expense_' . $status,
+            'notes' => $rejection_reason,
+        ));
+
+        $this->recalculateTripTotals($trip_id);
+        $this->sendExpenseNotification($trip, $expense, $status, $rejection_reason);
+        $this->session->setFlashdata('success_message', $status === 'approved' ? 'Despesa aprovada.' : 'Despesa rejeitada.');
     }
 
     protected function buildExpenseSummary($expenses): array
@@ -552,20 +702,26 @@ class TravelRefunds extends Security_Controller
     {
         $total_amount = 0;
         $approved_amount = 0;
+        $rejected_amount = 0;
+        $pending_amount = 0;
         $has_rejected = false;
         foreach ($expenses as $expense) {
             $total_amount += (float) $expense->amount;
             if ($expense->status === 'approved') {
                 $approved_amount += (float) $expense->amount;
-            }
-            if ($expense->status === 'rejected') {
+            } else if ($expense->status === 'rejected') {
+                $rejected_amount += (float) $expense->amount;
                 $has_rejected = true;
+            } else {
+                $pending_amount += (float) $expense->amount;
             }
         }
 
         return array(
             'total_amount' => $total_amount,
             'approved_amount' => $approved_amount,
+            'rejected_amount' => $rejected_amount,
+            'pending_amount' => $pending_amount,
             'expense_count' => count($expenses),
             'has_rejected_expenses' => $has_rejected,
             'trip_status' => $trip->status ?? 'draft',
@@ -584,9 +740,61 @@ class TravelRefunds extends Security_Controller
             }
         }
 
-        $this->tripsModel->ci_save(array(
+        $trip = $this->tripsModel->get_one($trip_id);
+        $update = array(
             'total_amount' => $total,
-            'approved_amount' => $approved,
-        ), $trip_id);
+        );
+
+        if (!$trip || $trip->status !== 'approved') {
+            $update['approved_amount'] = $approved;
+        }
+
+        $this->tripsModel->ci_save($update, $trip_id);
+    }
+
+    protected function buildExpenseAttachmentUrl($attachment_id = 0): string
+    {
+        $attachment_id = (int) $attachment_id;
+        if (!$attachment_id) {
+            return '';
+        }
+
+        return get_uri('file_manager/view_file/' . $attachment_id);
+    }
+
+    protected function sendTripNotification($trip, string $status, float $approved_amount = 0, string $rejection_reason = '', string $approver_notes = '')
+    {
+        if (!$trip || !$trip->employee_id) {
+            return;
+        }
+
+        $event = $status === 'approved' ? 'travelrefunds_trip_approved' : 'travelrefunds_trip_rejected';
+        log_notification($event, array(
+            'to_user_id' => $trip->employee_id,
+            'plugin_trip_id' => $trip->id,
+            'plugin_trip_title' => $trip->title,
+            'plugin_employee_name' => $trip->employee_name ?? '',
+            'plugin_approved_amount' => $approved_amount,
+            'plugin_rejection_reason' => $rejection_reason,
+            'plugin_approver_notes' => $approver_notes,
+        ), $this->login_user->id);
+    }
+
+    protected function sendExpenseNotification($trip, $expense, string $status, string $rejection_reason = '')
+    {
+        if (!$trip || !$trip->employee_id || !$expense) {
+            return;
+        }
+
+        $event = $status === 'approved' ? 'travelrefunds_expense_approved' : 'travelrefunds_expense_rejected';
+        log_notification($event, array(
+            'to_user_id' => $trip->employee_id,
+            'plugin_trip_id' => $trip->id,
+            'plugin_trip_title' => $trip->title,
+            'plugin_expense_id' => $expense->id,
+            'plugin_expense_description' => $expense->description,
+            'plugin_amount' => $expense->amount,
+            'plugin_rejection_reason' => $rejection_reason,
+        ), $this->login_user->id);
     }
 }

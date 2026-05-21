@@ -22,7 +22,13 @@ function travelrefunds_install()
             `total_amount` DECIMAL(15,2) NOT NULL DEFAULT 0,
             `approved_amount` DECIMAL(15,2) NOT NULL DEFAULT 0,
             `notes` TEXT DEFAULT NULL,
+            `approver_notes` TEXT DEFAULT NULL,
+            `rejection_reason` TEXT DEFAULT NULL,
             `created_by` INT(11) DEFAULT NULL,
+            `approved_by` INT(11) DEFAULT NULL,
+            `approved_at` DATETIME DEFAULT NULL,
+            `rejected_by` INT(11) DEFAULT NULL,
+            `rejected_at` DATETIME DEFAULT NULL,
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             `deleted` TINYINT(1) NOT NULL DEFAULT 0,
@@ -48,6 +54,8 @@ function travelrefunds_install()
             `status` VARCHAR(50) NOT NULL DEFAULT 'pending',
             `rejection_reason` TEXT DEFAULT NULL,
             `created_by` INT(11) DEFAULT NULL,
+            `rejected_by` INT(11) DEFAULT NULL,
+            `rejected_at` DATETIME DEFAULT NULL,
             `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
             `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             `deleted` TINYINT(1) NOT NULL DEFAULT 0,
@@ -79,6 +87,8 @@ function travelrefunds_install()
         'travelrefunds_approval_logs' => "CREATE TABLE IF NOT EXISTS `{$prefix}travelrefunds_approval_logs` (
             `id` INT(11) NOT NULL AUTO_INCREMENT,
             `reimbursement_id` INT(11) NOT NULL,
+            `trip_id` INT(11) DEFAULT NULL,
+            `expense_id` INT(11) DEFAULT NULL,
             `approver_id` INT(11) NOT NULL,
             `action` VARCHAR(50) NOT NULL,
             `notes` TEXT DEFAULT NULL,
@@ -113,6 +123,12 @@ function travelrefunds_install()
         'end_date' => 'DATE DEFAULT NULL',
         'total_amount' => 'DECIMAL(15,2) NOT NULL DEFAULT 0',
         'approved_amount' => 'DECIMAL(15,2) NOT NULL DEFAULT 0',
+        'approver_notes' => 'TEXT DEFAULT NULL',
+        'rejection_reason' => 'TEXT DEFAULT NULL',
+        'approved_by' => 'INT(11) DEFAULT NULL',
+        'approved_at' => 'DATETIME DEFAULT NULL',
+        'rejected_by' => 'INT(11) DEFAULT NULL',
+        'rejected_at' => 'DATETIME DEFAULT NULL',
         'departure_date' => 'DATE DEFAULT NULL',
         'return_date' => 'DATE DEFAULT NULL',
         'estimated_amount' => 'DECIMAL(15,2) NOT NULL DEFAULT 0',
@@ -127,6 +143,8 @@ function travelrefunds_install()
         'attachment_id' => 'INT(11) DEFAULT NULL',
         'rejection_reason' => 'TEXT DEFAULT NULL',
         'employee_id' => 'INT(11) DEFAULT NULL',
+        'rejected_by' => 'INT(11) DEFAULT NULL',
+        'rejected_at' => 'DATETIME DEFAULT NULL',
         'vendor' => 'VARCHAR(255) DEFAULT NULL',
         'receipt_number' => 'VARCHAR(100) DEFAULT NULL',
         'receipt_file' => 'VARCHAR(255) DEFAULT NULL',
@@ -148,6 +166,12 @@ function travelrefunds_install()
 
     travelrefunds_sync_compatibility_fields($db, $this_categories_table);
 
+    $this_approval_logs_table = $prefix . 'travelrefunds_approval_logs';
+    travelrefunds_ensure_columns($db, $this_approval_logs_table, array(
+        'trip_id' => 'INT(11) DEFAULT NULL',
+        'expense_id' => 'INT(11) DEFAULT NULL',
+    ));
+
     $defaults = array(
         'travelrefunds_enabled' => '1',
         'travelrefunds_default_currency_symbol' => get_setting('default_currency_symbol') ?: '$',
@@ -165,6 +189,35 @@ function travelrefunds_install()
             'setting_name' => $name,
             'setting_value' => $value,
         ));
+    }
+
+    $notification_settings_table = $prefix . 'notification_settings';
+    $travelrefunds_events = array(
+        'travelrefunds_trip_approved',
+        'travelrefunds_trip_rejected',
+        'travelrefunds_expense_approved',
+        'travelrefunds_expense_rejected',
+    );
+    $sort = 980;
+    foreach ($travelrefunds_events as $event) {
+        $exists = $db->table($notification_settings_table)->where('event', $event)->where('deleted', 0)->get()->getRow();
+        if ($exists) {
+            continue;
+        }
+
+        $db->table($notification_settings_table)->insert(array(
+            'event' => $event,
+            'category' => 'travelrefunds',
+            'enable_email' => 1,
+            'enable_web' => 1,
+            'enable_slack' => 0,
+            'notify_to_team' => '',
+            'notify_to_team_members' => '',
+            'notify_to_terms' => '',
+            'sort' => $sort,
+            'deleted' => 0,
+        ));
+        $sort++;
     }
 
     $default_categories = array(

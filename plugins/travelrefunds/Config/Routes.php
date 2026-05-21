@@ -21,6 +21,11 @@ $routes->group('travelrefunds', $travelrefunds_namespace, function ($routes) {
     $routes->post('reimbursements/delete/(:num)', 'TravelRefunds::deleteReimbursement/$1');
 
     $routes->get('approvals', 'TravelRefunds::approvals');
+    $routes->get('approvals/view/(:num)', 'TravelRefunds::approvalView/$1');
+    $routes->post('approvals/trip/approve/(:num)', 'TravelRefunds::approveTrip/$1');
+    $routes->post('approvals/trip/reject/(:num)', 'TravelRefunds::rejectTrip/$1');
+    $routes->post('approvals/expense/approve/(:num)/(:num)', 'TravelRefunds::approveExpense/$1/$2');
+    $routes->post('approvals/expense/reject/(:num)/(:num)', 'TravelRefunds::rejectExpense/$1/$2');
     $routes->post('approvals/approve/(:num)', 'TravelRefunds::approve/$1');
     $routes->post('approvals/reject/(:num)', 'TravelRefunds::reject/$1');
 

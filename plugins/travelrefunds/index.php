@@ -128,6 +128,77 @@ app_hooks()->add_action('app_hook_role_permissions_extension', function () {
     }
 });
 
+app_hooks()->add_filter('app_filter_notification_config', function ($events) {
+    $trip_link = function ($options) {
+        $trip_id = 0;
+        if (is_object($options) && isset($options->plugin_trip_id)) {
+            $trip_id = (int) $options->plugin_trip_id;
+        } elseif (is_array($options) && isset($options['plugin_trip_id'])) {
+            $trip_id = (int) $options['plugin_trip_id'];
+        }
+
+        return array('url' => $trip_id ? get_uri('travelrefunds/approvals/view/' . $trip_id) : get_uri('travelrefunds/approvals'));
+    };
+
+    foreach (array(
+        'travelrefunds_trip_approved',
+        'travelrefunds_trip_rejected',
+        'travelrefunds_expense_approved',
+        'travelrefunds_expense_rejected',
+    ) as $event) {
+        $events[$event] = array(
+            'notify_to' => array('recipient'),
+            'info' => $trip_link,
+        );
+    }
+
+    return $events;
+});
+
+app_hooks()->add_filter('app_filter_create_notification_where_query', function ($where_queries, $hook_data) {
+    $event = get_array_value($hook_data, 'event');
+    if (strpos($event, 'travelrefunds_') !== 0) {
+        return $where_queries;
+    }
+
+    $options = get_array_value($hook_data, 'options');
+    $to_user_id = (int) get_array_value($options, 'to_user_id');
+    if ($to_user_id) {
+        $users_table = db_connect('default')->prefixTable('users');
+        $where_queries[] = " OR $users_table.id = {$to_user_id} ";
+    }
+
+    return $where_queries;
+});
+
+app_hooks()->add_filter('app_filter_notification_description', function ($descriptions, $notification) {
+    if (!$notification || strpos($notification->event, 'travelrefunds_') !== 0) {
+        return $descriptions;
+    }
+
+    if (!empty($notification->plugin_trip_title)) {
+        $descriptions[] = '<div><strong>Viagem:</strong> ' . esc($notification->plugin_trip_title) . '</div>';
+    }
+
+    if (!empty($notification->plugin_expense_description)) {
+        $descriptions[] = '<div><strong>Despesa:</strong> ' . esc($notification->plugin_expense_description) . '</div>';
+    }
+
+    if (isset($notification->plugin_amount) && $notification->plugin_amount !== '') {
+        $descriptions[] = '<div><strong>Valor:</strong> ' . travelrefunds_currency((float) $notification->plugin_amount) . '</div>';
+    }
+
+    if (!empty($notification->plugin_rejection_reason)) {
+        $descriptions[] = '<div><strong>Motivo:</strong> ' . esc($notification->plugin_rejection_reason) . '</div>';
+    }
+
+    if (isset($notification->plugin_approved_amount) && $notification->plugin_approved_amount !== '') {
+        $descriptions[] = '<div><strong>Valor aprovado:</strong> ' . travelrefunds_currency((float) $notification->plugin_approved_amount) . '</div>';
+    }
+
+    return $descriptions;
+});
+
 register_installation_hook('travelrefunds', function () {
     require_once __DIR__ . '/install.php';
     travelrefunds_install();
