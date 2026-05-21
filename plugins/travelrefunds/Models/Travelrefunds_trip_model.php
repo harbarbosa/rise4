@@ -48,6 +48,21 @@ class Travelrefunds_trip_model extends Crud_model
             $builder->where('t.status', $status);
         }
 
+        $status_not = $this->_get_clean_value($options, 'status_not');
+        if ($status_not) {
+            $builder->where('t.status !=', $status_not);
+        }
+
+        $start_date = $this->_get_clean_value($options, 'start_date');
+        if ($start_date) {
+            $builder->where('COALESCE(t.start_date, t.departure_date) >=', $start_date);
+        }
+
+        $end_date = $this->_get_clean_value($options, 'end_date');
+        if ($end_date) {
+            $builder->where('COALESCE(t.end_date, t.return_date) <=', $end_date);
+        }
+
         $search = trim((string) $this->_get_clean_value($options, 'search_by'));
         if ($search !== '') {
             $builder->groupStart()

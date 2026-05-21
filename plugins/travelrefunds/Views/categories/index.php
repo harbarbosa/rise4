@@ -22,6 +22,13 @@
                             Sim
                         </label>
                     </div>
+                    <div class="col-md-4 mb10">
+                        <label class="d-block">NF obrigatoria</label>
+                        <label class="checkbox-inline">
+                            <input type="checkbox" name="requires_invoice" value="1" <?php echo (($category_edit->requires_invoice ?? 0) ? 'checked' : ''); ?> />
+                            Sim
+                        </label>
+                    </div>
                     <div class="col-md-8 mb10">
                         <label>Descricao</label>
                         <textarea name="description" class="form-control" rows="3"><?php echo esc($category_edit->description ?? ''); ?></textarea>
@@ -39,21 +46,23 @@
         <div class="table-responsive">
             <table class="table table-striped">
                 <thead>
-                    <tr>
-                        <th>Titulo</th>
-                        <th>Descricao</th>
-                        <th>Status</th>
-                        <th class="text-end">Acoes</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($categories as $category) { ?>
                         <tr>
-                            <td><?php echo esc($category->title); ?></td>
-                            <td><?php echo esc($category->description); ?></td>
-                            <td><?php echo $category->is_active ? 'Ativa' : 'Inativa'; ?></td>
-                            <td class="text-end">
-                                <a href="<?php echo get_uri('travelrefunds/categories?edit_id=' . $category->id); ?>" class="btn btn-default btn-sm">Editar</a>
+                            <th>Titulo</th>
+                            <th>Descricao</th>
+                            <th>NF obrigatoria</th>
+                            <th>Status</th>
+                            <th class="text-end">Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($categories as $category) { ?>
+                            <tr>
+                                <td><?php echo esc($category->title); ?></td>
+                                <td><?php echo esc($category->description); ?></td>
+                                <td><?php echo $category->requires_invoice ? 'Sim' : 'Nao'; ?></td>
+                                <td><?php echo $category->is_active ? 'Ativa' : 'Inativa'; ?></td>
+                                <td class="text-end">
+                                    <a href="<?php echo get_uri('travelrefunds/categories?edit_id=' . $category->id); ?>" class="btn btn-default btn-sm">Editar</a>
                                 <?php echo form_open(get_uri('travelrefunds/categories/delete/' . $category->id), array('class' => 'd-inline')); ?>
                                     <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Excluir esta categoria?');">Excluir</button>
                                 <?php echo form_close(); ?>

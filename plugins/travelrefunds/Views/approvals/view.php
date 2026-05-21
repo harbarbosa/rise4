@@ -98,6 +98,11 @@ $approved_amount_display = isset($trip->approved_amount) ? $trip->approved_amoun
                                 <span class="text-muted">Valor aprovado da viagem</span>
                                 <div class="fw-semibold"><?php echo travelrefunds_currency($approved_amount_display); ?></div>
                             </div>
+                            <?php if (!empty($special_approval_limit) && (float) $trip_summary['total_amount'] > (float) $special_approval_limit) { ?>
+                                <div class="alert alert-warning mt-3 mb-0">
+                                    Esta viagem excede o limite de aprovacao simples.
+                                </div>
+                            <?php } ?>
                         </div>
                     </div>
 

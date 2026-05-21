@@ -35,4 +35,8 @@ $routes->group('travelrefunds', $travelrefunds_namespace, function ($routes) {
 
     $routes->get('settings', 'TravelRefunds::settings');
     $routes->post('settings/save', 'TravelRefunds::saveSettings');
+
+    $routes->get('reports', 'TravelRefunds::reports');
+    $routes->get('reports/export/(:segment)', 'TravelRefunds::exportReport/$1');
+    $routes->get('reports/export-xlsx/(:segment)', 'TravelRefunds::exportReportXlsx/$1');
 });

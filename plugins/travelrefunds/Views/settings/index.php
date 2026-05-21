@@ -24,6 +24,37 @@
                             Sim
                         </label>
                     </div>
+                    <div class="col-md-4 mb10">
+                        <label class="d-block">Permitir despesas sem comprovante</label>
+                        <label class="checkbox-inline">
+                            <input type="checkbox" name="travelrefunds_allow_expenses_without_receipt" value="1" <?php echo (($settings['travelrefunds_allow_expenses_without_receipt'] ?? '1') === '1') ? 'checked' : ''; ?> />
+                            Sim
+                        </label>
+                    </div>
+                    <div class="col-md-8 mb10">
+                        <label>Aprovadores padrao</label>
+                        <select name="default_approver_ids[]" class="select2" multiple="multiple" style="width:100%;">
+                            <?php foreach ($users as $user) { ?>
+                                <?php
+                                $user_id = (int) $user->id;
+                                $selected = in_array($user_id, $selected_approver_ids ?? array(), true) ? 'selected' : '';
+                                ?>
+                                <option value="<?php echo $user_id; ?>" <?php echo $selected; ?>>
+                                    <?php echo esc($user->first_name . ' ' . $user->last_name); ?>
+                                </option>
+                            <?php } ?>
+                        </select>
+                        <small class="text-muted">Usado como sugerencia para o fluxo de aprovacao.</small>
+                    </div>
+                    <div class="col-md-4 mb10">
+                        <label>Limite sem aprovacao especial</label>
+                        <input type="text" name="travelrefunds_special_approval_limit" class="form-control money" value="<?php echo esc($settings['travelrefunds_special_approval_limit'] ?? '0'); ?>" />
+                    </div>
+                    <div class="col-md-12 mb10">
+                        <label class="d-block">Categorias de despesas</label>
+                        <a href="<?php echo get_uri('travelrefunds/categories'); ?>" class="btn btn-default btn-sm">Gerenciar categorias</a>
+                        <small class="text-muted d-block mt-2">A obrigatoriedade de NF e configurada por categoria.</small>
+                    </div>
                     <div class="col-md-12">
                         <button type="submit" class="btn btn-primary">Salvar</button>
                     </div>

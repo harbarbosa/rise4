@@ -176,6 +176,9 @@ function travelrefunds_install()
         'travelrefunds_enabled' => '1',
         'travelrefunds_default_currency_symbol' => get_setting('default_currency_symbol') ?: '$',
         'travelrefunds_allow_public_receipts' => '0',
+        'travelrefunds_allow_expenses_without_receipt' => '1',
+        'travelrefunds_default_approver_ids' => '',
+        'travelrefunds_special_approval_limit' => '0',
     );
 
     foreach ($defaults as $name => $value) {

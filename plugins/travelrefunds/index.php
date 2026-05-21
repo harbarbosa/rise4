@@ -13,6 +13,14 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
 require_once __DIR__ . '/Helpers/travelrefunds_helper.php';
 require_once __DIR__ . '/install.php';
 
+$travelrefunds_language = get_setting('language') ?: 'english';
+$travelrefunds_language_file = __DIR__ . '/Language/' . $travelrefunds_language . '/default_lang.php';
+if (file_exists($travelrefunds_language_file)) {
+    require_once $travelrefunds_language_file;
+} elseif (file_exists(__DIR__ . '/Language/english/default_lang.php')) {
+    require_once __DIR__ . '/Language/english/default_lang.php';
+}
+
 app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
     $ci = new \App\Controllers\Security_Controller(false);
     $login_user = $ci->login_user ?? null;
@@ -49,6 +57,12 @@ app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
             'name' => 'Solicitacoes de Reembolso',
             'url' => get_uri('travelrefunds/reimbursements'),
             'class' => 'file-text',
+            'is_custom_menu_item' => true,
+        );
+        $submenu['travelrefunds_reports'] = array(
+            'name' => 'Relatorios',
+            'url' => get_uri('travelrefunds/reports'),
+            'class' => 'bar-chart-2',
             'is_custom_menu_item' => true,
         );
     }

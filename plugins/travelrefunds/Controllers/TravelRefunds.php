@@ -54,36 +54,63 @@ class TravelRefunds extends Security_Controller
     public function index()
     {
         $this->requirePermission('travelrefunds_view');
-        $employee_filter = $this->login_user->is_admin ? 0 : $this->login_user->id;
-        $trips = $this->tripsModel->get_details(array(
-            'employee_id' => $employee_filter,
-        ))->getResult();
-        $reimbursements = $this->reimbursementsModel->get_details(array(
-            'employee_id' => $employee_filter,
-        ))->getResult();
+        $filters = $this->getDashboardFilters();
+        $trips = $this->tripsModel->get_details($filters)->getResult();
+        $expenses = $this->reimbursementsModel->get_details($filters)->getResult();
+        $approved_month_total = 0;
+        $open_total = 0;
+        $pending_trips = 0;
+        $rejected_trips = 0;
+        $spend_by_category = array();
 
-        $summary = array(
-            'trips_total' => count($trips),
-            'reimbursements_total' => count($reimbursements),
-            'pending_total' => 0,
-            'approved_total' => 0,
-            'spent_total' => 0,
-        );
-
-        foreach ($reimbursements as $item) {
-            $summary['spent_total'] += (float) $item->amount;
-            if ($item->status === 'pending') {
-                $summary['pending_total']++;
+        foreach ($trips as $trip) {
+            if ($trip->status === 'submitted') {
+                $pending_trips++;
+                $open_total += (float) $trip->total_amount;
+            } else if ($trip->status === 'rejected') {
+                $rejected_trips++;
+                $open_total += (float) $trip->total_amount;
+            } else if ($trip->status === 'draft') {
+                $open_total += (float) $trip->total_amount;
             }
-            if ($item->status === 'approved' || $item->status === 'paid') {
-                $summary['approved_total']++;
+
+            if ($trip->status === 'approved' && $trip->approved_at && date('Y-m', strtotime($trip->approved_at)) === date('Y-m')) {
+                $approved_month_total += (float) $trip->approved_amount;
             }
         }
 
+        $summary = array(
+            'trips_total' => count($trips),
+            'reimbursements_total' => count($expenses),
+            'pending_total' => $pending_trips,
+            'approved_total' => $approved_month_total,
+            'spent_total' => 0,
+            'open_total' => $open_total,
+            'rejected_total' => $rejected_trips,
+        );
+
+        foreach ($expenses as $item) {
+            $summary['spent_total'] += (float) $item->amount;
+            $category = $item->category_name ?: $item->category_title ?: 'Sem categoria';
+            if (!isset($spend_by_category[$category])) {
+                $spend_by_category[$category] = 0;
+            }
+            $spend_by_category[$category] += (float) $item->amount;
+        }
+
+        arsort($spend_by_category);
+
         return $this->template->rander('travelrefunds\\Views\\dashboard\\index', array(
             'summary' => $summary,
+            'filters' => $this->normalizeFilterValues($filters),
+            'spend_by_category' => $spend_by_category,
             'recent_trips' => array_slice($trips, 0, 5),
-            'recent_reimbursements' => array_slice($reimbursements, 0, 5),
+            'recent_reimbursements' => array_slice($expenses, 0, 5),
+            'users' => $this->getFilterUsers(),
+            'projects' => $this->projectsModel->get_details()->getResult(),
+            'clients' => $this->clientsModel->get_all_where(array('deleted' => 0), 1000000, 0, 'company_name', 'id, company_name')->getResult(),
+            'categories' => $this->categoriesModel->get_details()->getResult(),
+            'status_options' => array('draft', 'submitted', 'approved', 'rejected', 'closed'),
         ));
     }
 
@@ -274,6 +301,12 @@ class TravelRefunds extends Security_Controller
             return redirect()->back();
         }
 
+        $has_receipt = !empty($data['has_invoice']) || !empty($data['attachment_id']) || !empty($data['invoice_number']);
+        if (!$this->isExpenseReceiptAllowed((int) $data['category_id'], $has_receipt)) {
+            $this->session->setFlashdata('error_message', 'Esta categoria exige comprovante.');
+            return redirect()->to(get_uri('travelrefunds/reimbursements'));
+        }
+
         $result = $this->reimbursementsModel->ci_save($data, $id ?: null);
         $this->session->setFlashdata('success_message', $result ? 'Registro salvo com sucesso.' : 'Nao foi possivel salvar.');
         return redirect()->to(get_uri('travelrefunds/reimbursements'));
@@ -326,6 +359,12 @@ class TravelRefunds extends Security_Controller
 
         if (!$data['category_id'] || !$data['description'] || !$data['amount']) {
             $this->session->setFlashdata('error_message', 'Categoria, descricao e valor sao obrigatorios.');
+            return redirect()->to(get_uri('travelrefunds/trips/view/' . $trip_id));
+        }
+
+        $has_receipt = !empty($data['has_invoice']) || !empty($data['attachment_id']) || !empty($data['invoice_number']);
+        if (!$this->isExpenseReceiptAllowed((int) $data['category_id'], $has_receipt)) {
+            $this->session->setFlashdata('error_message', 'Esta categoria exige comprovante.');
             return redirect()->to(get_uri('travelrefunds/trips/view/' . $trip_id));
         }
 
@@ -410,6 +449,7 @@ class TravelRefunds extends Security_Controller
             'expense_summary' => $this->buildExpenseSummary($expenses),
             'can_decide_trip' => $trip->status === 'submitted',
             'status_options' => array('draft', 'submitted', 'approved', 'rejected', 'closed'),
+            'special_approval_limit' => (float) $this->settingsModel->get_setting('travelrefunds_special_approval_limit', '0'),
         ));
     }
 
@@ -518,6 +558,8 @@ class TravelRefunds extends Security_Controller
 
         return $this->template->rander('travelrefunds\\Views\\settings\\index', array(
             'settings' => $this->loadSettings(),
+            'users' => $this->getFilterUsers(),
+            'selected_approver_ids' => $this->parseSelectedIds($this->settingsModel->get_setting('travelrefunds_default_approver_ids', '')),
         ));
     }
 
@@ -529,6 +571,9 @@ class TravelRefunds extends Security_Controller
             'travelrefunds_enabled' => $this->request->getPost('travelrefunds_enabled') ? '1' : '0',
             'travelrefunds_default_currency_symbol' => trim((string) $this->request->getPost('travelrefunds_default_currency_symbol')),
             'travelrefunds_allow_public_receipts' => $this->request->getPost('travelrefunds_allow_public_receipts') ? '1' : '0',
+            'travelrefunds_allow_expenses_without_receipt' => $this->request->getPost('travelrefunds_allow_expenses_without_receipt') ? '1' : '0',
+            'travelrefunds_default_approver_ids' => implode(',', array_filter(array_map('intval', (array) $this->request->getPost('default_approver_ids')))),
+            'travelrefunds_special_approval_limit' => (float) ($this->request->getPost('travelrefunds_special_approval_limit') ?: 0),
         );
 
         foreach ($settings as $name => $value) {
@@ -545,7 +590,294 @@ class TravelRefunds extends Security_Controller
             'travelrefunds_enabled' => $this->settingsModel->get_setting('travelrefunds_enabled', '1'),
             'travelrefunds_default_currency_symbol' => $this->settingsModel->get_setting('travelrefunds_default_currency_symbol', get_setting('default_currency_symbol') ?: '$'),
             'travelrefunds_allow_public_receipts' => $this->settingsModel->get_setting('travelrefunds_allow_public_receipts', '0'),
+            'travelrefunds_allow_expenses_without_receipt' => $this->settingsModel->get_setting('travelrefunds_allow_expenses_without_receipt', '1'),
+            'travelrefunds_default_approver_ids' => $this->settingsModel->get_setting('travelrefunds_default_approver_ids', ''),
+            'travelrefunds_special_approval_limit' => $this->settingsModel->get_setting('travelrefunds_special_approval_limit', '0'),
         );
+    }
+
+    protected function getDashboardFilters(): array
+    {
+        $employee_id = (int) $this->request->getGet('employee_id');
+        $project_id = (int) $this->request->getGet('project_id');
+        $client_id = (int) $this->request->getGet('client_id');
+        $category_id = (int) $this->request->getGet('category_id');
+        $status = trim((string) $this->request->getGet('status'));
+        $start_date = trim((string) $this->request->getGet('start_date'));
+        $end_date = trim((string) $this->request->getGet('end_date'));
+
+        if (!$this->login_user->is_admin) {
+            $employee_id = $this->login_user->id;
+        }
+
+        $filters = array(
+            'employee_id' => $employee_id,
+            'project_id' => $project_id,
+            'client_id' => $client_id,
+            'category_id' => $category_id,
+            'status' => $status,
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+        );
+
+        return array_filter($filters, function ($value) {
+            return $value !== null && $value !== '' && $value !== 0;
+        });
+    }
+
+    protected function normalizeFilterValues(array $filters): array
+    {
+        return array(
+            'employee_id' => get_array_value($filters, 'employee_id'),
+            'project_id' => get_array_value($filters, 'project_id'),
+            'client_id' => get_array_value($filters, 'client_id'),
+            'category_id' => get_array_value($filters, 'category_id'),
+            'status' => get_array_value($filters, 'status'),
+            'start_date' => get_array_value($filters, 'start_date'),
+            'end_date' => get_array_value($filters, 'end_date'),
+        );
+    }
+
+    protected function getFilterUsers()
+    {
+        $db = db_connect('default');
+        return $db->table($db->prefixTable('users') . ' u')
+            ->select('u.id, u.first_name, u.last_name')
+            ->where('u.deleted', 0)
+            ->where('u.user_type', 'staff')
+            ->orderBy('u.first_name', 'ASC')
+            ->get()
+            ->getResult();
+    }
+
+    protected function buildReportData(array $filters): array
+    {
+        $trip_filters = $filters;
+        $expense_filters = $filters;
+
+        $trips = $this->tripsModel->get_details($trip_filters)->getResult();
+        $expenses = $this->reimbursementsModel->get_details($expense_filters)->getResult();
+
+        $employee_rows = array();
+        $project_rows = array();
+        $category_rows = array();
+        $monthly_rows = array();
+
+        foreach ($expenses as $expense) {
+            $employee_key = $expense->employee_name ?: ('#' . (int) $expense->employee_id);
+            if (!isset($employee_rows[$employee_key])) {
+                $employee_rows[$employee_key] = array('label' => $employee_key, 'count' => 0, 'total' => 0);
+            }
+            $employee_rows[$employee_key]['count']++;
+            $employee_rows[$employee_key]['total'] += (float) $expense->amount;
+
+            $project_key = $expense->project_title ?: $expense->trip_title ?: ('#' . (int) $expense->trip_id);
+            if (!isset($project_rows[$project_key])) {
+                $project_rows[$project_key] = array('label' => $project_key, 'count' => 0, 'total' => 0);
+            }
+            $project_rows[$project_key]['count']++;
+            $project_rows[$project_key]['total'] += (float) $expense->amount;
+
+            $category_key = $expense->category_name ?: $expense->category_title ?: 'Sem categoria';
+            if (!isset($category_rows[$category_key])) {
+                $category_rows[$category_key] = array('label' => $category_key, 'count' => 0, 'total' => 0);
+            }
+            $category_rows[$category_key]['count']++;
+            $category_rows[$category_key]['total'] += (float) $expense->amount;
+        }
+
+        foreach ($trips as $trip) {
+            $month_key = $trip->approved_at ? date('Y-m', strtotime($trip->approved_at)) : 'sem-data';
+            if (!isset($monthly_rows[$month_key])) {
+                $monthly_rows[$month_key] = array('label' => $month_key, 'approved_total' => 0, 'open_total' => 0, 'submitted' => 0, 'rejected' => 0);
+            }
+
+            if ($trip->status === 'approved') {
+                $monthly_rows[$month_key]['approved_total'] += (float) $trip->approved_amount;
+            } else if (in_array($trip->status, array('draft', 'submitted', 'rejected'), true)) {
+                $monthly_rows[$month_key]['open_total'] += (float) $trip->total_amount;
+            }
+
+            if ($trip->status === 'submitted') {
+                $monthly_rows[$month_key]['submitted']++;
+            }
+            if ($trip->status === 'rejected') {
+                $monthly_rows[$month_key]['rejected']++;
+            }
+        }
+
+        uasort($employee_rows, function ($a, $b) {
+            return $b['total'] <=> $a['total'];
+        });
+        uasort($project_rows, function ($a, $b) {
+            return $b['total'] <=> $a['total'];
+        });
+        uasort($category_rows, function ($a, $b) {
+            return $b['total'] <=> $a['total'];
+        });
+        krsort($monthly_rows);
+
+        return array(
+            'trips' => $trips,
+            'expenses' => $expenses,
+            'by_employee' => array_values($employee_rows),
+            'by_project' => array_values($project_rows),
+            'by_category' => array_values($category_rows),
+            'monthly' => array_values($monthly_rows),
+        );
+    }
+
+    protected function buildReportCsv(string $type, array $data): string
+    {
+        $handle = fopen('php://temp', 'r+');
+
+        if ($type === 'employee') {
+            fputcsv($handle, array('Funcionario', 'Quantidade', 'Total'));
+            foreach ($data['by_employee'] as $row) {
+                fputcsv($handle, array($row['label'], $row['count'], number_format($row['total'], 2, '.', '')));
+            }
+        } elseif ($type === 'project') {
+            fputcsv($handle, array('Projeto/Viagem', 'Quantidade', 'Total'));
+            foreach ($data['by_project'] as $row) {
+                fputcsv($handle, array($row['label'], $row['count'], number_format($row['total'], 2, '.', '')));
+            }
+        } elseif ($type === 'category') {
+            fputcsv($handle, array('Categoria', 'Quantidade', 'Total'));
+            foreach ($data['by_category'] as $row) {
+                fputcsv($handle, array($row['label'], $row['count'], number_format($row['total'], 2, '.', '')));
+            }
+        } else {
+            fputcsv($handle, array('Mes', 'Aprovado', 'Em aberto', 'Enviadas', 'Rejeitadas'));
+            foreach ($data['monthly'] as $row) {
+                fputcsv($handle, array(
+                    $row['label'],
+                    number_format($row['approved_total'], 2, '.', ''),
+                    number_format($row['open_total'], 2, '.', ''),
+                    $row['submitted'],
+                    $row['rejected'],
+                ));
+            }
+        }
+
+        rewind($handle);
+        $csv = stream_get_contents($handle);
+        fclose($handle);
+        return $csv;
+    }
+
+    protected function parseSelectedIds($value): array
+    {
+        if (is_array($value)) {
+            return array_values(array_filter(array_map('intval', $value)));
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return array();
+        }
+
+        return array_values(array_filter(array_map('intval', explode(',', $value))));
+    }
+
+    protected function isExpenseReceiptAllowed(int $category_id, bool $has_invoice): bool
+    {
+        if ($has_invoice) {
+            return true;
+        }
+
+        $category = $category_id ? $this->categoriesModel->get_one($category_id) : null;
+        if ($category && isset($category->requires_invoice) && (int) $category->requires_invoice === 1) {
+            return false;
+        }
+
+        return $this->settingsModel->get_setting('travelrefunds_allow_expenses_without_receipt', '1') === '1';
+    }
+
+    public function reports()
+    {
+        $this->requirePermission('travelrefunds_view');
+        $filters = $this->getDashboardFilters();
+        $report_type = trim((string) $this->request->getGet('report_type')) ?: 'summary';
+        $data = $this->buildReportData($filters);
+
+        return $this->template->rander('travelrefunds\\Views\\reports\\index', array(
+            'filters' => $this->normalizeFilterValues($filters),
+            'report_type' => $report_type,
+            'users' => $this->getFilterUsers(),
+            'projects' => $this->projectsModel->get_details()->getResult(),
+            'clients' => $this->clientsModel->get_all_where(array('deleted' => 0), 1000000, 0, 'company_name', 'id, company_name')->getResult(),
+            'categories' => $this->categoriesModel->get_details()->getResult(),
+            'report_data' => $data,
+            'status_options' => array('draft', 'submitted', 'approved', 'rejected', 'closed'),
+        ));
+    }
+
+    public function exportReport($type = 'summary')
+    {
+        $this->requirePermission('travelrefunds_view');
+        $filters = $this->getDashboardFilters();
+        $data = $this->buildReportData($filters);
+        $filename = 'travelrefunds_' . $type . '_' . date('Y-m-d_His') . '.csv';
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=utf-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setBody($this->buildReportCsv($type, $data));
+    }
+
+    public function exportReportXlsx($type = 'summary')
+    {
+        $this->requirePermission('travelrefunds_view');
+        $filters = $this->getDashboardFilters();
+        $data = $this->buildReportData($filters);
+
+        require_once(APPPATH . 'ThirdParty/PHPOffice-PhpSpreadsheet/vendor/autoload.php');
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $row = 1;
+
+        $write_row = function (array $values) use (&$sheet, &$row) {
+            $column = 1;
+            foreach ($values as $value) {
+                $sheet->setCellValueByColumnAndRow($column, $row, $value);
+                $column++;
+            }
+            $row++;
+        };
+
+        if ($type === 'employee') {
+            $write_row(array('Funcionario', 'Quantidade', 'Total'));
+            foreach ($data['by_employee'] as $item) {
+                $write_row(array($item['label'], $item['count'], $item['total']));
+            }
+        } elseif ($type === 'project') {
+            $write_row(array('Projeto', 'Quantidade', 'Total'));
+            foreach ($data['by_project'] as $item) {
+                $write_row(array($item['label'], $item['count'], $item['total']));
+            }
+        } elseif ($type === 'category') {
+            $write_row(array('Categoria', 'Quantidade', 'Total'));
+            foreach ($data['by_category'] as $item) {
+                $write_row(array($item['label'], $item['count'], $item['total']));
+            }
+        } else {
+            $write_row(array('Mes', 'Aprovado', 'Em aberto', 'Enviadas', 'Rejeitadas'));
+            foreach ($data['monthly'] as $item) {
+                $write_row(array($item['label'], $item['approved_total'], $item['open_total'], $item['submitted'], $item['rejected']));
+            }
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $filename = 'travelrefunds_' . $type . '_' . date('Y-m-d_His') . '.xlsx';
+
+        ob_start();
+        $writer->save('php://output');
+        $content = ob_get_clean();
+
+        return $this->response
+            ->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->setBody($content);
     }
 
     protected function processTripDecision(int $id, string $status)
