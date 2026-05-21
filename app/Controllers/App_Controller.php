@@ -112,8 +112,15 @@ class App_Controller extends Controller {
         $users = $this->Users_model->get_one($login_user_id);
 
         //assign language
-        $language = isset($users->language) && $users->language ? $users->language : get_setting("language");
+        $language = isset($users->language) && $users->language ? normalize_locale_name($users->language) : "";
+        if (!$language) {
+            $language = normalize_locale_name(get_setting("language"));
+        }
+        if (!$language) {
+            $language = config("App")->defaultLocale;
+        }
         service('request')->setLocale($language);
+        service('language')->setLocale($language);
 
         $this->session = \Config\Services::session();
         $this->form_validation = \Config\Services::validation();

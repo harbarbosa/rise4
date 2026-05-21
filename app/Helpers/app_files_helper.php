@@ -871,6 +871,26 @@ if (!function_exists('get_language_list')) {
     }
 }
 
+if (!function_exists('normalize_locale_name')) {
+
+    function normalize_locale_name($language = "") {
+        if (!$language) {
+            return "";
+        }
+
+        $language = strtolower(trim($language));
+        $supported_locales = get_language_list("list");
+
+        foreach ($supported_locales as $supported_locale) {
+            if (strtolower($supported_locale) === $language) {
+                return $supported_locale;
+            }
+        }
+
+        return "";
+    }
+}
+
 if (!function_exists('update_file_indexes')) {
 
     function update_file_indexes($old_files = "", $new_files_array = array()) {

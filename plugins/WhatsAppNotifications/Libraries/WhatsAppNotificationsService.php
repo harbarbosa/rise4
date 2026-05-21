@@ -63,6 +63,50 @@ class WhatsAppNotificationsService
         return $sent;
     }
 
+    public function send_to_user(int $user_id, string $message): array
+    {
+        $api_url = $this->get_message_api_url();
+        $token = $this->get_api_token();
+        $school_id = $this->get_school_id();
+
+        if (!$api_url || !$token || !$school_id) {
+            return array(
+                'success' => false,
+                'error' => 'Missing WhatsApp configuration.',
+            );
+        }
+
+        $message = trim($message);
+        if (!$user_id || !$message) {
+            return array(
+                'success' => false,
+                'error' => 'Invalid WhatsApp payload.',
+            );
+        }
+
+        $users = $this->get_users(array($user_id));
+        if (!$users) {
+            return array(
+                'success' => false,
+                'error' => 'Recipient user not found or inactive.',
+            );
+        }
+
+        $phone = $this->extract_phone($users[0]);
+        if (!$phone) {
+            return array(
+                'success' => false,
+                'error' => 'Recipient phone number not found.',
+            );
+        }
+
+        $sent = $this->dispatch_message($api_url, $token, $school_id, $phone, $message, 0, $user_id);
+        return array(
+            'success' => $sent,
+            'error' => $sent ? null : 'WhatsApp gateway rejected the message.',
+        );
+    }
+
     public function connect_session(): array
     {
         return $this->send_gateway_request('POST', $this->build_session_url('connect'));

@@ -4,6 +4,10 @@
 ?>
 <script>
     (function () {
+        window.ajaxModalXhr = window.ajaxModalXhr || {
+            abort: function () {}
+        };
+
         function lockBootstrapModalDefaults() {
             if (!window.jQuery || !jQuery.fn || !jQuery.fn.modal || !jQuery.fn.modal.Constructor) {
                 return;

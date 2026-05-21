@@ -27,6 +27,7 @@ class Cron extends App_Controller {
 
         if ($last_cron_job_time == "" || ($current_time > ($last_cron_job_time * 1 + $minimum_cron_interval_seconds))) {
             $this->cron_job->run();
+            $this->runGedNotifications();
             app_hooks()->do_action("app_hook_after_cron_run");
             $this->Settings_model->save_setting("last_cron_job_time", $current_time);
             echo "Cron job executed.";
@@ -40,6 +41,20 @@ class Cron extends App_Controller {
                 $format = "%s seconds.";
             }
             echo "Please try after " . $end->diff($start)->format($format);
+        }
+    }
+
+    private function runGedNotifications()
+    {
+        if (!class_exists('\GED\Libraries\GedNotificationService')) {
+            return;
+        }
+
+        try {
+            $service = new \GED\Libraries\GedNotificationService();
+            $service->run(array('source' => 'cron'));
+        } catch (\Throwable $e) {
+            log_message('error', '[GED] Cron notification run error: ' . $e->getMessage());
         }
     }
 }

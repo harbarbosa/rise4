@@ -79,19 +79,19 @@
                                     $user_language = $login_user->language;
                                     $system_language = get_setting("language");
 
-                                    foreach (get_language_list() as $language) {
+                                    foreach (get_language_list() as $locale => $language) {
                                         $language_status = "";
                                         $language_text = $language;
 
-                                        if ($user_language == strtolower($language) || (!$user_language && $system_language == strtolower($language))) {
+                                        if ($user_language == $locale || (!$user_language && $system_language == $locale)) {
                                             $language_status = "<span class='float-end checkbox-checked m0'></span>";
                                             $language_text = "<strong>" . $language . "</strong>";
                                         }
 
                                         if ($login_user->user_type == "staff") {
-                                            echo ajax_anchor(get_uri("team_members/save_personal_language/$language"), $language_text . $language_status, array("class" => "dropdown-item clearfix", "data-reload-on-success" => "1"));
+                                            echo ajax_anchor(get_uri("team_members/save_personal_language/$locale"), $language_text . $language_status, array("class" => "dropdown-item clearfix", "data-reload-on-success" => "1"));
                                         } else {
-                                            echo ajax_anchor(get_uri("clients/save_personal_language/$language"), $language_text . $language_status, array("class" => "dropdown-item clearfix", "data-reload-on-success" => "1"));
+                                            echo ajax_anchor(get_uri("clients/save_personal_language/$locale"), $language_text . $language_status, array("class" => "dropdown-item clearfix", "data-reload-on-success" => "1"));
                                         }
                                     }
                                     ?>

@@ -1,0 +1,7 @@
+{
+  "name": "Fotovoltaico",
+  "description": "Modulo fotovoltaico com dashboard, produtos, kits, propostas, tarifas e integracoes.",
+  "version": "0.1.0",
+  "requires_at_least": "3.9.0",
+  "author": "Internal"
+}

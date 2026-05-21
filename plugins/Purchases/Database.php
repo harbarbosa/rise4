@@ -1,6 +1,6 @@
 <?php
 
-namespace Config;
+namespace Purchases\Config;
 
 use CodeIgniter\Database\Config;
 

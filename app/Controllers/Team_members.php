@@ -789,7 +789,7 @@ class Team_members extends Security_Controller {
         );
 
         if (!get_setting("disable_language_selector_for_team_members")) {
-            $user_data["language"] = $this->request->getPost("personal_language");
+            $user_data["language"] = normalize_locale_name($this->request->getPost("personal_language"));
         }
 
         $user_data = clean_data($user_data);
@@ -808,8 +808,12 @@ class Team_members extends Security_Controller {
     function save_personal_language($language) {
         if (!get_setting("disable_language_selector_for_team_members") && ($language || $language === "0")) {
 
-            $language = clean_data($language);
-            $data["language"] = strtolower($language);
+            $language = normalize_locale_name(clean_data($language));
+            if (!$language) {
+                return;
+            }
+
+            $data["language"] = $language;
 
             $this->Users_model->ci_save($data, $this->login_user->id);
         }

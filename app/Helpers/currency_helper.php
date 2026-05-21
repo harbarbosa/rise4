@@ -67,7 +67,11 @@ if (!function_exists('to_decimal_format')) {
 
     function to_decimal_format($number = 0, $follow_decimal_separator_setting=true) {
         $decimal_separator = get_setting("decimal_separator");
-        $number = is_null($number) ? 0 : $number;
+        if ($number === '' || $number === false || !is_numeric($number)) {
+            $number = 0;
+        } else {
+            $number = (float) $number;
+        }
 
         $decimal = 0;
         if (is_numeric($number) && floor($number) != $number) {
