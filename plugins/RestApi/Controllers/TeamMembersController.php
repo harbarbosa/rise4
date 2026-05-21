@@ -100,6 +100,15 @@ class TeamMembersController extends Rest_api_Controller
         ]);
     }
 
+    protected function toBool($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
+    }
+
     public function show($id = null)
     {
         if (!ctype_digit((string) $id)) {
