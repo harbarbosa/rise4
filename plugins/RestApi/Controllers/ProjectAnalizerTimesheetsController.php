@@ -96,6 +96,20 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
             return $this->failValidationErrors('user_id is required.');
         }
 
+        if (array_key_exists('task_id', $data) && $data['task_id']) {
+            if (!array_key_exists('percentage_executed', $data)) {
+                return $this->failValidationErrors('percentage_executed is required when task_id is provided.');
+            }
+
+            $data['percentage_executed'] = max(0, min(100, round((float) $data['percentage_executed'], 2)));
+            $percentageError = $this->validateTaskPercentage($data['task_id'], $data['percentage_executed']);
+            if ($percentageError !== true) {
+                return $this->failValidationErrors($percentageError);
+            }
+        } else {
+            unset($data['percentage_executed']);
+        }
+
         if (!array_key_exists('start_time', $data) && !array_key_exists('hours', $data)) {
             return $this->failValidationErrors('Either start_time/end_time or hours must be provided.');
         }
@@ -129,6 +143,24 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
 
         if (!$data) {
             return $this->failValidationErrors('No valid fields were provided for update.');
+        }
+
+        if (array_key_exists('task_id', $data)) {
+            if (!$data['task_id']) {
+                unset($data['percentage_executed']);
+            } else {
+                if (!array_key_exists('percentage_executed', $data)) {
+                    return $this->failValidationErrors('percentage_executed is required when task_id is provided.');
+                }
+
+                $taskId = $data['task_id'];
+                $data['percentage_executed'] = max(0, min(100, round((float) $data['percentage_executed'], 2)));
+                $currentPercentage = $data['percentage_executed'];
+                $percentageError = $this->validateTaskPercentage($taskId, $currentPercentage, $id);
+                if ($percentageError !== true) {
+                    return $this->failValidationErrors($percentageError);
+                }
+            }
         }
 
         $savedId = $this->timesheetsModel->ci_save($data, $id);
@@ -229,6 +261,34 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         }
 
         return $data;
+    }
+
+    protected function validateTaskPercentage(int $taskId, float $percentageExecuted, int $excludeId = 0)
+    {
+        $db = db_connect('default');
+        $timesheetTable = $db->prefixTable('project_time');
+
+        if (!$db->fieldExists('percentage_executed', $timesheetTable)) {
+            return 'Campo Percentual Executado nao existe. Atualize o plugin.';
+        }
+
+        $builder = $db->table($timesheetTable);
+        $builder->select('SUM(percentage_executed) AS total_percentage');
+        $builder->where('task_id', $taskId);
+        if ($db->fieldExists('deleted', $timesheetTable)) {
+            $builder->where('deleted', 0);
+        }
+        if ($excludeId) {
+            $builder->where('id !=', $excludeId);
+        }
+
+        $row = $builder->get()->getRow();
+        $totalPercentage = $row && $row->total_percentage ? (float) $row->total_percentage : 0;
+        if (($totalPercentage + $percentageExecuted) > 100.0001) {
+            return 'A soma do percentual da tarefa nao pode ultrapassar 100%.';
+        }
+
+        return true;
     }
 
     protected function getPayload(): array
