@@ -100,7 +100,7 @@ class TeamMembersController extends Rest_api_Controller
         ]);
     }
 
-    public function show(string $id)
+    public function show($id = null)
     {
         if (!ctype_digit((string) $id)) {
             return $this->failValidationErrors('Invalid team member id.');
