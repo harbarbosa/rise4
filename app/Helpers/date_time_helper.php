@@ -8,7 +8,12 @@
 if (!function_exists('get_timezone_offset')) {
 
     function get_timezone_offset($date = "now") {
-        $timeZone = new DateTimeZone(get_setting("timezone"));
+        $timezoneName = trim((string) get_setting("timezone"));
+        if (!$timezoneName) {
+            $timezoneName = date_default_timezone_get() ?: 'UTC';
+        }
+
+        $timeZone = new DateTimeZone($timezoneName);
         $dateTime = new DateTime($date, $timeZone);
         return $timeZone->getOffset($dateTime);
     }

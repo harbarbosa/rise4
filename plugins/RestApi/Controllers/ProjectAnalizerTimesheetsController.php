@@ -14,7 +14,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         $this->projectsModel = model('App\Models\Projects_model');
     }
 
-    public function index(int $projectId)
+    public function listByProject(int $projectId)
     {
         if (!$this->projectExists($projectId)) {
             return $this->failNotFound('Project not found.');
@@ -61,7 +61,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         ]);
     }
 
-    public function show(int $projectId, int $id)
+    public function fetchOne(int $projectId, int $id)
     {
         if (!$this->projectExists($projectId)) {
             return $this->failNotFound('Project not found.');
@@ -82,7 +82,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         ]);
     }
 
-    public function create(int $projectId)
+    public function store(int $projectId)
     {
         if (!$this->projectExists($projectId)) {
             return $this->failNotFound('Project not found.');
@@ -126,7 +126,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         ]);
     }
 
-    public function update(int $projectId, int $id)
+    public function modify(int $projectId, int $id)
     {
         if (!$this->projectExists($projectId)) {
             return $this->failNotFound('Project not found.');
@@ -175,7 +175,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         ]);
     }
 
-    public function delete(int $projectId, int $id)
+    public function remove(int $projectId, int $id)
     {
         if (!$this->projectExists($projectId)) {
             return $this->failNotFound('Project not found.');

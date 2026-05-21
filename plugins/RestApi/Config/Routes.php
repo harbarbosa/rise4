@@ -33,12 +33,12 @@ $routes->group('api', $rest_api_namespace, function ($routes) {
 	$routes->add('project_members', 'UtilitiesController::getProjectMembers');
 	$routes->get('team_members', 'TeamMembersController::index');
 	$routes->get('team_members/(:num)', 'TeamMembersController::show/$1');
-	$routes->get('projectanalizer/timesheets/(:num)', 'ProjectAnalizerTimesheetsController::index/$1');
-	$routes->get('projectanalizer/timesheets/(:num)/(:num)', 'ProjectAnalizerTimesheetsController::show/$1/$2');
-	$routes->post('projectanalizer/timesheets/(:num)', 'ProjectAnalizerTimesheetsController::create/$1');
-	$routes->put('projectanalizer/timesheets/(:num)/(:num)', 'ProjectAnalizerTimesheetsController::update/$1/$2');
-	$routes->patch('projectanalizer/timesheets/(:num)/(:num)', 'ProjectAnalizerTimesheetsController::update/$1/$2');
-	$routes->delete('projectanalizer/timesheets/(:num)/(:num)', 'ProjectAnalizerTimesheetsController::delete/$1/$2');
+	$routes->get('projectanalizer/timesheets/(:num)', 'ProjectAnalizerTimesheetsController::listByProject/$1');
+	$routes->get('projectanalizer/timesheets/(:num)/(:num)', 'ProjectAnalizerTimesheetsController::fetchOne/$1/$2');
+	$routes->post('projectanalizer/timesheets/(:num)', 'ProjectAnalizerTimesheetsController::store/$1');
+	$routes->put('projectanalizer/timesheets/(:num)/(:num)', 'ProjectAnalizerTimesheetsController::modify/$1/$2');
+	$routes->patch('projectanalizer/timesheets/(:num)/(:num)', 'ProjectAnalizerTimesheetsController::modify/$1/$2');
+	$routes->delete('projectanalizer/timesheets/(:num)/(:num)', 'ProjectAnalizerTimesheetsController::remove/$1/$2');
 	$routes->get('contaazul/endpoints', 'ContaAzulController::endpoints');
 	$routes->get('contaazul/query/(:segment)', 'ContaAzulController::query/$1');
 	$routes->get('projectanalizer/endpoints', 'ProjectAnalizerController::endpoints');

@@ -8,6 +8,7 @@ class Timesheets_model extends Crud_model {
 
     function __construct() {
         $this->table = 'project_time';
+        helper('date_time');
         parent::__construct($this->table);
     }
 
