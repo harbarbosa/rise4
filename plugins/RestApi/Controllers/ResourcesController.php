@@ -17,7 +17,7 @@ class ResourcesController extends Rest_api_Controller
         parent::__construct();
         $this->resourceConfig = new ResourcesConfig();
         $this->resourceRegistry = new ResourceRegistry(db_connect('default'), $this->resourceConfig);
-        $this->pluginRouteRegistry = new PluginRouteRegistry(service('routes'));
+        $this->pluginRouteRegistry = new PluginRouteRegistry();
     }
 
     public function resources()
