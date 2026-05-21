@@ -3,6 +3,7 @@
 namespace travelrefunds\Controllers;
 
 use App\Controllers\Security_Controller;
+use App\Models\Clients_model;
 use App\Models\Projects_model;
 use App\Models\Users_model;
 use travelrefunds\Models\TravelRefundsApprovals_model;
@@ -20,6 +21,7 @@ class TravelRefunds extends Security_Controller
     protected TravelRefundsSettings_model $settingsModel;
     protected Users_model $usersModel;
     protected Projects_model $projectsModel;
+    protected Clients_model $clientsModel;
 
     public function __construct()
     {
@@ -32,6 +34,7 @@ class TravelRefunds extends Security_Controller
         $this->settingsModel = model('travelrefunds\\Models\\TravelRefundsSettings_model');
         $this->usersModel = model('App\\Models\\Users_model');
         $this->projectsModel = model('App\\Models\\Projects_model');
+        $this->clientsModel = model('App\\Models\\Clients_model');
     }
 
     protected function requirePermission(string $permission)
@@ -87,8 +90,35 @@ class TravelRefunds extends Security_Controller
     public function trips()
     {
         $this->requirePermission('travelrefunds_view');
-        $edit_id = (int) $this->request->getGet('edit_id');
-        $edit_row = $edit_id ? $this->tripsModel->get_one($edit_id) : null;
+        $db = db_connect('default');
+        $trips = $this->tripsModel->get_details(array(
+            'employee_id' => $this->login_user->is_admin ? 0 : $this->login_user->id,
+        ))->getResult();
+
+        return $this->template->rander('travelrefunds\\Views\\trips\\index', array(
+            'trips' => $trips,
+            'can_create' => $this->login_user->is_admin || get_array_value($this->login_user->permissions ?? array(), 'travelrefunds_create') == '1',
+        ));
+    }
+
+    public function viewTrip($id = 0)
+    {
+        if ($id) {
+            $this->requirePermission('travelrefunds_view');
+        } else {
+            $this->requirePermission('travelrefunds_create');
+        }
+
+        $trip = $id ? $this->tripsModel->get_one((int) $id) : null;
+        if ($id && !$trip->id) {
+            show_404();
+        }
+
+        $expense_edit_id = (int) $this->request->getGet('expense_edit_id');
+        $expense_edit = $expense_edit_id ? $this->reimbursementsModel->get_one($expense_edit_id) : null;
+        if ($expense_edit && $expense_edit->trip_id != $id) {
+            $expense_edit = null;
+        }
 
         $db = db_connect('default');
         $users = $db->table($db->prefixTable('users') . ' u')
@@ -99,16 +129,29 @@ class TravelRefunds extends Security_Controller
             ->get()
             ->getResult();
         $projects = $this->projectsModel->get_details()->getResult();
-        $trips = $this->tripsModel->get_details(array(
-            'employee_id' => $this->login_user->is_admin ? 0 : $this->login_user->id,
-        ))->getResult();
+        $clients = $this->clientsModel->get_all_where(array('deleted' => 0), 1000000, 0, 'company_name', 'id, company_name')->getResult();
+        $categories = $this->categoriesModel->get_details(array('active' => 1))->getResult();
+        $expenses = $id ? $this->reimbursementsModel->get_details(array('trip_id' => $id))->getResult() : array();
 
-        return $this->template->rander('travelrefunds\\Views\\trips\\index', array(
-            'trip_edit' => $edit_row,
-            'trips' => $trips,
+        $summary = $this->buildExpenseSummary($expenses);
+        $trip_summary = $this->buildTripSummary($trip, $expenses);
+        $can_edit_expenses = !$trip || in_array($trip->status, array('draft', 'rejected'), true);
+
+        return $this->template->rander('travelrefunds\\Views\\trips\\view', array(
+            'trip' => $trip,
+            'trip_edit' => $trip,
+            'expense_edit' => $expense_edit,
             'users' => $users,
             'projects' => $projects,
+            'clients' => $clients,
+            'categories' => $categories,
+            'expenses' => $expenses,
+            'expense_summary' => $summary,
+            'trip_summary' => $trip_summary,
+            'can_edit_expenses' => $can_edit_expenses,
+            'can_edit_trip' => !$trip || in_array($trip->status, array('draft', 'rejected'), true),
             'status_options' => array('draft', 'submitted', 'approved', 'rejected', 'closed'),
+            'payment_methods' => array('Dinheiro', 'Cartao', 'PIX', 'Transferencia', 'Boleto', 'Outro'),
         ));
     }
 
@@ -117,6 +160,8 @@ class TravelRefunds extends Security_Controller
         $this->requirePermission($this->request->getPost('id') ? 'travelrefunds_edit' : 'travelrefunds_create');
 
         $id = (int) $this->request->getPost('id');
+        $existing = $id ? $this->tripsModel->get_one($id) : null;
+        $save_action = $this->request->getPost('save_action') ?: 'draft';
         $data = array(
             'title' => trim((string) $this->request->getPost('title')),
             'employee_id' => (int) $this->request->getPost('employee_id'),
@@ -126,7 +171,7 @@ class TravelRefunds extends Security_Controller
             'purpose' => trim((string) $this->request->getPost('purpose')),
             'start_date' => $this->request->getPost('start_date') ?: $this->request->getPost('departure_date'),
             'end_date' => $this->request->getPost('end_date') ?: $this->request->getPost('return_date'),
-            'status' => trim((string) $this->request->getPost('status')) ?: 'draft',
+            'status' => $save_action === 'submit' ? 'submitted' : ($existing && $existing->status ? $existing->status : 'draft'),
             'total_amount' => (float) ($this->request->getPost('total_amount') ?: $this->request->getPost('estimated_amount')),
             'approved_amount' => (float) ($this->request->getPost('approved_amount') ?: $this->request->getPost('actual_amount')),
             'notes' => trim((string) $this->request->getPost('notes')),
@@ -138,6 +183,9 @@ class TravelRefunds extends Security_Controller
 
         if (!$id) {
             $data['created_by'] = $this->login_user->id;
+            if (!$data['employee_id']) {
+                $data['employee_id'] = $this->login_user->id;
+            }
         }
 
         if (!$data['title']) {
@@ -147,7 +195,11 @@ class TravelRefunds extends Security_Controller
 
         $result = $this->tripsModel->ci_save($data, $id ?: null);
         $this->session->setFlashdata('success_message', $result ? 'Registro salvo com sucesso.' : 'Nao foi possivel salvar.');
-        return redirect()->to(get_uri('travelrefunds/trips'));
+        if ($result) {
+            return redirect()->to(get_uri('travelrefunds/trips/view/' . $result));
+        }
+
+        return redirect()->back();
     }
 
     public function deleteTrip($id)
@@ -225,6 +277,87 @@ class TravelRefunds extends Security_Controller
         $result = $this->reimbursementsModel->ci_save($data, $id ?: null);
         $this->session->setFlashdata('success_message', $result ? 'Registro salvo com sucesso.' : 'Nao foi possivel salvar.');
         return redirect()->to(get_uri('travelrefunds/reimbursements'));
+    }
+
+    public function saveExpense($trip_id)
+    {
+        $this->requirePermission($this->request->getPost('id') ? 'travelrefunds_edit' : 'travelrefunds_create');
+
+        $trip = $this->tripsModel->get_one((int) $trip_id);
+        if (!$trip || !$trip->id) {
+            show_404();
+        }
+
+        if (!in_array($trip->status, array('draft', 'rejected'), true)) {
+            $this->session->setFlashdata('error_message', 'Despesas so podem ser alteradas quando a viagem estiver em rascunho ou rejeitada.');
+            return redirect()->to(get_uri('travelrefunds/trips/view/' . $trip_id));
+        }
+
+        $id = (int) $this->request->getPost('id');
+        $attachment_id = (int) $this->request->getPost('attachment_id');
+        $uploaded_files = move_files_from_temp_dir_to_permanent_dir('files/travelrefunds/' . $trip_id . '/', 'travelrefunds');
+        if ($uploaded_files) {
+            $uploaded_list = @unserialize($uploaded_files);
+            if (is_array($uploaded_list) && get_array_value($uploaded_list, 0)) {
+                $attachment_id = (int) get_array_value(get_array_value($uploaded_list, 0), 'file_id');
+            }
+        }
+
+        $data = array(
+            'trip_id' => (int) $trip_id,
+            'employee_id' => (int) ($trip->employee_id ?: $this->login_user->id),
+            'category_id' => (int) $this->request->getPost('category_id'),
+            'expense_date' => $this->request->getPost('expense_date'),
+            'description' => trim((string) $this->request->getPost('description')),
+            'amount' => (float) $this->request->getPost('amount'),
+            'payment_method' => trim((string) $this->request->getPost('payment_method')),
+            'has_invoice' => $this->request->getPost('has_invoice') ? 1 : (($this->request->getPost('invoice_number')) ? 1 : 0),
+            'invoice_number' => trim((string) $this->request->getPost('invoice_number')),
+            'supplier_name' => trim((string) $this->request->getPost('supplier_name')),
+            'attachment_id' => $attachment_id ?: null,
+            'status' => trim((string) $this->request->getPost('status')) ?: 'pending',
+            'rejection_reason' => trim((string) $this->request->getPost('rejection_reason')),
+            'notes' => trim((string) $this->request->getPost('notes')),
+        );
+
+        if (!$id) {
+            $data['created_by'] = $this->login_user->id;
+        }
+
+        if (!$data['category_id'] || !$data['description'] || !$data['amount']) {
+            $this->session->setFlashdata('error_message', 'Categoria, descricao e valor sao obrigatorios.');
+            return redirect()->to(get_uri('travelrefunds/trips/view/' . $trip_id));
+        }
+
+        $result = $this->reimbursementsModel->ci_save($data, $id ?: null);
+        if ($result) {
+            $this->recalculateTripTotals($trip_id);
+            $this->session->setFlashdata('success_message', 'Despesa salva com sucesso.');
+        } else {
+            $this->session->setFlashdata('error_message', 'Nao foi possivel salvar a despesa.');
+        }
+
+        return redirect()->to(get_uri('travelrefunds/trips/view/' . $trip_id));
+    }
+
+    public function deleteExpense($trip_id, $expense_id)
+    {
+        $this->requirePermission('travelrefunds_delete');
+
+        $trip = $this->tripsModel->get_one((int) $trip_id);
+        if (!$trip || !$trip->id) {
+            show_404();
+        }
+
+        if (!in_array($trip->status, array('draft', 'rejected'), true)) {
+            $this->session->setFlashdata('error_message', 'Despesas so podem ser alteradas quando a viagem estiver em rascunho ou rejeitada.');
+            return redirect()->to(get_uri('travelrefunds/trips/view/' . $trip_id));
+        }
+
+        $this->reimbursementsModel->delete((int) $expense_id);
+        $this->recalculateTripTotals($trip_id);
+        $this->session->setFlashdata('success_message', 'Despesa excluida.');
+        return redirect()->to(get_uri('travelrefunds/trips/view/' . $trip_id));
     }
 
     public function deleteReimbursement($id)
@@ -369,6 +502,91 @@ class TravelRefunds extends Security_Controller
             'notes' => $label,
         ));
 
+        if ($item->trip_id) {
+            $trip = $this->tripsModel->get_one((int) $item->trip_id);
+            if ($trip && $trip->id) {
+                $expenses = $this->reimbursementsModel->get_details(array('trip_id' => $trip->id))->getResult();
+                $pending = 0;
+                $rejected = 0;
+                foreach ($expenses as $expense) {
+                    if ($expense->status === 'pending') {
+                        $pending++;
+                    }
+                    if ($expense->status === 'rejected') {
+                        $rejected++;
+                    }
+                }
+
+                $trip_status = $trip->status;
+                if ($status === 'rejected') {
+                    $trip_status = 'rejected';
+                } else if ($status === 'approved' && $pending === 0 && $rejected === 0 && $trip_status === 'submitted') {
+                    $trip_status = 'approved';
+                }
+
+                $this->tripsModel->ci_save(array(
+                    'status' => $trip_status,
+                ), $trip->id);
+            }
+        }
+
         $this->session->setFlashdata('success_message', 'Solicitacao ' . strtolower($label) . '.');
+    }
+
+    protected function buildExpenseSummary($expenses): array
+    {
+        $summary = array();
+        foreach ($expenses as $expense) {
+            $category = $expense->category_name ?: $expense->category_title ?: 'Sem categoria';
+            if (!isset($summary[$category])) {
+                $summary[$category] = 0;
+            }
+            $summary[$category] += (float) $expense->amount;
+        }
+
+        arsort($summary);
+        return $summary;
+    }
+
+    protected function buildTripSummary($trip, $expenses): array
+    {
+        $total_amount = 0;
+        $approved_amount = 0;
+        $has_rejected = false;
+        foreach ($expenses as $expense) {
+            $total_amount += (float) $expense->amount;
+            if ($expense->status === 'approved') {
+                $approved_amount += (float) $expense->amount;
+            }
+            if ($expense->status === 'rejected') {
+                $has_rejected = true;
+            }
+        }
+
+        return array(
+            'total_amount' => $total_amount,
+            'approved_amount' => $approved_amount,
+            'expense_count' => count($expenses),
+            'has_rejected_expenses' => $has_rejected,
+            'trip_status' => $trip->status ?? 'draft',
+        );
+    }
+
+    protected function recalculateTripTotals($trip_id)
+    {
+        $expenses = $this->reimbursementsModel->get_details(array('trip_id' => $trip_id))->getResult();
+        $total = 0;
+        $approved = 0;
+        foreach ($expenses as $expense) {
+            $total += (float) $expense->amount;
+            if ($expense->status === 'approved') {
+                $approved += (float) $expense->amount;
+            }
+        }
+
+        $this->tripsModel->ci_save(array(
+            'total_amount' => $total,
+            'approved_amount' => $approved,
+        ), $trip_id);
     }
 }

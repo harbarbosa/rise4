@@ -9,8 +9,12 @@ $travelrefunds_namespace = ['namespace' => 'travelrefunds\\Controllers'];
 $routes->group('travelrefunds', $travelrefunds_namespace, function ($routes) {
     $routes->get('', 'TravelRefunds::index');
     $routes->get('trips', 'TravelRefunds::trips');
+    $routes->get('trips/new', 'TravelRefunds::viewTrip');
+    $routes->get('trips/view/(:num)', 'TravelRefunds::viewTrip/$1');
     $routes->post('trips/save', 'TravelRefunds::saveTrip');
     $routes->post('trips/delete/(:num)', 'TravelRefunds::deleteTrip/$1');
+    $routes->post('trips/save-expense/(:num)', 'TravelRefunds::saveExpense/$1');
+    $routes->post('trips/delete-expense/(:num)/(:num)', 'TravelRefunds::deleteExpense/$1/$2');
 
     $routes->get('reimbursements', 'TravelRefunds::reimbursements');
     $routes->post('reimbursements/save', 'TravelRefunds::saveReimbursement');
