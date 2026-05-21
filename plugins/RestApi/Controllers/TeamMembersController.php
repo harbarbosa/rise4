@@ -7,39 +7,7 @@ class TeamMembersController extends Rest_api_Controller
     public function index()
     {
         $filters = $this->request->getGet();
-        $db = db_connect('default');
-
-        $builder = $db->table('users u');
-        $builder->select([
-            'u.id',
-            'u.first_name',
-            'u.last_name',
-            'u.email',
-            'u.phone',
-            'u.job_title',
-            'u.image',
-            'u.gender',
-            'u.user_type',
-            'u.status',
-            'u.is_admin',
-            'u.role_id',
-            'u.disable_login',
-            'u.created_at',
-            'u.last_online',
-            'u.skype',
-            'u.linkedin',
-            'u.twitter',
-            'u.facebook',
-            'u.whatsapp',
-            'r.title AS role_title',
-            'tm.date_of_hire',
-            'tm.salary',
-            'tm.salary_term',
-        ]);
-        $builder->join('roles r', 'r.id = u.role_id AND r.deleted = 0', 'left');
-        $builder->join('team_member_job_info tm', 'tm.user_id = u.id', 'left');
-        $builder->where('u.deleted', 0);
-        $builder->where('u.user_type', 'staff');
+        $builder = $this->buildTeamMembersQuery();
 
         if (!$this->toBool($filters['include_inactive'] ?? false)) {
             $builder->where('u.status', 'active');
@@ -128,9 +96,18 @@ class TeamMembersController extends Rest_api_Controller
 
     protected function getQuery()
     {
+        return $this->buildTeamMembersQuery();
+    }
+
+    protected function buildTeamMembersQuery()
+    {
         $db = db_connect('default');
-        $builder = $db->table('users u');
-        $builder->select([
+        $usersTable = $db->prefixTable('users');
+        $rolesTable = $db->prefixTable('roles');
+        $jobInfoTable = $db->prefixTable('team_member_job_info');
+
+        $builder = $db->table($usersTable . ' u');
+        $select = [
             'u.id',
             'u.first_name',
             'u.last_name',
@@ -143,21 +120,27 @@ class TeamMembersController extends Rest_api_Controller
             'u.status',
             'u.is_admin',
             'u.role_id',
-            'u.disable_login',
-            'u.created_at',
-            'u.last_online',
-            'u.skype',
-            'u.linkedin',
-            'u.twitter',
-            'u.facebook',
-            'u.whatsapp',
-            'r.title AS role_title',
-            'tm.date_of_hire',
-            'tm.salary',
-            'tm.salary_term',
-        ]);
-        $builder->join('roles r', 'r.id = u.role_id AND r.deleted = 0', 'left');
-        $builder->join('team_member_job_info tm', 'tm.user_id = u.id', 'left');
+        ];
+
+        foreach (['disable_login', 'created_at', 'last_online', 'skype', 'whatsapp'] as $field) {
+            if ($db->fieldExists($field, $usersTable)) {
+                $select[] = 'u.' . $field;
+            }
+        }
+
+        if ($db->fieldExists('title', $rolesTable)) {
+            $select[] = 'r.title AS role_title';
+        }
+
+        foreach (['date_of_hire', 'salary', 'salary_term'] as $field) {
+            if ($db->fieldExists($field, $jobInfoTable)) {
+                $select[] = 'tm.' . $field;
+            }
+        }
+
+        $builder->select($select);
+        $builder->join($rolesTable . ' r', 'r.id = u.role_id AND r.deleted = 0', 'left');
+        $builder->join($jobInfoTable . ' tm', 'tm.user_id = u.id', 'left');
         $builder->where('u.deleted', 0);
         $builder->where('u.user_type', 'staff');
         return $builder;
