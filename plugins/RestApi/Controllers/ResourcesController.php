@@ -3,11 +3,13 @@
 namespace RestApi\Controllers;
 
 use RestApi\Config\Resources as ResourcesConfig;
+use RestApi\Libraries\PluginRouteRegistry;
 use RestApi\Libraries\ResourceRegistry;
 
 class ResourcesController extends Rest_api_Controller
 {
     protected ResourceRegistry $resourceRegistry;
+    protected PluginRouteRegistry $pluginRouteRegistry;
     protected ResourcesConfig $resourceConfig;
 
     public function __construct()
@@ -15,13 +17,38 @@ class ResourcesController extends Rest_api_Controller
         parent::__construct();
         $this->resourceConfig = new ResourcesConfig();
         $this->resourceRegistry = new ResourceRegistry(db_connect('default'), $this->resourceConfig);
+        $this->pluginRouteRegistry = new PluginRouteRegistry(service('routes'));
     }
 
     public function resources()
     {
+        $response = [
+            'status' => true,
+            'data' => array_values($this->resourceRegistry->all()),
+            'plugins' => array_values($this->pluginRouteRegistry->all())
+        ];
+
+        return $this->respond($response);
+    }
+
+    public function pluginResources()
+    {
         return $this->respond([
             'status' => true,
-            'data' => array_values($this->resourceRegistry->all())
+            'data' => array_values($this->pluginRouteRegistry->all())
+        ]);
+    }
+
+    public function describePlugin(string $plugin)
+    {
+        $pluginInfo = $this->pluginRouteRegistry->get($plugin);
+        if (!$pluginInfo) {
+            return $this->failNotFound('Plugin not found.');
+        }
+
+        return $this->respond([
+            'status' => true,
+            'data' => $pluginInfo
         ]);
     }
 

@@ -82,6 +82,8 @@ $routes->group('api', $rest_api_namespace, function ($routes) {
 });
 
 $routes->get('api/resources', 'ResourcesController::resources', $rest_api_namespace);
+$routes->get('api/resources/plugins', 'ResourcesController::pluginResources', $rest_api_namespace);
+$routes->get('api/resources/plugins/(:segment)', 'ResourcesController::describePlugin/$1', $rest_api_namespace);
 $routes->get('api/resources/(:segment)', 'ResourcesController::describe/$1', $rest_api_namespace);
 $routes->get('api/(:segment)', 'ResourcesController::listResource/$1', $rest_api_namespace);
 $routes->get('api/(:segment)/(:segment)', 'ResourcesController::showResource/$1/$2', $rest_api_namespace);
