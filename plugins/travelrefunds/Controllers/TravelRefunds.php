@@ -108,7 +108,7 @@ class TravelRefunds extends Security_Controller
             'trips' => $trips,
             'users' => $users,
             'projects' => $projects,
-            'status_options' => array('draft', 'planned', 'in_progress', 'completed', 'cancelled'),
+            'status_options' => array('draft', 'submitted', 'approved', 'rejected', 'closed'),
         ));
     }
 
@@ -121,14 +121,19 @@ class TravelRefunds extends Security_Controller
             'title' => trim((string) $this->request->getPost('title')),
             'employee_id' => (int) $this->request->getPost('employee_id'),
             'project_id' => (int) $this->request->getPost('project_id'),
+            'client_id' => (int) $this->request->getPost('client_id'),
             'destination' => trim((string) $this->request->getPost('destination')),
             'purpose' => trim((string) $this->request->getPost('purpose')),
+            'start_date' => $this->request->getPost('start_date') ?: $this->request->getPost('departure_date'),
+            'end_date' => $this->request->getPost('end_date') ?: $this->request->getPost('return_date'),
+            'status' => trim((string) $this->request->getPost('status')) ?: 'draft',
+            'total_amount' => (float) ($this->request->getPost('total_amount') ?: $this->request->getPost('estimated_amount')),
+            'approved_amount' => (float) ($this->request->getPost('approved_amount') ?: $this->request->getPost('actual_amount')),
+            'notes' => trim((string) $this->request->getPost('notes')),
             'departure_date' => $this->request->getPost('departure_date'),
             'return_date' => $this->request->getPost('return_date'),
-            'status' => trim((string) $this->request->getPost('status')) ?: 'draft',
             'estimated_amount' => (float) $this->request->getPost('estimated_amount'),
             'actual_amount' => (float) $this->request->getPost('actual_amount'),
-            'notes' => trim((string) $this->request->getPost('notes')),
         );
 
         if (!$id) {
@@ -194,12 +199,18 @@ class TravelRefunds extends Security_Controller
             'category_id' => (int) $this->request->getPost('category_id'),
             'expense_date' => $this->request->getPost('expense_date'),
             'amount' => (float) $this->request->getPost('amount'),
-            'vendor' => trim((string) $this->request->getPost('vendor')),
             'description' => trim((string) $this->request->getPost('description')),
+            'payment_method' => trim((string) $this->request->getPost('payment_method')),
+            'has_invoice' => $this->request->getPost('has_invoice') ? 1 : (($this->request->getPost('receipt_number') || $this->request->getPost('receipt_file')) ? 1 : 0),
+            'invoice_number' => trim((string) $this->request->getPost('invoice_number')) ?: trim((string) $this->request->getPost('receipt_number')),
+            'supplier_name' => trim((string) $this->request->getPost('supplier_name')) ?: trim((string) $this->request->getPost('vendor')),
+            'attachment_id' => (int) $this->request->getPost('attachment_id') ?: null,
+            'status' => trim((string) $this->request->getPost('status')) ?: 'pending',
+            'rejection_reason' => trim((string) $this->request->getPost('rejection_reason')),
+            'notes' => trim((string) $this->request->getPost('notes')),
+            'vendor' => trim((string) $this->request->getPost('vendor')),
             'receipt_number' => trim((string) $this->request->getPost('receipt_number')),
             'receipt_file' => trim((string) $this->request->getPost('receipt_file')),
-            'status' => trim((string) $this->request->getPost('status')) ?: 'pending',
-            'notes' => trim((string) $this->request->getPost('notes')),
         );
 
         if (!$id) {
@@ -269,9 +280,13 @@ class TravelRefunds extends Security_Controller
 
         $id = (int) $this->request->getPost('id');
         $data = array(
-            'title' => trim((string) $this->request->getPost('title')),
+            'name' => trim((string) $this->request->getPost('name')) ?: trim((string) $this->request->getPost('title')),
+            'title' => trim((string) $this->request->getPost('title')) ?: trim((string) $this->request->getPost('name')),
             'description' => trim((string) $this->request->getPost('description')),
-            'is_active' => $this->request->getPost('is_active') ? 1 : 0,
+            'requires_invoice' => $this->request->getPost('requires_invoice') ? 1 : 0,
+            'active' => $this->request->getPost('active') ? 1 : ($this->request->getPost('is_active') ? 1 : 0),
+            'is_active' => $this->request->getPost('is_active') ? 1 : ($this->request->getPost('active') ? 1 : 0),
+            'sort_order' => (int) ($this->request->getPost('sort_order') ?: $this->request->getPost('sort')),
             'sort' => (int) $this->request->getPost('sort'),
         );
 

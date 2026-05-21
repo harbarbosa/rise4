@@ -36,6 +36,8 @@ if (!function_exists('travelrefunds_status_label')) {
     {
         $labels = array(
             'draft' => 'Rascunho',
+            'submitted' => 'Enviada',
+            'closed' => 'Encerrada',
             'pending' => 'Pendente',
             'approved' => 'Aprovado',
             'rejected' => 'Rejeitado',
@@ -43,7 +45,7 @@ if (!function_exists('travelrefunds_status_label')) {
             'cancelled' => 'Cancelado',
             'planned' => 'Planejada',
             'in_progress' => 'Em andamento',
-            'completed' => 'Concluida',
+            'completed' => 'Concluída',
         );
 
         return get_array_value($labels, $status) ?: ucfirst((string) $status);

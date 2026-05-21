@@ -9,6 +9,7 @@ function travelrefunds_uninstall()
 
     $tables = array(
         $prefix . 'travelrefunds_approval_logs',
+        $prefix . 'travelrefunds_expenses',
         $prefix . 'travelrefunds_reimbursements',
         $prefix . 'travelrefunds_trips',
         $prefix . 'travelrefunds_categories',
