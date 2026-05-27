@@ -36,16 +36,19 @@ function EncodeJWTtoken($data = null) {
 }
 
 function get_token() {
-	/**
-	 * Request All Headers
-	 */
 	$request = \Config\Services::request();
-	$headers = $request->headers();
+	$jwt_config = new \RestApi\Config\JWT();
+	$token = trim((string) $request->getHeaderLine($jwt_config->token_header));
+	if ($token !== '') {
+		return $token;
+	}
 
-	/**
-	 * Authorization Header Exists
-	 */
-	return token($headers);
+	$authorization = trim((string) $request->getHeaderLine('Authorization'));
+	if ($authorization !== '' && preg_match('/^Bearer\s+(.+)$/i', $authorization, $matches)) {
+		return trim($matches[1]);
+	}
+
+	return 'Token is not defined.';
 }
 
 function validateToken() {
@@ -107,25 +110,33 @@ function validateToken() {
  */
 function tokenIsExist($headers) {
 	$jwt_config = new \RestApi\Config\JWT();
-	if (!empty($headers) and is_array($headers)) {
-		foreach ($headers as $header_name => $header_value) {
-			if (strtolower(trim($header_name)) == strtolower(trim($jwt_config->token_header))) {
-				return ['status' => true, 'token' => str_replace($header_name.": ", "", $header_value)];
-			}
-		}
+	$request = \Config\Services::request();
+	$token = trim((string) $request->getHeaderLine($jwt_config->token_header));
+	if ($token !== '') {
+		return ['status' => true, 'token' => $token];
 	}
+
+	$authorization = trim((string) $request->getHeaderLine('Authorization'));
+	if ($authorization !== '' && preg_match('/^Bearer\s+(.+)$/i', $authorization, $matches)) {
+		return ['status' => true, 'token' => trim($matches[1])];
+	}
+
 	return ['status' => false, 'message' => 'Token is not defined.'];
 }
 
 
 function token($headers) {
 	$jwt_config = new \RestApi\Config\JWT();
-	if (!empty($headers) and is_array($headers)) {
-		foreach ($headers as $header_name => $header_value) {
-			if (strtolower(trim($header_name)) == strtolower(trim($jwt_config->token_header))) {
-				return str_replace($header_name.": ", "", $header_value);
-			}
-		}
+	$request = \Config\Services::request();
+	$token = trim((string) $request->getHeaderLine($jwt_config->token_header));
+	if ($token !== '') {
+		return $token;
 	}
+
+	$authorization = trim((string) $request->getHeaderLine('Authorization'));
+	if ($authorization !== '' && preg_match('/^Bearer\s+(.+)$/i', $authorization, $matches)) {
+		return trim($matches[1]);
+	}
+
 	return 'Token is not defined.';
 }

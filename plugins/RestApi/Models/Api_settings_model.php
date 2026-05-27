@@ -43,12 +43,30 @@ class Api_settings_model extends Crud_model {
 	}
 
 	public function check_token($token) {
+		$token = $this->normalize_token($token);
 		$user = $this->get_one_where(['token' => $token]);
 		if (!empty($user->id)) {
-			return true;
+			$expiration_date = trim((string) $user->expiration_date);
+			if ($expiration_date !== '' && !preg_match('/^1970-01-01(?:\s+00:00:00)?$/', $expiration_date)) {
+				$expires_at = strtotime($expiration_date);
+				if ($expires_at !== false && $expires_at > 0 && $expires_at < time()) {
+					return false;
+				}
+			}
+
+			return $user;
 		}
 
 		return false;
+	}
+
+	private function normalize_token($token) {
+		$token = (string) $token;
+		$token = trim($token);
+		$token = trim($token, "\"'");
+		$token = preg_replace('/^\xEF\xBB\xBF/', '', $token);
+		$token = preg_replace('/[\x00-\x1F\x7F]/u', '', $token);
+		return $token;
 	}
 
 	public function delete_data($id) {
