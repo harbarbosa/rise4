@@ -3,6 +3,7 @@
 namespace RestApi\Controllers;
 
 use App\Models\Timesheets_model;
+use App\Models\Tasks_model;
 use Config\Database;
 use ProjectAnalizer\Models\Photos_model;
 use ProjectAnalizer\Models\Team_activities_model;
@@ -11,6 +12,7 @@ class ProjectAnalizerController extends Rest_api_Controller
 {
     protected Team_activities_model $teamActivitiesModel;
     protected Timesheets_model $timesheetsModel;
+    protected Tasks_model $tasksModel;
     protected Photos_model $photosModel;
     protected $db;
 
@@ -22,6 +24,7 @@ class ProjectAnalizerController extends Rest_api_Controller
         $this->db = Database::connect('default');
         $this->teamActivitiesModel = model('ProjectAnalizer\Models\Team_activities_model');
         $this->timesheetsModel = model('App\Models\Timesheets_model');
+        $this->tasksModel = model('App\Models\Tasks_model');
         $this->photosModel = model('ProjectAnalizer\Models\Photos_model');
     }
 
@@ -48,7 +51,74 @@ class ProjectAnalizerController extends Rest_api_Controller
                     'route' => get_uri('api/projectanalizer/timelogs/{id}/photos'),
                     'description' => 'List timelog photos.',
                 ],
-            ],
+                [
+                    'key' => 'tasks',
+                    'method' => 'GET',
+                    'route' => get_uri('api/projectanalizer/tasks/{project_id}'),
+                    'description' => 'List project tasks and execution percentage.',
+                ],
+				[
+					'key' => 'task',
+					'method' => 'GET',
+					'route' => get_uri('api/projectanalizer/tasks/{project_id}/{task_id}'),
+					'description' => 'Get one project task with execution percentage.',
+				],
+				[
+					'key' => 'timesheets',
+					'method' => 'GET, POST, PUT, PATCH, DELETE',
+					'route' => get_uri('api/projectanalizer/timesheets/{project_id}') . ' / ' . get_uri('api/projectanalizer/timesheets/{project_id}/{id}'),
+					'description' => 'List, create, update and delete project timesheets.',
+				],
+			],
+		]);
+	}
+
+    public function tasks($projectId = 0)
+    {
+        $projectId = (int) $projectId;
+        if ($projectId <= 0) {
+            return $this->failValidationErrors('Invalid project id.');
+        }
+
+        $rows = $this->tasksModel->get_details(['project_id' => $projectId])->getResult();
+        $data = [];
+
+        foreach ($rows as $row) {
+            $data[] = $this->formatTaskRow($row);
+        }
+
+        return $this->respond([
+            'status' => true,
+            'resource' => 'projectanalizer_tasks',
+            'project_id' => $projectId,
+            'count' => count($data),
+            'data' => $data,
+        ]);
+    }
+
+    public function task($projectId = 0, $taskId = 0)
+    {
+        $projectId = (int) $projectId;
+        $taskId = (int) $taskId;
+        if ($projectId <= 0 || $taskId <= 0) {
+            return $this->failValidationErrors('Invalid project id or task id.');
+        }
+
+        $row = $this->tasksModel->get_details([
+            'project_id' => $projectId,
+            'id' => $taskId,
+        ])->getRow();
+
+        if (!$row || empty($row->id)) {
+            return $this->failNotFound('Task not found.');
+        }
+
+        return $this->respond([
+            'status' => true,
+            'resource' => 'projectanalizer_task',
+            'project_id' => $projectId,
+            'task_id' => $taskId,
+            'data' => $this->formatTaskRow($row),
         ]);
     }
 
@@ -399,5 +469,92 @@ class ProjectAnalizerController extends Rest_api_Controller
         }
 
         return $saved;
+    }
+
+    protected function formatTaskRow(object $row): array
+    {
+        $executionPercentage = $this->getTaskExecutionPercentage((int) ($row->id ?? 0));
+        $statusColor = $row->status_color ?? '';
+        $barClass = ((float) $executionPercentage >= 100) ? 'progress-bar-success' : 'bg-primary';
+        $percentageBar = sprintf(
+            "<div class='progress-bar %s' role='progressbar' aria-valuenow='%.2f' aria-valuemin='0' aria-valuemax='100' style='width: %.2f%%'></div>",
+            esc($barClass),
+            $executionPercentage,
+            $executionPercentage
+        );
+
+        return [
+            'id' => (int) ($row->id ?? 0),
+            'project_id' => (int) ($row->project_id ?? 0),
+            'project_title' => $row->project_title ?? null,
+            'title' => $row->title ?? null,
+            'description' => $row->description ?? null,
+            'status_id' => $row->status_id ?? null,
+            'status_key_name' => $row->status_key_name ?? null,
+            'status_title' => $row->status_title ?? null,
+            'status_color' => $statusColor,
+            'priority_id' => $row->priority_id ?? null,
+            'priority_title' => $row->priority_title ?? null,
+            'priority_icon' => $row->priority_icon ?? null,
+            'priority_color' => $row->priority_color ?? null,
+            'assigned_to' => $row->assigned_to ?? null,
+            'assigned_to_user' => $row->assigned_to_user ?? null,
+            'assigned_to_avatar' => $row->assigned_to_avatar ?? null,
+            'milestone_id' => $row->milestone_id ?? null,
+            'milestone_title' => $row->milestone_title ?? null,
+            'milestone_percentage_label' => isset($row->percentage) ? to_decimal_format($row->percentage, false) . '%' : null,
+            'points' => $row->points ?? null,
+            'start_date' => $row->start_date ?? null,
+            'deadline' => $row->deadline ?? null,
+            'deadline_milestone_title' => $row->deadline_milestone_title ?? null,
+            'ticket_title' => $row->ticket_title ?? null,
+            'collaborator_list' => $row->collaborator_list ?? null,
+            'labels' => $row->labels ?? null,
+            'labels_list' => $row->labels_list ?? null,
+            'unread' => $row->unread ?? null,
+            'has_sub_tasks' => $row->has_sub_tasks ?? null,
+            'percentage' => isset($row->percentage) ? (float) $row->percentage : null,
+            'execution_percentage' => $executionPercentage,
+            'percentage_bar' => $percentageBar,
+        ];
+    }
+
+    protected function getTaskExecutionPercentage(int $taskId): float
+    {
+        if ($taskId <= 0) {
+            return 0.0;
+        }
+
+        $percentageTotal = 0.0;
+
+        $timesheetTable = $this->db->prefixTable('project_time');
+        if ($this->db->tableExists($timesheetTable) && $this->db->fieldExists('percentage_executed', $timesheetTable)) {
+            $builder = $this->db->table($timesheetTable);
+            $builder->select('SUM(percentage_executed) AS total_percentage');
+            $builder->where('task_id', $taskId);
+            if ($this->db->fieldExists('deleted', $timesheetTable)) {
+                $builder->where('deleted', 0);
+            }
+            $row = $builder->get()->getRow();
+            if ($row && $row->total_percentage !== null) {
+                $percentageTotal += (float) $row->total_percentage;
+            }
+        }
+
+        $activitiesTable = $this->db->prefixTable('team_activities');
+        if ($this->db->tableExists($activitiesTable) && $this->db->fieldExists('percentage_executed', $activitiesTable)) {
+            $builder = $this->db->table($activitiesTable);
+            $builder->select('SUM(percentage_executed) AS total_percentage');
+            $builder->where('task_id', $taskId);
+            if ($this->db->fieldExists('deleted', $activitiesTable)) {
+                $builder->where('deleted', 0);
+            }
+            $row = $builder->get()->getRow();
+            if ($row && $row->total_percentage !== null) {
+                $percentageTotal += (float) $row->total_percentage;
+            }
+        }
+
+        return max(0, min(100, round($percentageTotal, 2)));
     }
 }
