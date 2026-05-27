@@ -122,7 +122,7 @@ class TeamMembersController extends Rest_api_Controller
             'u.role_id',
         ];
 
-        foreach (['disable_login', 'created_at', 'last_online', 'skype', 'whatsapp'] as $field) {
+        foreach (['disable_login', 'created_at', 'last_online', 'skype', 'whatsapp', 'alternative_phone'] as $field) {
             if ($db->fieldExists($field, $usersTable)) {
                 $select[] = 'u.' . $field;
             }
