@@ -33,6 +33,7 @@ $routes->group('api', $rest_api_namespace, function ($routes) {
 	$routes->add('project_members', 'UtilitiesController::getProjectMembers');
 	$routes->get('team_members', 'TeamMembersController::index');
 	$routes->get('team_members/(:num)', 'TeamMembersController::show/$1');
+	$routes->match(['GET', 'POST'], 'projectanalizer/tasks', 'ProjectAnalizerController::tasks');
 	$routes->match(['GET', 'POST'], 'projectanalizer/tasks/(:num)', 'ProjectAnalizerController::tasks/$1');
 	$routes->match(['GET', 'POST'], 'projectanalizer/tasks/(:num)/(:num)', 'ProjectAnalizerController::task/$1/$2');
 	$routes->get('projectanalizer/timesheets/(:num)', 'ProjectAnalizerTimesheetsController::listByProject/$1');

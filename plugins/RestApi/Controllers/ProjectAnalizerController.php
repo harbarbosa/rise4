@@ -75,14 +75,20 @@ class ProjectAnalizerController extends Rest_api_Controller
 
     public function tasks($projectId = 0)
     {
-        $projectId = (int) $projectId;
-        if ($projectId <= 0) {
-            return $this->failValidationErrors('Invalid project id.');
+        if ($this->request->getMethod(true) === 'POST') {
+            return $this->createTask($projectId);
         }
 
-        $rows = $this->tasksModel->get_details(['project_id' => $projectId])->getResult();
-        $data = [];
+        $projectId = (int) ($projectId ?: ($this->request->getGet('project_id') ?? 0));
+        if ($projectId > 0 && $this->request->getGet('id')) {
+            $taskId = (int) $this->request->getGet('id');
+            return $this->task($projectId, $taskId);
+        }
 
+        $filters = $this->taskFilters($projectId);
+        $result = $this->tasksModel->get_details($filters);
+        $rows = is_object($result) && method_exists($result, 'getResult') ? $result->getResult() : [];
+        $data = [];
         foreach ($rows as $row) {
             $data[] = $this->formatTaskRow($row);
         }
@@ -159,15 +165,14 @@ class ProjectAnalizerController extends Rest_api_Controller
     protected function listTeamActivities()
     {
         $projectId = (int) ($this->request->getGet('project_id') ?? 0);
-        if ($projectId <= 0) {
-            return $this->failValidationErrors('project_id is required.');
+        $builder = $this->db->table('team_activities');
+        if ($projectId > 0) {
+            $builder->where('project_id', $projectId);
         }
-
-        $rows = $this->db->table('team_activities')
-            ->where('project_id', $projectId)
-            ->orderBy('activity_date', 'DESC')
-            ->get()
-            ->getResultArray();
+        if ($this->db->fieldExists('deleted', 'team_activities')) {
+            $builder->where('deleted', 0);
+        }
+        $rows = $builder->orderBy('activity_date', 'DESC')->get()->getResultArray();
 
         return $this->respond([
             'status' => true,
@@ -271,17 +276,15 @@ class ProjectAnalizerController extends Rest_api_Controller
     protected function listTimelogs()
     {
         $projectId = (int) ($this->request->getGet('project_id') ?? 0);
-        if ($projectId <= 0) {
-            return $this->failValidationErrors('project_id is required.');
-        }
-
         $options = [
-            'project_id' => $projectId,
             'user_id' => $this->request->getGet('user_id'),
             'task_id' => $this->request->getGet('task_id'),
             'start_date' => $this->request->getGet('start_date'),
             'end_date' => $this->request->getGet('end_date'),
         ];
+        if ($projectId > 0) {
+            $options['project_id'] = $projectId;
+        }
 
         $result = $this->timesheetsModel->get_details($options);
         $rows = is_object($result) && method_exists($result, 'getResult') ? $result->getResultArray() : [];
@@ -292,6 +295,148 @@ class ProjectAnalizerController extends Rest_api_Controller
             'project_id' => $projectId,
             'data' => $rows,
         ]);
+    }
+
+    protected function createTask(int $projectId = 0)
+    {
+        try {
+            $payload = $this->payload();
+            $payload = is_array($payload) ? $payload : [];
+
+            if ($projectId > 0 && !array_key_exists('project_id', $payload)) {
+                $payload['project_id'] = $projectId;
+            }
+
+            $projectId = (int) ($payload['project_id'] ?? 0);
+            if ($projectId <= 0) {
+                return $this->failValidationErrors('project_id is required.');
+            }
+
+            $title = trim((string) ($payload['title'] ?? ''));
+            if ($title === '') {
+                return $this->failValidationErrors('title is required.');
+            }
+
+            $statusId = (int) ($payload['status_id'] ?? 0);
+            if ($statusId <= 0) {
+                $statusId = 1;
+            }
+
+            $data = $this->filterPayload('tasks', $payload, ['id']);
+            $data['title'] = $title;
+            $data['description'] = $payload['description'] ?? ($data['description'] ?? '');
+            $data['project_id'] = $projectId;
+            $data['milestone_id'] = (int) ($payload['milestone_id'] ?? ($data['milestone_id'] ?? 0));
+            $data['points'] = $payload['points'] ?? ($data['points'] ?? 0);
+            $data['status_id'] = $statusId;
+            $data['priority_id'] = (int) ($payload['priority_id'] ?? ($data['priority_id'] ?? 0));
+            $data['labels'] = $this->normalizeCommaSeparatedIds($payload['labels'] ?? ($data['labels'] ?? ''));
+            $data['start_date'] = $payload['start_date'] ?? ($data['start_date'] ?? null);
+            $data['deadline'] = $payload['deadline'] ?? ($data['deadline'] ?? null);
+            $data['assigned_to'] = (int) ($payload['assigned_to'] ?? ($data['assigned_to'] ?? 0));
+            $data['collaborators'] = $this->normalizeCommaSeparatedIds($payload['collaborators'] ?? ($data['collaborators'] ?? ''));
+            $data['context'] = 'project';
+            $data['created_by'] = 0;
+
+            if (array_key_exists('percentage', $payload)) {
+                $data['percentage'] = max(0, min(100, round((float) str_replace(',', '.', (string) $payload['percentage']), 2)));
+            }
+
+            $now = get_current_utc_time();
+            $taskColumns = $this->db->getFieldNames($this->db->prefixTable('tasks')) ?: [];
+            if (in_array('created_date', $taskColumns, true)) {
+                $data['created_date'] = $now;
+            }
+            if (in_array('created_at', $taskColumns, true)) {
+                $data['created_at'] = $now;
+            }
+            if (in_array('updated_at', $taskColumns, true)) {
+                $data['updated_at'] = $now;
+            }
+            if (in_array('deleted', $taskColumns, true)) {
+                $data['deleted'] = 0;
+            }
+            if (in_array('sort', $taskColumns, true)) {
+                $data['sort'] = $this->tasksModel->get_next_sort_value($projectId, $statusId);
+            }
+
+            $data = clean_data($data);
+            if (empty($data['start_date'])) {
+                $data['start_date'] = null;
+            }
+            if (empty($data['deadline'])) {
+                $data['deadline'] = null;
+            }
+
+            $saveId = $this->tasksModel->ci_save($data);
+            if (!$saveId) {
+                return $this->failValidationErrors('Could not save task.');
+            }
+
+            $saved = $this->tasksModel->get_details(['id' => $saveId])->getRow();
+            return $this->respondCreated([
+                'status' => true,
+                'resource' => 'projectanalizer_task',
+                'message' => 'Task saved successfully.',
+                'id' => (int) $saveId,
+                'data' => $saved ? $this->formatTaskRow($saved) : null,
+            ]);
+        } catch (\Throwable $e) {
+            log_message('error', '[ProjectAnalizerController] createTask failed: {message}', ['message' => $e->getMessage()]);
+            return $this->failServerError('Unable to save task.');
+        }
+    }
+
+    protected function taskFilters(int $projectId = 0): array
+    {
+        $filters = [
+            'limit' => max(1, (int) ($this->request->getGet('limit') ?: 50)),
+            'skip' => max(0, ((int) ($this->request->getGet('page') ?: 1) - 1) * max(1, (int) ($this->request->getGet('limit') ?: 50))),
+            'search_by' => clean_data($this->request->getGet('q') ?? $this->request->getGet('search')),
+            'status_ids' => clean_data($this->request->getGet('status_ids')),
+            'assigned_to' => (int) $this->request->getGet('assigned_to'),
+            'priority_id' => (int) $this->request->getGet('priority_id'),
+            'milestone_id' => (int) $this->request->getGet('milestone_id'),
+            'label_id' => (int) $this->request->getGet('label_id'),
+            'task_ids' => clean_data($this->request->getGet('task_ids')),
+            'exclude_task_ids' => clean_data($this->request->getGet('exclude_task_ids')),
+            'quick_filter' => clean_data($this->request->getGet('quick_filter')),
+            'context' => 'project',
+        ];
+
+        $projectId = (int) ($projectId ?: ($this->request->getGet('project_id') ?? 0));
+        if ($projectId > 0) {
+            $filters['project_id'] = $projectId;
+        }
+
+        $status = clean_data($this->request->getGet('status'));
+        if ($status !== '') {
+            $filters['status_ids'] = $status;
+        }
+
+        return array_filter($filters, static function ($value) {
+            return $value !== null && $value !== '';
+        });
+    }
+
+    protected function normalizeCommaSeparatedIds($value): string
+    {
+        if (is_array($value)) {
+            return implode(',', array_values(array_filter(array_map(static fn ($item) => (int) $item, $value))));
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '';
+        }
+
+        if (str_contains($value, ',')) {
+            $parts = array_values(array_filter(array_map('trim', explode(',', $value))));
+            $parts = array_values(array_filter(array_map(static fn ($item) => (int) $item, $parts)));
+            return implode(',', $parts);
+        }
+
+        return (string) (int) $value;
     }
 
     protected function createTimelog()
