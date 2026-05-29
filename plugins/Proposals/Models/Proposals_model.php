@@ -19,8 +19,21 @@ class Proposals_model extends Crud_model
         $table = $this->db->prefixTable('proposals_custom');
         $clients_table = $this->db->prefixTable('clients');
         $users_table = $this->db->prefixTable('users');
+        if (!$this->db->tableExists($table)) {
+            return $this->db->query("SELECT 1 AS __empty WHERE 1=0");
+        }
+
+        $fields = $this->db->getFieldNames($table) ?: [];
+        $has_company_id = in_array('company_id', $fields, true);
+        $has_client_id = in_array('client_id', $fields, true);
+        $has_status = in_array('status', $fields, true);
+        $has_title = in_array('title', $fields, true);
+        $has_client_name = in_array('client_name', $fields, true);
+        $has_created_at = in_array('created_at', $fields, true);
+        $has_created_by = in_array('created_by', $fields, true);
 
         $where = "";
+        $base_where = in_array('deleted', $fields, true) ? "$table.deleted=0" : "1=1";
 
         $id = $this->_get_clean_value($options, "id");
         if ($id) {
@@ -28,44 +41,58 @@ class Proposals_model extends Crud_model
         }
 
         $company_id = $this->_get_clean_value($options, "company_id");
-        if ($company_id) {
+        if ($company_id && $has_company_id) {
             $where .= " AND $table.company_id=$company_id";
         }
 
         $client_id = $this->_get_clean_value($options, "client_id");
-        if ($client_id) {
+        if ($client_id && $has_client_id) {
             $where .= " AND $table.client_id=$client_id";
         }
 
         $status = $this->_get_clean_value($options, "status");
-        if ($status) {
+        if ($status && $has_status) {
             $where .= " AND $table.status='$status'";
         }
 
         $search = $this->_get_clean_value($options, "search");
-        if ($search) {
+        if ($search && $has_title) {
             $search = $this->db->escapeLikeString($search);
-            $where .= " AND ($table.title LIKE '%$search%' ESCAPE '!' OR $table.client_name LIKE '%$search%' ESCAPE '!')";
+            $search_parts = ["$table.title LIKE '%$search%' ESCAPE '!'"];
+            if ($has_client_name) {
+                $search_parts[] = "$table.client_name LIKE '%$search%' ESCAPE '!'";
+            }
+            $where .= " AND (" . implode(' OR ', $search_parts) . ")";
         }
 
         $start_date = $this->_get_clean_value($options, "start_date");
         $end_date = $this->_get_clean_value($options, "end_date");
-        if ($start_date && $end_date) {
+        if ($start_date && $end_date && $has_created_at) {
             $where .= " AND ($table.created_at BETWEEN '$start_date' AND '$end_date')";
-        } else if ($start_date) {
+        } else if ($start_date && $has_created_at) {
             $where .= " AND $table.created_at >= '$start_date'";
-        } else if ($end_date) {
+        } else if ($end_date && $has_created_at) {
             $where .= " AND $table.created_at <= '$end_date'";
         }
 
-        $sql = "SELECT $table.*,
-            $clients_table.company_name AS client_company,
-            CONCAT($users_table.first_name, ' ', $users_table.last_name) AS created_by_name
-        FROM $table
-        LEFT JOIN $clients_table ON $clients_table.id=$table.client_id
-        LEFT JOIN $users_table ON $users_table.id=$table.created_by
-        WHERE $table.deleted=0 $where
-        ORDER BY $table.id DESC";
+        $select_parts = ["$table.*"];
+        if ($has_client_id) {
+            $select_parts[] = "$clients_table.company_name AS client_company";
+        }
+        if ($has_created_by) {
+            $select_parts[] = "CONCAT($users_table.first_name, ' ', $users_table.last_name) AS created_by_name";
+        }
+
+        $sql = "SELECT " . implode(", ", $select_parts) . "
+        FROM $table";
+        if ($has_client_id) {
+            $sql .= " LEFT JOIN $clients_table ON $clients_table.id=$table.client_id";
+        }
+        if ($has_created_by) {
+            $sql .= " LEFT JOIN $users_table ON $users_table.id=$table.created_by";
+        }
+        $sql .= " WHERE " . $base_where . $where;
+        $sql .= " ORDER BY $table.id DESC";
 
         return $this->db->query($sql);
     }

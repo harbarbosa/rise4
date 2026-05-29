@@ -19,6 +19,9 @@ class Proposal_items_model extends Crud_model
         $table = $this->db->prefixTable('proposal_items_custom');
         $items_table = $this->db->prefixTable('items');
         $services_table = $this->db->prefixTable('os_servicos');
+        if (!$this->db->tableExists($table)) {
+            return $this->db->query("SELECT 1 AS __empty WHERE 1=0");
+        }
         $has_services = $this->_table_exists($services_table);
         $where = "";
 

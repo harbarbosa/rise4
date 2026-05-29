@@ -17,6 +17,9 @@ class Proposals_module_settings_model extends Crud_model
     public function get_details($options = array())
     {
         $table = $this->db->prefixTable('proposals_module_settings_custom');
+        if (!$this->db->tableExists($table)) {
+            return $this->db->query("SELECT 1 AS __empty WHERE 1=0");
+        }
         $where = "";
 
         $id = $this->_get_clean_value($options, "id");
