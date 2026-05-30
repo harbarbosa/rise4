@@ -74,6 +74,12 @@ class OrganizadorController extends ModuleApiController
             return $this->failValidationErrors('No valid fields were provided.');
         }
 
+        $taskTitle = trim((string) ($payload['title'] ?? $payload['task_title'] ?? $payload['name'] ?? ($data['title'] ?? '')));
+        if ($taskTitle === '') {
+            return $this->failValidationErrors('title is required.');
+        }
+        $data['title'] = clean_data($taskTitle);
+
         if (array_key_exists('labels', $data)) {
             $data['labels'] = $this->normalizeLabels($data['labels']);
         }
