@@ -5,14 +5,16 @@ namespace RestApi\Controllers;
 use App\Models\Timesheets_model;
 use App\Models\Tasks_model;
 use Config\Database;
+use ProjectAnalizer\Models\Execution_schedule_model;
 use ProjectAnalizer\Models\Photos_model;
 use ProjectAnalizer\Models\Team_activities_model;
 
-class ProjectAnalizerController extends Rest_api_Controller
+class ProjectAnalizerController extends ModuleApiController
 {
     protected Team_activities_model $teamActivitiesModel;
     protected Timesheets_model $timesheetsModel;
     protected Tasks_model $tasksModel;
+    protected Execution_schedule_model $executionScheduleModel;
     protected Photos_model $photosModel;
     protected $db;
 
@@ -25,6 +27,7 @@ class ProjectAnalizerController extends Rest_api_Controller
         $this->teamActivitiesModel = model('ProjectAnalizer\Models\Team_activities_model');
         $this->timesheetsModel = model('App\Models\Timesheets_model');
         $this->tasksModel = model('App\Models\Tasks_model');
+        $this->executionScheduleModel = model('ProjectAnalizer\Models\Execution_schedule_model');
         $this->photosModel = model('ProjectAnalizer\Models\Photos_model');
     }
 
@@ -69,8 +72,34 @@ class ProjectAnalizerController extends Rest_api_Controller
 					'route' => get_uri('api/projectanalizer/timesheets/{project_id}') . ' / ' . get_uri('api/projectanalizer/timesheets/{project_id}/{id}'),
 					'description' => 'List, create, update and delete project timesheets.',
 				],
+				[
+					'key' => 'execution_schedules',
+					'method' => 'GET, POST, DELETE',
+					'route' => get_uri('api/projectanalizer/execution-schedules') . ' / ' . get_uri('api/projectanalizer/execution-schedules/{id}'),
+					'description' => 'List, create, update and delete project execution schedules.',
+				],
 			],
 		]);
+	}
+
+	public function executionSchedules($id = 0)
+	{
+		$id = (int) $id;
+		$method = $this->request->getMethod(true);
+
+		if ($method === 'POST') {
+			return $this->saveExecutionSchedule($id);
+		}
+
+		if ($method === 'DELETE') {
+			return $this->deleteExecutionSchedule($id);
+		}
+
+		if ($id > 0) {
+			return $this->showExecutionSchedule($id);
+		}
+
+		return $this->listExecutionSchedules();
 	}
 
     public function tasks($projectId = 0)
@@ -161,6 +190,265 @@ class ProjectAnalizerController extends Rest_api_Controller
             'data' => $photos,
         ]);
     }
+
+	protected function listExecutionSchedules()
+	{
+		$filters = [];
+		$id = (int) ($this->request->getGet('id') ?? 0);
+		$projectId = (int) ($this->request->getGet('project_id') ?? 0);
+		$userId = (int) ($this->request->getGet('user_id') ?? 0);
+		$startDate = clean_data($this->request->getGet('start_date'));
+		$endDate = clean_data($this->request->getGet('end_date'));
+
+		if ($id > 0) {
+			$filters['id'] = $id;
+		}
+		if ($projectId > 0) {
+			$filters['project_id'] = $projectId;
+		}
+		if ($userId > 0) {
+			$filters['user_id'] = $userId;
+		}
+		if ($startDate !== '') {
+			$filters['start_date'] = $startDate;
+		}
+		if ($endDate !== '') {
+			$filters['end_date'] = $endDate;
+		}
+
+		$result = $this->executionScheduleModel->get_details($filters);
+		$rows = is_object($result) && method_exists($result, 'getResult') ? $result->getResult() : [];
+		$data = [];
+		foreach ($rows as $row) {
+			$data[] = $this->formatExecutionScheduleRow($row);
+		}
+
+		return $this->respond([
+			'status' => true,
+			'resource' => 'projectanalizer_execution_schedules',
+			'count' => count($data),
+			'project_id' => $projectId,
+			'data' => $data,
+		]);
+	}
+
+	protected function showExecutionSchedule(int $id)
+	{
+		if ($id <= 0) {
+			return $this->failValidationErrors('Invalid execution schedule id.');
+		}
+
+		$row = $this->executionScheduleModel->get_details(['id' => $id])->getRow();
+		if (!$row || empty($row->id)) {
+			return $this->failNotFound('Execution schedule not found.');
+		}
+
+		$groupRows = [];
+		if (!empty($row->group_key)) {
+			$groupRows = $this->executionScheduleModel->get_group_rows($row->group_key, $row->id, true);
+		}
+		if (!$groupRows) {
+			$groupRows = [$row];
+		}
+
+		$data = [];
+		foreach ($groupRows as $groupRow) {
+			$data[] = $this->formatExecutionScheduleRow($groupRow);
+		}
+
+		return $this->respond([
+			'status' => true,
+			'resource' => 'projectanalizer_execution_schedule',
+			'id' => $id,
+			'project_id' => (int) ($row->project_id ?? 0),
+			'group_key' => $row->group_key ?? null,
+			'count' => count($data),
+			'data' => $data,
+		]);
+	}
+
+	protected function saveExecutionSchedule(int $id = 0)
+	{
+		try {
+			$payload = $this->payload();
+			$payload = is_array($payload) ? $payload : [];
+
+			if ($id > 0 && !array_key_exists('id', $payload)) {
+				$payload['id'] = $id;
+			}
+
+			$existingRow = null;
+			if ($id > 0) {
+				$existingRow = $this->executionScheduleModel->get_one($id);
+				if (!$existingRow || empty($existingRow->id)) {
+					return $this->failNotFound('Execution schedule not found.');
+				}
+			}
+
+			$projectId = (int) ($payload['project_id'] ?? ($existingRow->project_id ?? 0));
+			if ($projectId <= 0) {
+				return $this->failValidationErrors('project_id is required.');
+			}
+
+			$startDate = trim((string) ($payload['start_date'] ?? ($existingRow->start_date ?? '')));
+			$endDate = trim((string) ($payload['end_date'] ?? ($existingRow->end_date ?? '')));
+			if ($startDate === '' || $endDate === '') {
+				return $this->failValidationErrors('start_date and end_date are required.');
+			}
+
+			if (strtotime($startDate) === false || strtotime($endDate) === false) {
+				return $this->failValidationErrors('Invalid date range.');
+			}
+
+			if (strtotime($startDate) > strtotime($endDate)) {
+				return $this->failValidationErrors('End date cannot be earlier than start date.');
+			}
+
+			if ($this->isCompletedProject($projectId)) {
+				return $this->failValidationErrors('Completed projects cannot receive new execution schedules.');
+			}
+
+			$userIds = $this->extractExecutionScheduleUserIds($payload);
+			if (!$userIds) {
+				return $this->failValidationErrors('user_ids is required.');
+			}
+
+			$status = clean_data($payload['status'] ?? ($existingRow->status ?? 'planned'));
+			if ($status === '') {
+				$status = 'planned';
+			}
+
+			$notes = $payload['notes'] ?? ($existingRow->notes ?? null);
+			$notes = $notes === '' ? null : $notes;
+
+			$groupKey = $id > 0 ? ($existingRow->group_key ?? null) : uniqid('es_', true);
+			$existingGroupRows = [];
+			$existingRowByUser = [];
+
+			if ($id > 0) {
+				$existingGroupRows = !empty($existingRow->group_key)
+					? $this->executionScheduleModel->get_group_rows($existingRow->group_key, $existingRow->id, true)
+					: [$existingRow];
+
+				foreach ($existingGroupRows as $groupRow) {
+					$existingRowByUser[(int) $groupRow->user_id] = $groupRow;
+				}
+			}
+
+			$conflictedMembers = [];
+			foreach ($userIds as $userId) {
+				if ($this->executionScheduleModel->has_conflict($userId, $startDate, $endDate, $id, $groupKey)) {
+					$conflictedMembers[] = (string) $userId;
+				}
+			}
+
+			if ($conflictedMembers) {
+				return $this->failValidationErrors('Conflicting allocations found for users: ' . implode(', ', $conflictedMembers));
+			}
+
+			$data = [
+				'project_id' => $projectId,
+				'group_key' => $groupKey,
+				'start_date' => $startDate,
+				'end_date' => $endDate,
+				'status' => $status,
+				'notes' => $notes,
+			];
+
+			$lastSaveId = 0;
+			if ($id > 0) {
+				foreach ($existingGroupRows as $groupRow) {
+					if (!in_array((int) $groupRow->user_id, $userIds, true)) {
+						$this->executionScheduleModel->delete($groupRow->id);
+					}
+				}
+
+				foreach ($userIds as $userId) {
+					$memberData = $data;
+					$memberData['user_id'] = $userId;
+
+					if (isset($existingRowByUser[$userId])) {
+						$lastSaveId = $this->executionScheduleModel->ci_save($memberData, $existingRowByUser[$userId]->id);
+					} else {
+						$memberData['created_by'] = 0;
+						$lastSaveId = $this->executionScheduleModel->ci_save($memberData);
+					}
+				}
+
+				if (!$lastSaveId) {
+					return $this->failValidationErrors('Could not update execution schedule.');
+				}
+
+				return $this->respond([
+					'status' => true,
+					'resource' => 'projectanalizer_execution_schedule',
+					'message' => 'record_saved',
+					'id' => $lastSaveId,
+					'count' => count($userIds),
+				]);
+			}
+
+			foreach ($userIds as $userId) {
+				$memberData = $data;
+				$memberData['user_id'] = $userId;
+				$memberData['created_by'] = 0;
+				$lastSaveId = $this->executionScheduleModel->ci_save($memberData);
+			}
+
+			if (!$lastSaveId) {
+				return $this->failValidationErrors('Could not save execution schedule.');
+			}
+
+			return $this->respondCreated([
+				'status' => true,
+				'resource' => 'projectanalizer_execution_schedule',
+				'message' => 'record_saved',
+				'id' => $lastSaveId,
+				'count' => count($userIds),
+			]);
+		} catch (\Throwable $e) {
+			log_message('error', '[ProjectAnalizerController] saveExecutionSchedule failed: {message}', ['message' => $e->getMessage()]);
+			return $this->failServerError('Unable to save execution schedule.');
+		}
+	}
+
+	public function deleteExecutionSchedule(int $id = 0)
+	{
+		$id = (int) $id;
+		if ($id <= 0) {
+			return $this->failValidationErrors('Invalid execution schedule id.');
+		}
+
+		$row = $this->executionScheduleModel->get_one($id);
+		if (!$row || empty($row->id)) {
+			return $this->failNotFound('Execution schedule not found.');
+		}
+
+		$groupRows = [];
+		if (!empty($row->group_key)) {
+			$groupRows = $this->executionScheduleModel->get_group_rows($row->group_key, $row->id, true);
+		}
+		if (!$groupRows) {
+			$groupRows = [$row];
+		}
+
+		$deleted = 0;
+		foreach ($groupRows as $groupRow) {
+			if ($this->executionScheduleModel->delete($groupRow->id)) {
+				$deleted++;
+			}
+		}
+
+		if (!$deleted) {
+			return $this->failServerError('Could not delete execution schedule.');
+		}
+
+		return $this->respond([
+			'status' => true,
+			'message' => 'record_deleted',
+			'deleted' => $deleted,
+		]);
+	}
 
     protected function listTeamActivities()
     {
@@ -615,6 +903,61 @@ class ProjectAnalizerController extends Rest_api_Controller
 
         return $saved;
     }
+
+	protected function formatExecutionScheduleRow(object $row): array
+	{
+		return [
+			'id' => (int) ($row->id ?? 0),
+			'group_key' => $row->group_key ?? null,
+			'project_id' => (int) ($row->project_id ?? 0),
+			'project_title' => $row->project_title ?? null,
+			'user_id' => (int) ($row->user_id ?? 0),
+			'member_name' => $row->member_name ?? null,
+			'start_date' => $row->start_date ?? null,
+			'end_date' => $row->end_date ?? null,
+			'status' => $row->status ?? null,
+			'notes' => $row->notes ?? null,
+			'created_by' => isset($row->created_by) ? (int) $row->created_by : null,
+			'deleted' => isset($row->deleted) ? (int) $row->deleted : null,
+		];
+	}
+
+	protected function extractExecutionScheduleUserIds(array $payload): array
+	{
+		$source = $payload['user_ids'] ?? ($payload['user_id'] ?? ($payload['member_id'] ?? ($payload['members_ids'] ?? [])));
+
+		if (is_string($source) && str_contains($source, ',')) {
+			$source = array_values(array_filter(array_map('trim', explode(',', $source))));
+		}
+
+		if (!is_array($source)) {
+			$source = [$source];
+		}
+
+		return array_values(array_filter(array_map(static fn ($value) => (int) $value, $source)));
+	}
+
+	protected function isCompletedProject(int $projectId): bool
+	{
+		if ($projectId <= 0) {
+			return false;
+		}
+
+		$projectsTable = $this->db->prefixTable('projects');
+		$projectStatusTable = $this->db->prefixTable('project_status');
+		if (!$this->db->tableExists($projectsTable) || !$this->db->tableExists($projectStatusTable)) {
+			return false;
+		}
+
+		$row = $this->db->table($projectsTable . ' p')
+			->select('ps.key_name')
+			->join($projectStatusTable . ' ps', 'ps.id = p.status_id', 'left')
+			->where('p.id', $projectId)
+			->get()
+			->getRow();
+
+		return $row && (($row->key_name ?? '') === 'completed');
+	}
 
     protected function formatTaskRow(object $row): array
     {
