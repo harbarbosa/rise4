@@ -2207,7 +2207,7 @@ class ProjectAnalizer extends Security_Controller {
             "selected_member_ids" => $group_rows ? array_map(function ($row) {
                 return (string) $row->user_id;
             }, $group_rows) : array(),
-            "projects_dropdown" => $this->_get_execution_schedule_projects_dropdown(true),
+            "projects_dropdown" => $this->_get_execution_schedule_projects_dropdown(true, $project_id),
             "members_dropdown" => $this->_get_execution_schedule_members_dropdown(true),
             "status_dropdown" => array(
                 "planned" => app_lang("allocation_planned"),
@@ -3598,7 +3598,7 @@ class ProjectAnalizer extends Security_Controller {
         }
     }
 
-    private function _get_execution_schedule_projects_dropdown($for_form = false)
+    private function _get_execution_schedule_projects_dropdown($for_form = false, $selected_project_id = 0)
     {
         $projects_options = array();
         if (!$this->can_manage_all_projects()) {
@@ -3607,12 +3607,19 @@ class ProjectAnalizer extends Security_Controller {
 
         $projects = $this->Projects_model->get_details($projects_options)->getResult();
         $dropdown = $for_form ? array() : array(array("id" => "", "text" => "- " . app_lang("project") . " -"));
+        $completed_status_id = $this->_get_completed_project_status_id();
 
         foreach ($projects as $project) {
+            $project_id = (int) $project->id;
+            $is_completed = $completed_status_id && (int) ($project->status_id ?? 0) === $completed_status_id;
+            if ($for_form && $is_completed && $project_id !== (int) $selected_project_id) {
+                continue;
+            }
+
             if ($for_form) {
-                $dropdown[$project->id] = $project->title;
+                $dropdown[$project_id] = $project->title;
             } else {
-                $dropdown[] = array("id" => $project->id, "text" => $project->title);
+                $dropdown[] = array("id" => $project_id, "text" => $project->title);
             }
         }
 
@@ -3663,6 +3670,22 @@ class ProjectAnalizer extends Security_Controller {
 
         $this->execution_schedule_technician_members = $db->query($sql)->getResult();
         return $this->execution_schedule_technician_members;
+    }
+
+    private function _get_completed_project_status_id()
+    {
+        try {
+            $db = db_connect("default");
+            $status_table = $db->prefixTable("project_status");
+            if (!$db->tableExists($status_table)) {
+                return 0;
+            }
+
+            $row = $db->table($status_table)->select("id")->where("key_name", "completed")->get()->getRow();
+            return $row && isset($row->id) ? (int) $row->id : 0;
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
 
     private function _get_execution_schedule_technician_role_id()
