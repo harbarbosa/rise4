@@ -65,48 +65,8 @@ $page_title = isset($project_info) && $project_info ? $project_info->title : app
                 </div>
             </div>
         </div>
-        <div class="row mb15">
-            <div class="col-md-4">
-                <div class="card bg-light">
-                    <div class="card-body">
-                        <div class="text-off"><?php echo app_lang("execution_schedule_not_allocated_today"); ?></div>
-                        <h3 class="mt10 mb0" id="execution-schedule-unallocated-today"><?php echo (int) get_array_value($availability_summary["totals"], "unallocated_today"); ?></h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card bg-light">
-                    <div class="card-body">
-                        <div class="text-off"><?php echo app_lang("execution_schedule_not_allocated_week"); ?></div>
-                        <h3 class="mt10 mb0" id="execution-schedule-unallocated-week"><?php echo (int) get_array_value($availability_summary["totals"], "unallocated_week"); ?></h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card bg-light">
-                    <div class="card-body">
-                        <div class="text-off"><?php echo app_lang("execution_schedule_not_allocated_period"); ?></div>
-                        <h3 class="mt10 mb0" id="execution-schedule-unallocated-period"><?php echo (int) get_array_value($availability_summary["totals"], "unallocated_period"); ?></h3>
-                    </div>
-                </div>
-            </div>
-        </div>
         <div class="mb15 text-off">
             <?php echo app_lang("execution_schedule_helper_text"); ?>
-        </div>
-        <div class="card mb15">
-            <div class="card-body">
-                <div class="mb10"><strong><?php echo app_lang("execution_schedule_unallocated_list"); ?></strong></div>
-                <div id="execution-schedule-unallocated-list">
-                    <?php if (!empty($availability_summary["unallocated_members"])) { ?>
-                        <?php foreach ($availability_summary["unallocated_members"] as $member) { ?>
-                            <span class="badge bg-light text-dark mr5 mb5"><?php echo esc($member["name"]); ?></span>
-                        <?php } ?>
-                    <?php } else { ?>
-                        <span class="text-off"><?php echo app_lang("execution_schedule_no_unallocated_members"); ?></span>
-                    <?php } ?>
-                </div>
-            </div>
         </div>
         <div id="execution-schedule-calendar"></div>
     </div>
@@ -144,25 +104,7 @@ $page_title = isset($project_info) && $project_info ? $project_info->title : app
                         return;
                     }
 
-                    var data = response.data || {};
-                    var totals = data.totals || {};
-                    var members = data.unallocated_members || [];
-
-                    $("#execution-schedule-unallocated-today").text(totals.unallocated_today || 0);
-                    $("#execution-schedule-unallocated-week").text(totals.unallocated_week || 0);
-                    $("#execution-schedule-unallocated-period").text(totals.unallocated_period || 0);
-
-                    if (!members.length) {
-                        $("#execution-schedule-unallocated-list").html("<span class='text-off'><?php echo app_lang("execution_schedule_no_unallocated_members"); ?></span>");
-                        return;
-                    }
-
-                    var html = "";
-                    $.each(members, function (index, member) {
-                        html += "<span class='badge bg-light text-dark mr5 mb5'>" + $("<div>").text(member.name || "").html() + "</span>";
-                    });
-
-                    $("#execution-schedule-unallocated-list").html(html);
+                    return;
                 }
             });
         };
