@@ -34,6 +34,10 @@ class OrganizadorController extends ModuleApiController
 
 	public function tasks(int $id = 0)
 	{
+        if ($this->request->getMethod(true) === 'POST') {
+            return $this->saveTask($id);
+        }
+
 		if ($id > 0) {
 			$row = $this->tasksModel->get_one_with_details($id);
 			if (!$row || !$row->id) {
