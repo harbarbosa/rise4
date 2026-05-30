@@ -2,6 +2,13 @@
     <div class="card mb15">
         <div class="page-title clearfix">
             <h1>Configuracoes</h1>
+            <div class="title-button-group">
+                <?php echo anchor(get_uri('travelrefunds/categories'), '<i data-feather="layers" class="icon-16"></i> Categorias', array('class' => 'btn btn-default')); ?>
+                <?php echo anchor(get_uri('travelrefunds/reports'), '<i data-feather="bar-chart-2" class="icon-16"></i> Relatorios', array('class' => 'btn btn-default')); ?>
+            </div>
+        </div>
+        <div class="card-body border-bottom">
+            <p class="text-muted mb-0">As configuracoes abaixo controlam regras globais do modulo, aprovadores e comportamento das despesas.</p>
         </div>
         <div class="card-body">
             <?php echo form_open(get_uri('travelrefunds/settings/save'), array('class' => 'general-form')); ?>
@@ -33,7 +40,7 @@
                     </div>
                     <div class="col-md-8 mb10">
                         <label>Aprovadores padrao</label>
-                        <select name="default_approver_ids[]" class="select2" multiple="multiple" style="width:100%;">
+                        <select name="default_approver_ids[]" class="form-control select2" multiple="multiple" style="width:100%;">
                             <?php foreach ($users as $user) { ?>
                                 <?php
                                 $user_id = (int) $user->id;
@@ -63,3 +70,9 @@
         </div>
     </div>
 </div>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $(".page-wrapper .select2").select2();
+    });
+</script>

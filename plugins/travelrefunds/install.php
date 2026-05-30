@@ -35,12 +35,14 @@ function travelrefunds_install()
             `departure_date` DATE DEFAULT NULL,
             `return_date` DATE DEFAULT NULL,
             `estimated_amount` DECIMAL(15,2) NOT NULL DEFAULT 0,
+            `traveler_ids` TEXT DEFAULT NULL,
             `actual_amount` DECIMAL(15,2) NOT NULL DEFAULT 0,
             PRIMARY KEY (`id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
         'travelrefunds_expenses' => "CREATE TABLE IF NOT EXISTS `{$prefix}travelrefunds_expenses` (
             `id` INT(11) NOT NULL AUTO_INCREMENT,
             `trip_id` INT(11) NOT NULL,
+            `project_id` INT(11) DEFAULT NULL,
             `category_id` INT(11) NOT NULL,
             `employee_id` INT(11) DEFAULT NULL,
             `expense_date` DATE DEFAULT NULL,
@@ -132,6 +134,7 @@ function travelrefunds_install()
         'departure_date' => 'DATE DEFAULT NULL',
         'return_date' => 'DATE DEFAULT NULL',
         'estimated_amount' => 'DECIMAL(15,2) NOT NULL DEFAULT 0',
+        'traveler_ids' => 'TEXT DEFAULT NULL',
         'actual_amount' => 'DECIMAL(15,2) NOT NULL DEFAULT 0',
     ));
 
@@ -141,6 +144,7 @@ function travelrefunds_install()
         'invoice_number' => 'VARCHAR(100) DEFAULT NULL',
         'supplier_name' => 'VARCHAR(255) DEFAULT NULL',
         'attachment_id' => 'INT(11) DEFAULT NULL',
+        'project_id' => 'INT(11) DEFAULT NULL',
         'rejection_reason' => 'TEXT DEFAULT NULL',
         'employee_id' => 'INT(11) DEFAULT NULL',
         'rejected_by' => 'INT(11) DEFAULT NULL',
@@ -174,7 +178,7 @@ function travelrefunds_install()
 
     $defaults = array(
         'travelrefunds_enabled' => '1',
-        'travelrefunds_default_currency_symbol' => get_setting('default_currency_symbol') ?: '$',
+        'travelrefunds_default_currency_symbol' => get_setting('currency_symbol') ?: '$',
         'travelrefunds_allow_public_receipts' => '0',
         'travelrefunds_allow_expenses_without_receipt' => '1',
         'travelrefunds_default_approver_ids' => '',
@@ -183,15 +187,12 @@ function travelrefunds_install()
 
     foreach ($defaults as $name => $value) {
         $exists = $db->table($prefix . 'travelrefunds_settings')->where('setting_name', $name)->get()->getRow();
-        if ($exists) {
-            $db->table($prefix . 'travelrefunds_settings')->where('id', $exists->id)->update(array('setting_value' => $value));
-            continue;
+        if (!$exists) {
+            $db->table($prefix . 'travelrefunds_settings')->insert(array(
+                'setting_name' => $name,
+                'setting_value' => $value,
+            ));
         }
-
-        $db->table($prefix . 'travelrefunds_settings')->insert(array(
-            'setting_name' => $name,
-            'setting_value' => $value,
-        ));
     }
 
     $notification_settings_table = $prefix . 'notification_settings';

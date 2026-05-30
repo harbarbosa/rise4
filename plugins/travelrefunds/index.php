@@ -3,8 +3,8 @@
 defined('PLUGINPATH') or exit('No direct script access allowed');
 
 /*
-  Plugin Name: TravelRefunds
-  Description: Gestao de viagens de funcionarios e reembolsos de despesas para servicos externos.
+  Plugin Name: Gestão de Despesas
+  Description: Gestão de viagens de funcionários e reembolsos de despesas para serviços externos.
   Version: 0.1.0
   Requires at least: 3.9.0
   Author: Codex
@@ -31,7 +31,7 @@ app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
 
     if (!isset($sidebar_menu['travelrefunds'])) {
         $sidebar_menu['travelrefunds'] = array(
-            'name' => 'Viagens e Reembolsos',
+            'name' => 'Gestão de Despesas',
             'url' => get_uri('travelrefunds'),
             'class' => 'map',
             'position' => 8,
@@ -54,7 +54,7 @@ app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
 
     if ($login_user->is_admin || get_array_value($permissions, 'travelrefunds_view') == '1' || get_array_value($permissions, 'travelrefunds_create') == '1') {
         $submenu['travelrefunds_reimbursements'] = array(
-            'name' => 'Solicitacoes de Reembolso',
+            'name' => 'Reembolsos',
             'url' => get_uri('travelrefunds/reimbursements'),
             'class' => 'file-text',
             'is_custom_menu_item' => true,

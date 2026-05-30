@@ -5,6 +5,7 @@ $trip_status = $trip->status ?? 'draft';
 $can_edit_trip = $can_edit_trip ?? true;
 $can_edit_expenses = $can_edit_expenses ?? true;
 $expense_edit_id = $expense_edit->id ?? '';
+$estimated_amount = $trip->total_amount ?? ($trip->estimated_amount ?? 0);
 ?>
 <div id="page-content" class="page-wrapper clearfix">
     <div class="card mb15">
@@ -21,66 +22,100 @@ $expense_edit_id = $expense_edit->id ?? '';
         </div>
 
         <div class="card-body">
-            <?php echo form_open(get_uri('travelrefunds/trips/save'), array('class' => 'general-form')); ?>
+            <?php echo form_open(get_uri('travelrefunds/trips/save'), array('id' => 'travelrefunds-trip-form', 'class' => 'general-form', 'role' => 'form')); ?>
                 <input type="hidden" name="id" value="<?php echo $trip_id; ?>" />
+
+                <div class="form-group">
+                    <label for="title" class="form-label">Titulo da viagem</label>
+                    <input type="text" id="title" name="title" class="form-control" value="<?php echo esc($trip->title ?? ''); ?>" <?php echo !$can_edit_trip ? 'readonly' : ''; ?> />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="employee_id">Funcionario responsavel</label>
+                    <?php
+                    echo form_dropdown(
+                        'employee_id',
+                        $responsible_employee_dropdown ?? array(),
+                        $trip->employee_id ?? '',
+                        'class="form-control select2" id="employee_id"' . (!$can_edit_trip ? ' disabled' : '')
+                    );
+                    ?>
+                </div>
+
                 <div class="row">
-                    <div class="col-md-6 mb10">
-                        <label>Titulo da viagem</label>
-                        <input type="text" name="title" class="form-control" value="<?php echo esc($trip->title ?? ''); ?>" <?php echo !$can_edit_trip ? 'readonly' : ''; ?> />
+                    <div class="col-md-6">
+                        <label class="form-label" for="project_id">Projeto opcional</label>
+                        <?php
+                        $project_dropdown = array('' => '-');
+                        foreach ($projects as $project) {
+                            $project_dropdown[$project->id] = $project->title;
+                        }
+                        echo form_dropdown('project_id', $project_dropdown, $trip->project_id ?? '', 'class="form-control select2" id="project_id"' . (!$can_edit_trip ? ' disabled' : ''));
+                        ?>
                     </div>
-                    <div class="col-md-3 mb10">
-                        <label>Projeto opcional</label>
-                        <select name="project_id" class="form-control select2" <?php echo !$can_edit_trip ? 'disabled' : ''; ?>>
-                            <option value="">-</option>
-                            <?php foreach ($projects as $project) { ?>
-                                <option value="<?php echo $project->id; ?>" <?php echo (($trip->project_id ?? '') == $project->id) ? 'selected' : ''; ?>>
-                                    <?php echo esc($project->title); ?>
-                                </option>
-                            <?php } ?>
-                        </select>
+                    <div class="col-md-6">
+                        <label class="form-label" for="client_id">Cliente opcional</label>
+                        <?php
+                        $client_dropdown = array('' => '-');
+                        foreach ($clients as $client) {
+                            $client_dropdown[$client->id] = $client->company_name;
+                        }
+                        echo form_dropdown('client_id', $client_dropdown, $trip->client_id ?? '', 'class="form-control select2" id="client_id"' . (!$can_edit_trip ? ' disabled' : ''));
+                        ?>
                     </div>
-                    <div class="col-md-3 mb10">
-                        <label>Cliente opcional</label>
-                        <select name="client_id" class="form-control select2" <?php echo !$can_edit_trip ? 'disabled' : ''; ?>>
-                            <option value="">-</option>
-                            <?php foreach ($clients as $client) { ?>
-                                <option value="<?php echo $client->id; ?>" <?php echo (($trip->client_id ?? '') == $client->id) ? 'selected' : ''; ?>>
-                                    <?php echo esc($client->company_name); ?>
-                                </option>
-                            <?php } ?>
-                        </select>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="destination" class="form-label">Destino</label>
+                            <input type="text" id="destination" name="destination" class="form-control" value="<?php echo esc($trip->destination ?? ''); ?>" <?php echo !$can_edit_trip ? 'readonly' : ''; ?> />
+                        </div>
                     </div>
-                    <div class="col-md-6 mb10">
-                        <label>Destino</label>
-                        <input type="text" name="destination" class="form-control" value="<?php echo esc($trip->destination ?? ''); ?>" <?php echo !$can_edit_trip ? 'readonly' : ''; ?> />
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="start_date" class="form-label">Data inicial</label>
+                            <input type="date" id="start_date" name="start_date" class="form-control" value="<?php echo esc($trip->start_date ?? ($trip->departure_date ?? '')); ?>" <?php echo !$can_edit_trip ? 'readonly' : ''; ?> />
+                        </div>
                     </div>
-                    <div class="col-md-3 mb10">
-                        <label>Data inicial</label>
-                        <input type="date" name="start_date" class="form-control" value="<?php echo esc($trip->start_date ?? ($trip->departure_date ?? '')); ?>" <?php echo !$can_edit_trip ? 'readonly' : ''; ?> />
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="end_date" class="form-label">Data final</label>
+                            <input type="date" id="end_date" name="end_date" class="form-control" value="<?php echo esc($trip->end_date ?? ($trip->return_date ?? '')); ?>" <?php echo !$can_edit_trip ? 'readonly' : ''; ?> />
+                        </div>
                     </div>
-                    <div class="col-md-3 mb10">
-                        <label>Data final</label>
-                        <input type="date" name="end_date" class="form-control" value="<?php echo esc($trip->end_date ?? ($trip->return_date ?? '')); ?>" <?php echo !$can_edit_trip ? 'readonly' : ''; ?> />
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="purpose" class="form-label">Objetivo da viagem</label>
+                            <textarea id="purpose" name="purpose" class="form-control" rows="3" <?php echo !$can_edit_trip ? 'readonly' : ''; ?>><?php echo esc($trip->purpose ?? ''); ?></textarea>
+                        </div>
                     </div>
-                    <div class="col-md-6 mb10">
-                        <label>Objetivo da viagem</label>
-                        <textarea name="purpose" class="form-control" rows="3" <?php echo !$can_edit_trip ? 'readonly' : ''; ?>><?php echo esc($trip->purpose ?? ''); ?></textarea>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="notes" class="form-label">Observacoes</label>
+                            <textarea id="notes" name="notes" class="form-control" rows="3" <?php echo !$can_edit_trip ? 'readonly' : ''; ?>><?php echo esc($trip->notes ?? ''); ?></textarea>
+                        </div>
                     </div>
-                    <div class="col-md-6 mb10">
-                        <label>Observacoes</label>
-                        <textarea name="notes" class="form-control" rows="3" <?php echo !$can_edit_trip ? 'readonly' : ''; ?>><?php echo esc($trip->notes ?? ''); ?></textarea>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Total da viagem</label>
+                            <input type="text" class="form-control" value="<?php echo travelrefunds_currency($trip_summary['total_amount'] ?? ($trip->total_amount ?? 0)); ?>" readonly />
+                        </div>
                     </div>
-                    <div class="col-md-4 mb10">
-                        <label>Total da viagem</label>
-                        <input type="text" class="form-control" value="<?php echo travelrefunds_currency($trip_summary['total_amount'] ?? ($trip->total_amount ?? 0)); ?>" readonly />
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Valor estimado</label>
+                            <input type="text" class="form-control" value="<?php echo travelrefunds_currency($estimated_amount); ?>" readonly />
+                        </div>
                     </div>
-                    <div class="col-md-4 mb10">
-                        <label>Valor aprovado</label>
-                        <input type="text" class="form-control" value="<?php echo travelrefunds_currency($trip_summary['approved_amount'] ?? ($trip->approved_amount ?? 0)); ?>" readonly />
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Valor aprovado</label>
+                            <input type="text" class="form-control" value="<?php echo travelrefunds_currency($trip_summary['approved_amount'] ?? ($trip->approved_amount ?? 0)); ?>" readonly />
+                        </div>
                     </div>
-                    <div class="col-md-4 mb10">
-                        <label>Status</label>
-                        <input type="text" class="form-control" value="<?php echo esc(travelrefunds_status_label($trip_status)); ?>" readonly />
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <input type="text" class="form-control" value="<?php echo esc(travelrefunds_status_label($trip_status)); ?>" readonly />
+                        </div>
                     </div>
                     <div class="col-md-12 mt10">
                         <?php if ($can_edit_trip) { ?>
@@ -128,72 +163,86 @@ $expense_edit_id = $expense_edit->id ?? '';
 
                 <div id="tab-expenses" class="tab-pane fade">
                     <?php if ($can_edit_expenses) { ?>
-                        <?php echo form_open(get_uri('travelrefunds/trips/save-expense/' . $trip_id), array('class' => 'general-form')); ?>
+                        <?php echo form_open(get_uri('travelrefunds/trips/save-expense/' . $trip_id), array('id' => 'travelrefunds-expense-form', 'class' => 'general-form', 'role' => 'form')); ?>
                             <input type="hidden" name="id" value="<?php echo $expense_edit_id; ?>" />
                             <input type="hidden" name="attachment_id" value="<?php echo esc($expense_edit->attachment_id ?? ''); ?>" />
                             <div class="row">
                                 <div class="col-md-3 mb10">
-                                    <label>Categoria</label>
-                                    <select name="category_id" class="form-control select2" required>
-                                        <option value="">-</option>
-                                        <?php foreach ($categories as $category) { ?>
-                                            <option value="<?php echo $category->id; ?>" <?php echo (($expense_edit->category_id ?? '') == $category->id) ? 'selected' : ''; ?>>
-                                                <?php echo esc($category->name ?: $category->title); ?>
-                                            </option>
-                                        <?php } ?>
-                                    </select>
+                                    <label class="form-label" for="expense_category_id">Categoria</label>
+                                    <?php
+                                    $category_dropdown = array('' => '-');
+                                    foreach ($categories as $category) {
+                                        $category_dropdown[$category->id] = $category->name ?: $category->title;
+                                    }
+                                    echo form_dropdown('category_id', $category_dropdown, $expense_edit->category_id ?? '', 'class="form-control select2" id="expense_category_id" required');
+                                    ?>
                                 </div>
                                 <div class="col-md-3 mb10">
-                                    <label>Data</label>
-                                    <input type="date" name="expense_date" class="form-control" value="<?php echo esc($expense_edit->expense_date ?? get_my_local_time('Y-m-d')); ?>" required />
+                                    <div class="form-group">
+                                        <label for="expense_date" class="form-label">Data</label>
+                                        <input type="date" id="expense_date" name="expense_date" class="form-control" value="<?php echo esc($expense_edit->expense_date ?? get_my_local_time('Y-m-d')); ?>" required />
+                                    </div>
                                 </div>
                                 <div class="col-md-3 mb10">
-                                    <label>Valor</label>
-                                    <input type="number" step="0.01" name="amount" class="form-control" value="<?php echo esc($expense_edit->amount ?? '0'); ?>" required />
+                                    <div class="form-group">
+                                        <label for="amount" class="form-label">Valor</label>
+                                        <input type="number" step="0.01" id="amount" name="amount" class="form-control" value="<?php echo esc($expense_edit->amount ?? '0'); ?>" required />
+                                    </div>
                                 </div>
                                 <div class="col-md-3 mb10">
-                                    <label>Forma de pagamento</label>
-                                    <select name="payment_method" class="form-control select2">
-                                        <option value="">-</option>
-                                        <?php foreach ($payment_methods as $payment_method) { ?>
-                                            <option value="<?php echo esc($payment_method); ?>" <?php echo (($expense_edit->payment_method ?? '') === $payment_method) ? 'selected' : ''; ?>>
-                                                <?php echo esc($payment_method); ?>
-                                            </option>
-                                        <?php } ?>
-                                    </select>
+                                    <label class="form-label" for="payment_method">Forma de pagamento</label>
+                                    <?php
+                                    $payment_method_dropdown = array('' => '-');
+                                    foreach ($payment_methods as $payment_method) {
+                                        $payment_method_dropdown[$payment_method] = $payment_method;
+                                    }
+                                    echo form_dropdown('payment_method', $payment_method_dropdown, $expense_edit->payment_method ?? '', 'class="form-control select2" id="payment_method"');
+                                    ?>
                                 </div>
                                 <div class="col-md-4 mb10">
-                                    <label>Descricao</label>
-                                    <textarea name="description" class="form-control" rows="3" required><?php echo esc($expense_edit->description ?? ''); ?></textarea>
+                                    <div class="form-group">
+                                        <label for="description" class="form-label">Descricao</label>
+                                        <textarea id="description" name="description" class="form-control" rows="3" required><?php echo esc($expense_edit->description ?? ''); ?></textarea>
+                                    </div>
                                 </div>
                                 <div class="col-md-4 mb10">
-                                    <label>Fornecedor</label>
-                                    <input type="text" name="supplier_name" class="form-control" value="<?php echo esc($expense_edit->supplier_name ?? ($expense_edit->vendor ?? '')); ?>" />
+                                    <div class="form-group">
+                                        <label for="supplier_name" class="form-label">Fornecedor</label>
+                                        <input type="text" id="supplier_name" name="supplier_name" class="form-control" value="<?php echo esc($expense_edit->supplier_name ?? ($expense_edit->vendor ?? '')); ?>" />
+                                    </div>
                                 </div>
                                 <div class="col-md-2 mb10">
-                                    <label>Possui NF?</label><br />
-                                    <label class="form-check">
-                                        <input type="checkbox" name="has_invoice" value="1" class="form-check-input" <?php echo (($expense_edit->has_invoice ?? 0) ? 'checked' : ''); ?> />
-                                        <span class="form-check-label">Sim</span>
-                                    </label>
+                                    <div class="form-group">
+                                        <label class="form-label d-block">Possui NF?</label>
+                                        <label class="form-check">
+                                            <input type="checkbox" name="has_invoice" value="1" class="form-check-input" <?php echo (($expense_edit->has_invoice ?? 0) ? 'checked' : ''); ?> />
+                                            <span class="form-check-label">Sim</span>
+                                        </label>
+                                    </div>
                                 </div>
                                 <div class="col-md-2 mb10">
-                                    <label>Numero da NF</label>
-                                    <input type="text" name="invoice_number" class="form-control" value="<?php echo esc($expense_edit->invoice_number ?? ($expense_edit->receipt_number ?? '')); ?>" />
+                                    <div class="form-group">
+                                        <label for="invoice_number" class="form-label">Numero da NF</label>
+                                        <input type="text" id="invoice_number" name="invoice_number" class="form-control" value="<?php echo esc($expense_edit->invoice_number ?? ($expense_edit->receipt_number ?? '')); ?>" />
+                                    </div>
                                 </div>
                                 <div class="col-md-12 mb10">
-                                    <label>Upload de comprovante/NF</label>
-                                    <div id="travelrefunds-expense-dropzone" class="post-dropzone">
+                                    <div class="form-group">
+                                        <label class="form-label">Upload de comprovante/NF</label>
+                                        <div id="travelrefunds-expense-dropzone" class="post-dropzone">
                                         <?php echo view("includes/dropzone_preview"); ?>
                                         <?php echo view("includes/upload_button", array("single_file" => true, "upload_button_text" => "Anexar comprovante")); ?>
+                                        </div>
+                                        <?php if (!empty($expense_edit->attachment_id)) { ?>
+                                            <div class="text-off mt10">Anexo existente preservado ate novo upload.</div>
+                                        <?php } ?>
                                     </div>
-                                    <?php if (!empty($expense_edit->attachment_id)) { ?>
-                                        <div class="text-off mt10">Anexo existente preservado ate novo upload.</div>
-                                    <?php } ?>
                                 </div>
                                 <div class="col-md-12 mb10">
-                                    <label>Observacoes</label>
-                                    <textarea name="notes" class="form-control" rows="3"><?php echo esc($expense_edit->notes ?? ''); ?></textarea>
+                                    <div class="form-group">
+                                        <label for="expense_notes" class="form-label">Observacoes</label>
+                                        <textarea id="expense_notes" name="notes" class="form-control" rows="3"><?php echo esc($expense_edit->notes ?? ''); ?></textarea>
+                                    </div>
                                 </div>
                                 <div class="col-md-12 mb10">
                                     <button type="submit" class="btn btn-primary">Salvar despesa</button>
@@ -240,8 +289,14 @@ $expense_edit_id = $expense_edit->id ?? '';
                                 <?php } ?>
                             </tbody>
                         </table>
-                    </div>
-                </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $(".page-wrapper .select2").select2();
+    });
+</script>
 
                 <div id="tab-summary" class="tab-pane fade">
                     <div class="table-responsive">

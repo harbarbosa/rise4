@@ -2,6 +2,12 @@
     <div class="card mb15">
         <div class="page-title clearfix">
             <h1>Categorias de Despesas</h1>
+            <div class="title-button-group">
+                <?php echo anchor(get_uri('travelrefunds/settings'), '<i data-feather="arrow-left" class="icon-16"></i> Configuracoes', array('class' => 'btn btn-default')); ?>
+            </div>
+        </div>
+        <div class="card-body border-bottom">
+            <p class="text-muted mb-0">Defina os tipos de despesa usados nas viagens e determine quais exigem nota fiscal.</p>
         </div>
         <div class="card-body">
             <?php echo form_open(get_uri('travelrefunds/categories/save'), array('class' => 'general-form')); ?>
@@ -42,33 +48,38 @@
     </div>
 
     <div class="card">
-        <div class="card-header"><h4>Lista de categorias</h4></div>
+        <div class="card-header"><h4 class="card-title mb-0">Lista de categorias</h4></div>
         <div class="table-responsive">
-            <table class="table table-striped">
+            <table class="table table-striped mb-0">
                 <thead>
-                        <tr>
-                            <th>Titulo</th>
-                            <th>Descricao</th>
-                            <th>NF obrigatoria</th>
-                            <th>Status</th>
-                            <th class="text-end">Acoes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($categories as $category) { ?>
-                            <tr>
-                                <td><?php echo esc($category->title); ?></td>
-                                <td><?php echo esc($category->description); ?></td>
-                                <td><?php echo $category->requires_invoice ? 'Sim' : 'Nao'; ?></td>
-                                <td><?php echo $category->is_active ? 'Ativa' : 'Inativa'; ?></td>
-                                <td class="text-end">
-                                    <a href="<?php echo get_uri('travelrefunds/categories?edit_id=' . $category->id); ?>" class="btn btn-default btn-sm">Editar</a>
-                                <?php echo form_open(get_uri('travelrefunds/categories/delete/' . $category->id), array('class' => 'd-inline')); ?>
-                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Excluir esta categoria?');">Excluir</button>
-                                <?php echo form_close(); ?>
-                            </td>
-                        </tr>
-                    <?php } ?>
+                <tr>
+                    <th>Titulo</th>
+                    <th>Descricao</th>
+                    <th>NF obrigatoria</th>
+                    <th>Status</th>
+                    <th class="text-end">Acoes</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($categories as $category) { ?>
+                    <tr>
+                        <td><?php echo esc($category->title); ?></td>
+                        <td><?php echo esc($category->description); ?></td>
+                        <td><?php echo $category->requires_invoice ? 'Sim' : 'Nao'; ?></td>
+                        <td><?php echo $category->is_active ? 'Ativa' : 'Inativa'; ?></td>
+                        <td class="text-end">
+                            <?php echo anchor(get_uri('travelrefunds/categories?edit_id=' . $category->id), 'Editar', array('class' => 'btn btn-default btn-sm')); ?>
+                            <?php echo form_open(get_uri('travelrefunds/categories/delete/' . $category->id), array('class' => 'd-inline')); ?>
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Excluir esta categoria?');">Excluir</button>
+                            <?php echo form_close(); ?>
+                        </td>
+                    </tr>
+                <?php } ?>
+                <?php if (empty($categories)) { ?>
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">Nenhuma categoria cadastrada.</td>
+                    </tr>
+                <?php } ?>
                 </tbody>
             </table>
         </div>

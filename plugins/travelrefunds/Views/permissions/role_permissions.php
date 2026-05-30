@@ -13,7 +13,7 @@ $travelrefunds_manage_settings = get_array_value($permissions, 'travelrefunds_ma
 
 <li>
     <span data-feather="map" class="icon-14 ml-20"></span>
-    <h5>TravelRefunds</h5>
+    <h5>Gestão de Despesas</h5>
 
     <div>
         <?php echo form_checkbox('travelrefunds_view', '1', $travelrefunds_view ? true : false, "id='travelrefunds_view' class='form-check-input'"); ?>

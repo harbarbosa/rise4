@@ -20,10 +20,24 @@ class Organizador_api extends ResourceController
     protected $Tags_model;
     private $tagsMap = null;
 
-    public function __construct()
+    public function initController(\CodeIgniter\HTTP\RequestInterface $request, \CodeIgniter\HTTP\ResponseInterface $response, \Psr\Log\LoggerInterface $logger)
     {
-        parent::__construct();
+        parent::initController($request, $response, $logger);
+
         helper(array('general', 'date_time'));
+
+        $db = db_connect('default');
+        $settings_table = $db->prefixTable('settings');
+        $settings = $db->table($settings_table)
+            ->select('setting_name, setting_value')
+            ->where('deleted', 0)
+            ->where('type', 'app')
+            ->get()
+            ->getResult();
+
+        foreach ($settings as $setting) {
+            config('Rise')->app_settings_array[$setting->setting_name] = $setting->setting_value;
+        }
 
         $this->Tasks_model = model(My_tasks_model::class);
         $this->Categories_model = model(My_task_categories_model::class);
@@ -339,6 +353,20 @@ class Organizador_api extends ResourceController
         }
 
         return $this->tagsMap;
+    }
+
+    protected function toBool($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return ((int) $value) !== 0;
+        }
+
+        $value = strtolower(trim((string) $value));
+        return in_array($value, array('1', 'true', 'yes', 'on'), true);
     }
 
     private function respondUnauthorized()

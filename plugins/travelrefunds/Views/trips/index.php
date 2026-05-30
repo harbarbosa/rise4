@@ -1,44 +1,38 @@
 <div id="page-content" class="page-wrapper clearfix">
-    <div class="card mb15">
-        <div class="page-title clearfix d-flex justify-content-between align-items-center">
+    <div class="card">
+        <div class="page-title clearfix">
             <h1>Minhas Viagens</h1>
-            <?php if (!empty($can_create)) { ?>
-                <a href="<?php echo get_uri('travelrefunds/trips/new'); ?>" class="btn btn-primary">Nova Viagem</a>
-            <?php } ?>
+            <div class="title-button-group">
+                <?php echo anchor(get_uri('travelrefunds'), '<i data-feather="grid" class="icon-16"></i> Dashboard', array('class' => 'btn btn-default')); ?>
+                <?php echo anchor(get_uri('travelrefunds/reports'), '<i data-feather="bar-chart-2" class="icon-16"></i> Relatorios', array('class' => 'btn btn-default')); ?>
+                <?php echo anchor(get_uri('travelrefunds/approvals'), '<i data-feather="check-circle" class="icon-16"></i> Aprovacoes', array('class' => 'btn btn-default')); ?>
+                <?php if (!empty($can_create)) { ?>
+                    <?php echo modal_anchor(get_uri('travelrefunds/trips/modal_form'), '<i data-feather="plus-circle" class="icon-16"></i> Nova Viagem', array('class' => 'btn btn-primary', 'title' => 'Nova Viagem')); ?>
+                <?php } ?>
+            </div>
         </div>
+    </div>
+
+    <div class="card border-top-0 rounded-top-0">
         <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Titulo</th>
-                        <th>Destino</th>
-                        <th>Periodo</th>
-                        <th>Valor total</th>
-                        <th>Status</th>
-                        <th class="text-end">Acoes</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($trips as $trip) { ?>
-                        <tr>
-                            <td><?php echo esc($trip->title); ?></td>
-                            <td><?php echo esc($trip->destination); ?></td>
-                            <td><?php echo esc(($trip->start_date ?: $trip->departure_date) . ' a ' . ($trip->end_date ?: $trip->return_date)); ?></td>
-                            <td><?php echo travelrefunds_currency($trip->total_amount ?: $trip->estimated_amount); ?></td>
-                            <td><?php echo esc(travelrefunds_status_label($trip->status)); ?></td>
-                            <td class="text-end">
-                                <a href="<?php echo get_uri('travelrefunds/trips/view/' . $trip->id); ?>" class="btn btn-default btn-sm">Abrir</a>
-                                <?php if ($trip->status === 'draft' || $trip->status === 'rejected') { ?>
-                                    <a href="<?php echo get_uri('travelrefunds/trips/view/' . $trip->id . '?edit=1'); ?>" class="btn btn-default btn-sm">Editar</a>
-                                <?php } ?>
-                                <?php echo form_open(get_uri('travelrefunds/trips/delete/' . $trip->id), array('class' => 'd-inline')); ?>
-                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Excluir esta viagem?');">Excluir</button>
-                                <?php echo form_close(); ?>
-                            </td>
-                        </tr>
-                    <?php } ?>
-                </tbody>
-            </table>
+            <table id="travelrefunds-trips-table" class="display" cellspacing="0" width="100%"></table>
         </div>
     </div>
 </div>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $("#travelrefunds-trips-table").appTable({
+            source: "<?php echo_uri('travelrefunds/trips/list_data'); ?>",
+            columns: [
+                {title: "Titulo", "class": "all"},
+                {title: "Destino"},
+                {title: "Projeto"},
+                {title: "Periodo"},
+                {title: "Valor total", "class": "text-end"},
+                {title: "Status"},
+                {title: "<i data-feather='menu' class='icon-16'></i>", "class": "text-center option w140"}
+            ]
+        });
+    });
+</script>

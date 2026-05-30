@@ -95,6 +95,10 @@ if (!function_exists('to_decimal_format')) {
 if (!function_exists('unformat_currency')) {
 
     function unformat_currency($currency = "") {
+        if ($currency === null) {
+            return "";
+        }
+
 // remove everything except a digit "0-9", a comma ",", and a dot "."
         $new_money = preg_replace('/[^\d,-\.]/', '', $currency);
         $decimal_separator = get_setting("decimal_separator");

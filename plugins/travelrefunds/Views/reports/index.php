@@ -17,13 +17,13 @@ $report_data = $report_data ?? array();
                 <?php echo anchor(get_uri('travelrefunds/reports/export-xlsx/category') . '?' . http_build_query($filters), '<i data-feather="download" class="icon-16"></i> Excel Categoria', array('class' => 'btn btn-default')); ?>
             </div>
         </div>
-        <div class="card-body">
+        <div class="card-body border-bottom">
             <p class="text-muted">Os relatorios usam os mesmos filtros do painel principal.</p>
 
             <?php echo form_open(get_uri('travelrefunds/reports'), array('method' => 'get', 'class' => 'general-form')); ?>
                 <div class="row g-2 mb15">
                     <div class="col-md-3">
-                        <select name="employee_id" class="select2" style="width:100%;">
+                        <select name="employee_id" class="form-control select2" style="width:100%;">
                             <option value="">- Funcionario -</option>
                             <?php foreach ($users as $user) { ?>
                                 <option value="<?php echo (int) $user->id; ?>" <?php echo ((int) ($filters['employee_id'] ?? 0) === (int) $user->id) ? 'selected' : ''; ?>>
@@ -33,7 +33,7 @@ $report_data = $report_data ?? array();
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <select name="project_id" class="select2" style="width:100%;">
+                        <select name="project_id" class="form-control select2" style="width:100%;">
                             <option value="">- Projeto -</option>
                             <?php foreach ($projects as $project) { ?>
                                 <option value="<?php echo (int) $project->id; ?>" <?php echo ((int) ($filters['project_id'] ?? 0) === (int) $project->id) ? 'selected' : ''; ?>>
@@ -43,7 +43,7 @@ $report_data = $report_data ?? array();
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <select name="client_id" class="select2" style="width:100%;">
+                        <select name="client_id" class="form-control select2" style="width:100%;">
                             <option value="">- Cliente -</option>
                             <?php foreach ($clients as $client) { ?>
                                 <option value="<?php echo (int) $client->id; ?>" <?php echo ((int) ($filters['client_id'] ?? 0) === (int) $client->id) ? 'selected' : ''; ?>>
@@ -53,7 +53,7 @@ $report_data = $report_data ?? array();
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <select name="category_id" class="select2" style="width:100%;">
+                        <select name="category_id" class="form-control select2" style="width:100%;">
                             <option value="">- Categoria -</option>
                             <?php foreach ($categories as $category) { ?>
                                 <option value="<?php echo (int) $category->id; ?>" <?php echo ((int) ($filters['category_id'] ?? 0) === (int) $category->id) ? 'selected' : ''; ?>>
@@ -69,7 +69,7 @@ $report_data = $report_data ?? array();
                         <input type="date" name="end_date" class="form-control" value="<?php echo esc($filters['end_date'] ?? ''); ?>" />
                     </div>
                     <div class="col-md-3">
-                        <select name="status" class="select2" style="width:100%;">
+                        <select name="status" class="form-control select2" style="width:100%;">
                             <option value="">- Status -</option>
                             <?php foreach ($status_options as $status) { ?>
                                 <option value="<?php echo esc($status); ?>" <?php echo (($filters['status'] ?? '') === $status) ? 'selected' : ''; ?>>
@@ -84,7 +84,9 @@ $report_data = $report_data ?? array();
                     </div>
                 </div>
             <?php echo form_close(); ?>
+        </div>
 
+        <div class="card-body">
             <div class="row">
                 <div class="col-lg-4">
                     <div class="card mb15">
@@ -205,3 +207,9 @@ $report_data = $report_data ?? array();
         </div>
     </div>
 </div>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $(".page-wrapper .select2").select2();
+    });
+</script>

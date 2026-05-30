@@ -2186,8 +2186,9 @@ class ProjectAnalizer extends Security_Controller {
         $schedule_model = new Execution_schedule_model();
         $model_info = $schedule_model->get_one($id);
         $group_rows = array();
+        $is_edit = (bool) $model_info->id;
 
-        if ($model_info->id) {
+        if ($is_edit) {
             $project_id = (int) $model_info->project_id;
             $group_rows = $schedule_model->get_group_rows($model_info->group_key, $model_info->id);
         }
@@ -2203,7 +2204,7 @@ class ProjectAnalizer extends Security_Controller {
         $view_data = array(
             "model_info" => $model_info,
             "selected_project_id" => $project_id,
-            "fixed_project" => $project_id ? true : false,
+            "fixed_project" => !$is_edit && $project_id ? true : false,
             "selected_member_ids" => $group_rows ? array_map(function ($row) {
                 return (string) $row->user_id;
             }, $group_rows) : array(),

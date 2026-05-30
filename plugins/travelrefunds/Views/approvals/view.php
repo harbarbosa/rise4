@@ -20,43 +20,43 @@ $approved_amount_display = isset($trip->approved_amount) ? $trip->approved_amoun
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="text-muted small d-block">Titulo</label>
-                                    <div class="fw-semibold"><?php echo esc($trip->title); ?></div>
+                            <div class="fw-semibold"><?php echo esc($trip->title ?? '-'); ?></div>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="text-muted small d-block">Status</label>
-                                    <div><?php echo esc(travelrefunds_status_label($trip->status)); ?></div>
+                                    <div><?php echo esc(travelrefunds_status_label($trip->status ?? '')); ?></div>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="text-muted small d-block">Funcionario</label>
-                                    <div><?php echo esc($trip->employee_name ?: '-'); ?></div>
+                                    <div><?php echo esc(!empty($trip->employee_name) ? $trip->employee_name : (!empty($trip->employee_title) ? $trip->employee_title : '-')); ?></div>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="text-muted small d-block">Projeto</label>
-                                    <div><?php echo esc($trip->project_title ?: '-'); ?></div>
+                                    <div><?php echo esc($trip->project_title ?? '-'); ?></div>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="text-muted small d-block">Cliente</label>
-                                    <div><?php echo esc($trip->client_name ?: '-'); ?></div>
+                                    <div><?php echo esc($trip->client_name ?? '-'); ?></div>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="text-muted small d-block">Destino</label>
-                                    <div><?php echo esc($trip->destination ?: '-'); ?></div>
+                                    <div><?php echo esc($trip->destination ?? '-'); ?></div>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="text-muted small d-block">Periodo</label>
-                                    <div><?php echo esc(($trip->start_date ?: '-') . ' a ' . ($trip->end_date ?: '-')); ?></div>
+                                    <div><?php echo esc((($trip->start_date ?? '-') ?: '-') . ' a ' . (($trip->end_date ?? '-') ?: '-')); ?></div>
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label class="text-muted small d-block">Funcionario solicitante</label>
-                                    <div><?php echo esc($trip->employee_name ?: '-'); ?></div>
+                                    <div><?php echo esc(!empty($trip->employee_name) ? $trip->employee_name : (!empty($trip->employee_title) ? $trip->employee_title : '-')); ?></div>
                                 </div>
                                 <div class="col-12 mb-3">
                                     <label class="text-muted small d-block">Objetivo</label>
-                                    <div><?php echo nl2br(esc($trip->purpose ?: '-')); ?></div>
+                                    <div><?php echo nl2br(esc($trip->purpose ?? '-')); ?></div>
                                 </div>
                                 <div class="col-12">
                                     <label class="text-muted small d-block">Observacoes</label>
-                                    <div><?php echo nl2br(esc($trip->notes ?: '-')); ?></div>
+                                    <div><?php echo nl2br(esc($trip->notes ?? '-')); ?></div>
                                 </div>
                                 <?php if (!empty($trip->approver_notes) || !empty($trip->rejection_reason)) { ?>
                                     <div class="col-12 mt-3">

@@ -45,7 +45,7 @@ if (!function_exists('travelrefunds_status_label')) {
             'cancelled' => 'Cancelado',
             'planned' => 'Planejada',
             'in_progress' => 'Em andamento',
-            'completed' => 'Concluída',
+            'completed' => 'Concluida',
         );
 
         return get_array_value($labels, $status) ?: ucfirst((string) $status);
@@ -71,11 +71,6 @@ if (!function_exists('travelrefunds_permission_label')) {
 if (!function_exists('travelrefunds_currency')) {
     function travelrefunds_currency($value)
     {
-        $settings_model = model('travelrefunds\\Models\\TravelRefundsSettings_model', false);
-        $currency = $settings_model ? $settings_model->get_setting('travelrefunds_default_currency_symbol') : '';
-        if (!$currency) {
-            $currency = get_setting('default_currency_symbol') ?: '';
-        }
-        return to_currency((float) $value, $currency);
+        return to_currency((float) $value, 'R$');
     }
 }

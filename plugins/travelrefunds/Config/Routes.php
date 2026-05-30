@@ -6,17 +6,28 @@ $routes = Services::routes();
 
 $travelrefunds_namespace = ['namespace' => 'travelrefunds\\Controllers'];
 
-$routes->group('travelrefunds', $travelrefunds_namespace, function ($routes) {
+    $routes->group('travelrefunds', $travelrefunds_namespace, function ($routes) {
     $routes->get('', 'TravelRefunds::index');
+    $routes->get('cities', 'Cities::index');
     $routes->get('trips', 'TravelRefunds::trips');
-    $routes->get('trips/new', 'TravelRefunds::viewTrip');
+    $routes->get('trips/list_data', 'TravelRefunds::list_data');
+    $routes->post('trips/list_data', 'TravelRefunds::list_data');
+    $routes->get('trips/new', 'TravelRefunds::modalTripForm');
+    $routes->post('trips/new', 'TravelRefunds::modalTripForm');
+    $routes->get('trips/modal_form', 'TravelRefunds::modalTripForm');
+    $routes->post('trips/modal_form', 'TravelRefunds::modalTripForm');
     $routes->get('trips/view/(:num)', 'TravelRefunds::viewTrip/$1');
     $routes->post('trips/save', 'TravelRefunds::saveTrip');
+    $routes->post('trips/delete', 'TravelRefunds::deleteTrip');
     $routes->post('trips/delete/(:num)', 'TravelRefunds::deleteTrip/$1');
     $routes->post('trips/save-expense/(:num)', 'TravelRefunds::saveExpense/$1');
     $routes->post('trips/delete-expense/(:num)/(:num)', 'TravelRefunds::deleteExpense/$1/$2');
 
     $routes->get('reimbursements', 'TravelRefunds::reimbursements');
+    $routes->get('reimbursements/list_data', 'TravelRefunds::reimbursementsListData');
+    $routes->post('reimbursements/list_data', 'TravelRefunds::reimbursementsListData');
+    $routes->get('reimbursements/modal_form', 'TravelRefunds::modalReimbursementForm');
+    $routes->post('reimbursements/modal_form', 'TravelRefunds::modalReimbursementForm');
     $routes->post('reimbursements/save', 'TravelRefunds::saveReimbursement');
     $routes->post('reimbursements/delete/(:num)', 'TravelRefunds::deleteReimbursement/$1');
 
