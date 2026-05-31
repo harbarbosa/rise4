@@ -19,11 +19,11 @@ class TravelRefundsController extends ModuleApiController
     public function __construct()
     {
         parent::__construct();
-        $this->tripsModel = model(TravelRefundsTrips_model::class);
-        $this->reimbursementsModel = model(TravelRefundsReimbursements_model::class);
-        $this->categoriesModel = model(TravelRefundsCategories_model::class);
-        $this->approvalsModel = model(TravelRefundsApprovals_model::class);
-        $this->settingsModel = model(TravelRefundsSettings_model::class);
+        $this->tripsModel = new TravelRefundsTrips_model();
+        $this->reimbursementsModel = new TravelRefundsReimbursements_model();
+        $this->categoriesModel = new TravelRefundsCategories_model();
+        $this->approvalsModel = new TravelRefundsApprovals_model();
+        $this->settingsModel = new TravelRefundsSettings_model();
     }
 
     public function dashboard()
