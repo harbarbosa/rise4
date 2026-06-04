@@ -20,6 +20,10 @@ $routes->post('restapi/manage/', 'Api_settings_Controller::save', $rest_api_name
 //for delete Api Users
 $routes->post('restapi/remove/(:num)', 'Api_settings_Controller::delete_user/$1', $rest_api_namespace);
 
+//mobile auth
+$routes->post('api/auth/login', 'AuthController::login', $rest_api_namespace);
+$routes->post('api/auth/logout', 'AuthController::logout', $rest_api_namespace);
+
 //For all kind of api get request
 $routes->group('api', $rest_api_namespace, function ($routes) {
 	$routes->add('client_groups', 'UtilitiesController::getClientGroups');
