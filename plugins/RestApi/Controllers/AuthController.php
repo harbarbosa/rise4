@@ -53,7 +53,6 @@ class AuthController extends ResourceController
         $jwtConfig = new \RestApi\Config\JWT();
         $expiresAt = date('Y-m-d H:i:s', time() + (int) $jwtConfig->token_expire_time);
 
-        $apiUser = $this->apiSettingsModel->get_one_where(['user' => $email]);
         $payload = [
             'user' => $email,
             'name' => $fullName !== '' ? $fullName : $email,
@@ -62,10 +61,10 @@ class AuthController extends ResourceController
             'deleted' => 0,
         ];
 
-        if (!empty($apiUser->id)) {
-            $this->apiSettingsModel->ci_save($payload, (int) $apiUser->id);
-        } else {
-            $this->apiSettingsModel->ci_save($payload);
+        if (!$this->apiSettingsModel->store_login_token($payload)) {
+            log_message('error', 'Unable to persist RestApi login token for user {email}.', [
+                'email' => $email,
+            ]);
         }
 
         return $this->respond([
@@ -88,7 +87,7 @@ class AuthController extends ResourceController
             ]);
         }
 
-        $apiUser = $this->apiSettingsModel->get_one_where(['token' => $token]);
+        $apiUser = $this->apiSettingsModel->get_data_by_token($token);
         if (!empty($apiUser->id)) {
             $this->apiSettingsModel->ci_save([
                 'token' => '',

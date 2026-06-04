@@ -44,7 +44,7 @@ class Api_settings_model extends Crud_model {
 
 	public function check_token($token) {
 		$token = $this->normalize_token($token);
-		$user = $this->get_one_where(['token' => $token]);
+		$user = $this->get_data_by_token($token);
 		if (!empty($user->id)) {
 			$expiration_date = trim((string) $user->expiration_date);
 			if ($expiration_date !== '' && !preg_match('/^1970-01-01(?:\s+00:00:00)?$/', $expiration_date)) {
@@ -60,6 +60,43 @@ class Api_settings_model extends Crud_model {
 		return false;
 	}
 
+	public function get_data_by_token($token) {
+		$token = $this->normalize_token($token);
+		return $this->get_one_where(['token' => $token]);
+	}
+
+	public function get_data_by_user($user) {
+		$user = $this->normalize_user($user);
+		return $this->get_one_where(['user' => $user]);
+	}
+
+	public function store_login_token(array $data) {
+		$user = $this->normalize_user(get_array_value($data, 'user'));
+		$name = trim((string) get_array_value($data, 'name'));
+		$token = $this->normalize_token(get_array_value($data, 'token'));
+		$expiration_date = trim((string) get_array_value($data, 'expiration_date'));
+
+		if ($user === '' || $name === '' || $token === '' || $expiration_date === '') {
+			return false;
+		}
+
+		$payload = [
+			'user' => $user,
+			'name' => $name,
+			'token' => $token,
+			'expiration_date' => $expiration_date,
+		];
+
+		$existing_user = $this->get_data_by_user($user);
+		$builder = $this->db->table($this->table);
+
+		if (!empty($existing_user->id)) {
+			return (bool) $builder->where('id', (int) $existing_user->id)->update($payload);
+		}
+
+		return (bool) $builder->insert($payload);
+	}
+
 	private function normalize_token($token) {
 		$token = (string) $token;
 		$token = trim($token);
@@ -67,6 +104,11 @@ class Api_settings_model extends Crud_model {
 		$token = preg_replace('/^\xEF\xBB\xBF/', '', $token);
 		$token = preg_replace('/[\x00-\x1F\x7F]/u', '', $token);
 		return $token;
+	}
+
+	private function normalize_user($user) {
+		$user = strtolower(trim((string) $user));
+		return $user;
 	}
 
 	public function delete_data($id) {
