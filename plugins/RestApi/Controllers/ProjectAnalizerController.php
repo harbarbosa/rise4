@@ -116,7 +116,12 @@ class ProjectAnalizerController extends ModuleApiController
 
         $filters = $this->taskFilters($projectId);
         $result = $this->tasksModel->get_details($filters);
-        $rows = is_object($result) && method_exists($result, 'getResult') ? $result->getResult() : [];
+        $rows = [];
+        if (is_array($result)) {
+            $rows = $result['data'] ?? [];
+        } elseif (is_object($result) && method_exists($result, 'getResult')) {
+            $rows = $result->getResult();
+        }
         $data = [];
         foreach ($rows as $row) {
             $data[] = $this->formatTaskRow($row);
