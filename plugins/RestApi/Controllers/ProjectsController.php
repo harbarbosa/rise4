@@ -52,7 +52,13 @@ class ProjectsController extends Rest_api_Controller {
 	 * @apiError {String} message No data were found
 	 */
 	public function index() {
-		$list_data = $this->projects_model->get_details()->getResult();
+		$user_id = (int) ($this->request->getGet('user_id') ?? 0);
+		$options = [];
+		if ($user_id > 0) {
+			$options['user_id'] = $user_id;
+		}
+
+		$list_data = $this->projects_model->get_details($options)->getResult();
 		if (empty($list_data)) {
 			return $this->failNotFound(app_lang('no_data_were_found'));
 		}

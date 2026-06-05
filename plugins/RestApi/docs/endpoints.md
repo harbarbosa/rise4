@@ -299,6 +299,10 @@ Routes:
 - `GET /api/projects/search/{key}`
 - `POST /api/projects`
 
+Query params for listing:
+
+- `user_id`: when provided, returns only projects linked to that project member in `project_members`.
+
 Request fields for create:
 
 - Required: `title`, `client_id`, `start_date`
