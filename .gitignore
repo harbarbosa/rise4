@@ -6,3 +6,4 @@ writable/debugbar/*
 node_modules/
 vendor/
 *.zip
+app/Config/activated_plugins.json
