@@ -28,6 +28,11 @@ class PontoRhBaseModel extends Crud_model
 
     protected function queryOrEmpty(string $sql)
     {
-        return $this->hasTable() ? $this->db->query($sql) : $this->emptyResult();
+        if (!$this->hasTable()) {
+            return $this->emptyResult();
+        }
+
+        $result = $this->db->query($sql);
+        return $result ?: $this->emptyResult();
     }
 }

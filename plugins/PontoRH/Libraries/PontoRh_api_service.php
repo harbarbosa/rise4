@@ -152,9 +152,10 @@ class PontoRh_api_service
         $user = $this->user;
         $schedule = $this->shiftsModel->get_active_schedule_for_member((int) $user->id);
         $status = $this->buildCurrentStatus((int) $user->id, $schedule);
-        $last_record = $this->recordsModel->get_details(array(
+        $last_record_result = $this->recordsModel->get_details(array(
             'team_member_id' => (int) $user->id,
-        ))->getRowArray();
+        ));
+        $last_record = $last_record_result ? $last_record_result->getRowArray() : array();
 
         return array(
             'ok' => true,
@@ -200,11 +201,12 @@ class PontoRh_api_service
         }
 
         $today = date('Y-m-d');
-        $rows = $this->recordsModel->get_details(array(
+        $rows_result = $this->recordsModel->get_details(array(
             'team_member_id' => (int) $this->user->id,
             'date_from' => $today,
             'date_to' => $today,
-        ))->getResultArray();
+        ));
+        $rows = $rows_result ? $rows_result->getResultArray() : array();
 
         $data = array();
         foreach ($rows as $row) {
@@ -827,11 +829,12 @@ class PontoRh_api_service
             $schedule = $this->shiftsModel->get_active_schedule_for_member($team_member_id);
         }
 
-        $rows = $this->recordsModel->get_details(array(
+        $rows_result = $this->recordsModel->get_details(array(
             'team_member_id' => $team_member_id,
             'date_from' => $today,
             'date_to' => $today,
-        ))->getResult();
+        ));
+        $rows = $rows_result ? $rows_result->getResult() : array();
 
         $summary = $this->summarizeDayRecords($today, $rows, $schedule, true);
         $summary['last_record'] = !empty($rows) ? $this->mapRecordObject(reset($rows)) : null;
