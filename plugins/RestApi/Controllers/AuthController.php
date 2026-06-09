@@ -6,6 +6,7 @@ use App\Models\Users_model;
 use CodeIgniter\API\ResponseTrait;
 use CodeIgniter\RESTful\ResourceController;
 use RestApi\Models\Api_settings_model;
+use PontoRH\Libraries\PontoRh_api_service;
 
 #[\AllowDynamicProperties]
 class AuthController extends ResourceController
@@ -29,10 +30,18 @@ class AuthController extends ResourceController
         $password = (string) $this->request->getPost('password');
 
         if ($email === '' || $password === '') {
+            $this->logPontoRhAuthFailure('Email and password are required.', array(
+                'email' => $email,
+                'ip_address' => $this->request->getIPAddress(),
+            ));
             return $this->failValidationErrors('Email and password are required.');
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->logPontoRhAuthFailure('A valid email is required.', array(
+                'email' => $email,
+                'ip_address' => $this->request->getIPAddress(),
+            ));
             return $this->failValidationErrors('A valid email is required.');
         }
 
@@ -45,6 +54,10 @@ class AuthController extends ResourceController
         ]);
 
         if (!$this->isValidPassword($user, $password)) {
+            $this->logPontoRhAuthFailure('Authentication failed.', array(
+                'email' => $email,
+                'ip_address' => $this->request->getIPAddress(),
+            ));
             return $this->failUnauthorized('Authentication failed.');
         }
 
@@ -66,6 +79,11 @@ class AuthController extends ResourceController
                 'email' => $email,
             ]);
         }
+
+        $this->logPontoRhLogin((int) $user->id, array(
+            'email' => $email,
+            'ip_address' => $this->request->getIPAddress(),
+        ));
 
         return $this->respond([
             'status' => true,
@@ -142,5 +160,25 @@ class AuthController extends ResourceController
             'status' => (string) ($user->status ?? ''),
             'is_admin' => (int) ($user->is_admin ?? 0),
         ];
+    }
+
+    protected function logPontoRhLogin(int $user_id, array $payload = array()): void
+    {
+        try {
+            $service = new PontoRh_api_service();
+            $service->auditEvent('login_api', 'Authentication successful.', $payload, 'logged', 'auth', null, $user_id);
+        } catch (\Throwable $e) {
+            log_message('error', '[PontoRH] Unable to log API login: {message}', ['message' => $e->getMessage()]);
+        }
+    }
+
+    protected function logPontoRhAuthFailure(string $message, array $payload = array()): void
+    {
+        try {
+            $service = new PontoRh_api_service();
+            $service->logAuthAttempt('auth_failure', $message, $payload, 'invalid');
+        } catch (\Throwable $e) {
+            log_message('error', '[PontoRH] Unable to log API auth failure: {message}', ['message' => $e->getMessage()]);
+        }
     }
 }

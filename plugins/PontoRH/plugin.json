@@ -1,0 +1,7 @@
+{
+  "name": "PontoRH",
+  "description": "Modulo de controle de ponto integrado ao RiseCRM com registros, jornadas, ajustes, espelho e relatorios.",
+  "version": "0.1.0",
+  "requires_at_least": "3.9.0",
+  "author": "Internal"
+}

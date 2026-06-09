@@ -1,0 +1,107 @@
+<?php
+$adjustment = $adjustment ?? (object) array();
+?>
+<div class="modal-body clearfix">
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted"><?php echo app_lang('pontorh_employee'); ?></div>
+                    <div class="font-18 fw-bold"><?php echo esc($adjustment->team_member_name ?: '-'); ?></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted"><?php echo app_lang('pontorh_work_date'); ?></div>
+                    <div class="font-18 fw-bold"><?php echo esc($adjustment->adjustment_date ?: '-'); ?></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted"><?php echo app_lang('pontorh_adjustment_time'); ?></div>
+            <div class="font-18 fw-bold"><?php echo esc($adjustment->adjustment_time ? pontorh_extract_time($adjustment->adjustment_time) : '-'); ?></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted"><?php echo app_lang('pontorh_type'); ?></div>
+                    <div class="font-18 fw-bold"><?php echo esc(pontorh_adjustment_type_label($adjustment->adjustment_type ?? '')); ?></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted"><?php echo app_lang('pontorh_status'); ?></div>
+                    <div class="font-18 fw-bold"><span class="badge bg-secondary"><?php echo esc(pontorh_adjustment_status_label($adjustment->status ?? '')); ?></span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted"><?php echo app_lang('created_by'); ?></div>
+                    <div class="font-18 fw-bold"><?php echo esc($adjustment->creator_name ?: '-'); ?></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-12">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted"><?php echo app_lang('pontorh_adjustment_justification'); ?></div>
+                    <div class="mt-2"><?php echo nl2br(esc($adjustment->reason ?: '-')); ?></div>
+                </div>
+            </div>
+        </div>
+
+        <?php if (!empty($adjustment->reviewed_by) || !empty($adjustment->reviewed_at)) { ?>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="text-muted"><?php echo app_lang('pontorh_adjustment_review'); ?></div>
+                        <div class="font-18 fw-bold"><?php echo esc($adjustment->reviewer_name ?: '-'); ?></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="text-muted"><?php echo app_lang('updated_at'); ?></div>
+                        <div class="font-18 fw-bold"><?php echo esc($adjustment->reviewed_at ? format_to_datetime($adjustment->reviewed_at) : '-'); ?></div>
+                    </div>
+                </div>
+            </div>
+        <?php } ?>
+    </div>
+</div>
+
+<?php if ($can_approve && ($adjustment->status ?? '') === 'pending') { ?>
+    <?php echo form_open(get_uri('pontorh/ajustes/review'), array('id' => 'pontorh-adjustment-review-form', 'class' => 'general-form', 'role' => 'form')); ?>
+    <?php echo form_hidden('id', (string) ($adjustment->id ?? '')); ?>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-bs-dismiss="modal"><?php echo app_lang('close'); ?></button>
+        <button type="submit" name="decision" value="rejected" class="btn btn-danger"><?php echo app_lang('pontorh_adjustment_reject'); ?></button>
+        <button type="submit" name="decision" value="approved" class="btn btn-success"><?php echo app_lang('pontorh_adjustment_approve'); ?></button>
+    </div>
+    <?php echo form_close(); ?>
+
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $("#pontorh-adjustment-review-form").appForm({
+                onSuccess: function () {
+                    $("#pontorh-adjustments-table").appTable({reload: true});
+                }
+            });
+        });
+    </script>
+<?php } else { ?>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-bs-dismiss="modal"><?php echo app_lang('close'); ?></button>
+    </div>
+<?php } ?>

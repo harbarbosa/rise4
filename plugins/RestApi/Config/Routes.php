@@ -21,8 +21,17 @@ $routes->post('restapi/manage/', 'Api_settings_Controller::save', $rest_api_name
 $routes->post('restapi/remove/(:num)', 'Api_settings_Controller::delete_user/$1', $rest_api_namespace);
 
 //mobile auth
-$routes->post('api/auth/login', 'AuthController::login', $rest_api_namespace);
-$routes->post('api/auth/logout', 'AuthController::logout', $rest_api_namespace);
+	$routes->post('api/auth/login', 'AuthController::login', $rest_api_namespace);
+	$routes->post('api/auth/logout', 'AuthController::logout', $rest_api_namespace);
+	$routes->get('api/pontorh/me', 'PontoRhController::me', $rest_api_namespace);
+	$routes->get('api/pontorh/status', 'PontoRhController::status', $rest_api_namespace);
+	$routes->post('api/pontorh/checkin', 'PontoRhController::checkin', $rest_api_namespace);
+	$routes->get('api/pontorh/today', 'PontoRhController::today', $rest_api_namespace);
+	$routes->get('api/pontorh/month', 'PontoRhController::month', $rest_api_namespace);
+	$routes->get('api/pontorh/history', 'PontoRhController::history', $rest_api_namespace);
+	$routes->match(['GET', 'POST'], 'api/pontorh/adjustments', 'PontoRhController::adjustments', $rest_api_namespace);
+	$routes->post('api/pontorh/device/register', 'PontoRhController::registerDevice', $rest_api_namespace);
+	$routes->get('api/pontorh/dashboard', 'PontoRhController::dashboard', $rest_api_namespace);
 
 //For all kind of api get request
 $routes->group('api', $rest_api_namespace, function ($routes) {

@@ -11,10 +11,12 @@ class Rest_api_Controller extends ResourceController {
 	protected $format = 'json';
 	protected $api_settings_model;
 	protected $api_user;
+	protected $token_error_message = 'Token not found';
 
 	public function __construct() {
 		$this->api_settings_model = model('RestApi\Models\Api_settings_model');
 		helper('jwt');
+		$request_path = strtolower(trim((string) service('request')->getUri()->getPath(), '/'));
 
 		$token          = get_token();
 		$check_token    = $this->api_settings_model->check_token($token);
@@ -23,12 +25,21 @@ class Rest_api_Controller extends ResourceController {
 		}
 
 		if ($check_token === false) {
+			if ($this->isPontoRhRequest($request_path)) {
+				$this->logPontoRhAuthFailure($this->token_error_message, array(
+					'path' => $request_path,
+					'token' => $token !== 'Token is not defined.' ? $token : null,
+				));
+			}
+
 			$message = [
 				'status'  => false,
-				'message' => "Token not found"
+				'message' => $this->token_error_message
 			];
 			$this->response = service('response');
-			echo $this->format($message);
+			$this->response->setStatusCode(401);
+			$this->response->setJSON($message);
+			echo $this->response->getBody();
 			die;
 		}
 
@@ -38,6 +49,7 @@ class Rest_api_Controller extends ResourceController {
 	protected function resolveTokenFromJwt(string $token) {
 		$validated = validateToken();
 		if (($validated['status'] ?? false) !== true) {
+			$this->token_error_message = (string) ($validated['message'] ?? 'Token not found');
 			return false;
 		}
 
@@ -48,6 +60,7 @@ class Rest_api_Controller extends ResourceController {
 
 		$email = strtolower(trim((string) ($decoded->email ?? '')));
 		if ($email === '') {
+			$this->token_error_message = 'Token not found';
 			return false;
 		}
 
@@ -61,6 +74,7 @@ class Rest_api_Controller extends ResourceController {
 		]);
 
 		if (empty($staff_user->id)) {
+			$this->token_error_message = 'Token not found';
 			return false;
 		}
 
@@ -73,6 +87,7 @@ class Rest_api_Controller extends ResourceController {
 				return $api_user;
 			}
 
+			$this->token_error_message = 'Token not found';
 			return false;
 		}
 
@@ -85,10 +100,24 @@ class Rest_api_Controller extends ResourceController {
 		]);
 
 		if (!$stored) {
+			$this->token_error_message = 'Token not found';
 			return false;
 		}
 
 		return $this->api_settings_model->get_data_by_token($normalized_token);
+	}
+
+	protected function isPontoRhRequest(string $request_path): bool {
+		return str_starts_with($request_path, 'api/pontorh');
+	}
+
+	protected function logPontoRhAuthFailure(string $message, array $payload = array()): void {
+		try {
+			$service = new \PontoRH\Libraries\PontoRh_api_service();
+			$service->logAuthAttempt('auth_failure', $message, $payload, 'invalid');
+		} catch (\Throwable $e) {
+			log_message('error', '[PontoRH] Unable to log auth failure: {message}', ['message' => $e->getMessage()]);
+		}
 	}
 }
 

@@ -726,7 +726,365 @@ On error, the response may also include:
 
 If the selected endpoint declares path parameters, they must be supplied as query-string values to the proxy route.
 
-## 15. Practical notes
+## 15. PontoRH mobile API
+
+The mobile integration for `PontoRH` uses the existing `RestApi` authentication layer.
+
+- Header: `authtoken` or `Authorization: Bearer <token>`
+- No custom token, JWT, or login flow is created inside `PontoRH`
+- Every request is routed through `plugins/RestApi`
+- Business rules live in `plugins/PontoRH/Libraries/PontoRh_api_service.php`
+- Audit events are written to `pontorh_audit_logs`
+
+Routes:
+
+- `GET /api/pontorh/me`
+- `GET /api/pontorh/status`
+- `POST /api/pontorh/checkin`
+- `GET /api/pontorh/today`
+- `GET /api/pontorh/month`
+- `GET /api/pontorh/history`
+- `GET,POST /api/pontorh/adjustments`
+- `POST /api/pontorh/device/register`
+- `GET /api/pontorh/dashboard`
+
+### Common error payloads
+
+```json
+{
+  "status": false,
+  "message": "Token not found"
+}
+```
+
+```json
+{
+  "status": false,
+  "message": "Forbidden."
+}
+```
+
+```json
+{
+  "status": false,
+  "message": "GPS coordinates are required."
+}
+```
+
+HTTP codes used by the mobile API:
+
+- `200` success
+- `201` created
+- `400` bad request
+- `401` unauthorized
+- `403` forbidden
+- `404` not found
+- `422` validation error
+- `500` server error
+
+### `GET /api/pontorh/me`
+
+Returns the authenticated employee profile, linked schedule and latest punch.
+
+Response example:
+
+```json
+{
+  "status": true,
+  "resource": "pontorh_me",
+  "data": {
+    "id": 15,
+    "team_member_id": 15,
+    "name": "Maria Silva",
+    "job_title": "Assistente",
+    "photo": "avatar.png",
+    "role": "Operações",
+    "work_schedule": {
+      "id": 3,
+      "name": "Comercial",
+      "schedule_type": "comercial",
+      "start_time": "08:00",
+      "end_time": "18:00",
+      "break_minutes": 60,
+      "tolerance_minutes": 10,
+      "extra_tolerance_minutes": 0,
+      "bank_hours": 0,
+      "active": 1
+    },
+    "current_status": "em_trabalho",
+    "last_record": {
+      "id": 99,
+      "punch_type": "in",
+      "punch_time": "2026-06-05 08:01:00"
+    }
+  }
+}
+```
+
+### `GET /api/pontorh/status`
+
+Returns the employee status for the current day.
+
+Response example:
+
+```json
+{
+  "status": true,
+  "resource": "pontorh_status",
+  "data": {
+    "status": "em_trabalho",
+    "entry_recorded_at": "08:01",
+    "interval_started_at": null,
+    "interval_finished_at": null,
+    "exit_recorded_at": null,
+    "worked_minutes": 252,
+    "worked_hours": "04:12",
+    "remaining_minutes": 288,
+    "remaining_hours": "04:48",
+    "bank_minutes": 90,
+    "bank_hours": "01:30",
+    "extra_minutes": 0,
+    "extra_hours": "00:00",
+    "late_minutes": 0,
+    "late_hours": "00:00",
+    "entries": ["08:01"],
+    "exits": [],
+    "next_expected_action": "saida_intervalo"
+  }
+}
+```
+
+### `POST /api/pontorh/checkin`
+
+Registers a punch using the existing RestApi token.
+
+Payload:
+
+```json
+{
+  "type": "entrada",
+  "latitude": "-21.794",
+  "longitude": "-48.175",
+  "device_id": "ABC123",
+  "device_name": "Samsung A55",
+  "battery_level": 80
+}
+```
+
+Allowed `type` values:
+
+- `entrada`
+- `saida_intervalo`
+- `retorno_intervalo`
+- `saida`
+
+Success response:
+
+```json
+{
+  "status": true,
+  "message": "Punch recorded successfully.",
+  "id": 123,
+  "data": {
+    "id": 123,
+    "type": "entrada",
+    "time": "08:01",
+    "date": "2026-06-05",
+    "location": "Matriz",
+    "source": "mobile_app",
+    "status": "pending",
+    "latitude": "-21.794",
+    "longitude": "-48.175",
+    "team_member_name": "Maria Silva"
+  }
+}
+```
+
+### `GET /api/pontorh/today`
+
+Returns all punches for the authenticated employee on the current day.
+
+Response example:
+
+```json
+{
+  "status": true,
+  "resource": "pontorh_today",
+  "count": 2,
+  "data": [
+    {
+      "id": 123,
+      "type": "entrada",
+      "time": "08:01",
+      "date": "2026-06-05",
+      "latitude": "-21.794",
+      "longitude": "-48.175",
+      "status": "pending",
+      "source": "mobile_app"
+    },
+    {
+      "id": 124,
+      "type": "saida_intervalo",
+      "time": "12:00",
+      "date": "2026-06-05",
+      "latitude": "-21.794",
+      "longitude": "-48.175",
+      "status": "pending",
+      "source": "mobile_app"
+    }
+  ]
+}
+```
+
+### `GET /api/pontorh/month`
+
+Parameters:
+
+- `month`
+- `year`
+
+Response example:
+
+```json
+{
+  "status": true,
+  "resource": "pontorh_month",
+  "month": 6,
+  "year": 2026,
+  "summary": {
+    "days_worked": 20,
+    "worked_minutes": 9600,
+    "worked_hours": "160:00",
+    "overtime_minutes": 180,
+    "overtime_hours": "03:00",
+    "bank_minutes": 90,
+    "bank_hours": "01:30",
+    "absences": 2,
+    "late_minutes": 15,
+    "late_hours": "00:15"
+  },
+  "data": []
+}
+```
+
+### `GET /api/pontorh/history`
+
+Parameters:
+
+- `start_date`
+- `end_date`
+
+Response example:
+
+```json
+{
+  "status": true,
+  "resource": "pontorh_history",
+  "count": 10,
+  "data": []
+}
+```
+
+### `GET /api/pontorh/adjustments`
+
+Returns adjustment requests for the authenticated employee.
+
+Response example:
+
+```json
+{
+  "status": true,
+  "resource": "pontorh_adjustments",
+  "count": 1,
+  "data": [
+    {
+      "id": 44,
+      "date": "2026-06-05",
+      "requested_time": "08:00",
+      "requested_type": "entrada",
+      "reason": "Esqueci de registrar a entrada.",
+      "status": "pending",
+      "approver": ""
+    }
+  ]
+}
+```
+
+### `POST /api/pontorh/adjustments`
+
+Creates a pending adjustment request.
+
+Payload:
+
+```json
+{
+  "record_date": "2026-06-05",
+  "requested_time": "08:00",
+  "requested_type": "entrada",
+  "reason": "Esqueci de registrar a entrada."
+}
+```
+
+Success response:
+
+```json
+{
+  "status": true,
+  "message": "Adjustment request created successfully.",
+  "id": 44,
+  "data": {}
+}
+```
+
+### `POST /api/pontorh/device/register`
+
+Registers the current device for the authenticated employee.
+
+Payload:
+
+```json
+{
+  "device_id": "ABC123",
+  "device_name": "Samsung A55",
+  "platform": "Android",
+  "app_version": "1.0.0"
+}
+```
+
+Success response:
+
+```json
+{
+  "status": true,
+  "message": "Device registered successfully.",
+  "id": 12,
+  "data": {}
+}
+```
+
+### `GET /api/pontorh/dashboard`
+
+Returns the payload used by the mobile home screen.
+
+Response example:
+
+```json
+{
+  "status": true,
+  "resource": "pontorh_dashboard",
+  "data": {
+    "status": "em_trabalho",
+    "worked_hours": "04:30",
+    "remaining_hours": "04:30",
+    "bank_hours": "01:15",
+    "pending_adjustments": 1,
+    "next_expected_action": "saida_intervalo",
+    "last_record": {}
+  }
+}
+```
+
+## 16. Practical notes
 
 - The generic `/api/{resource}` surface is the most flexible endpoint family.
 - The specific controllers (`clients`, `leads`, `projects`, `tickets`, `invoices`) have explicit validation and are safer when you need stable business rules.
