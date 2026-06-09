@@ -23,7 +23,7 @@ class PontoRhBaseModel extends Crud_model
 
     protected function emptyResult()
     {
-        return $this->db->query('SELECT 1 AS empty_result WHERE 1 = 0');
+        return $this->db->query('SELECT 1 AS empty_result FROM (SELECT 1) AS tmp WHERE 1 = 0');
     }
 
     protected function queryOrEmpty(string $sql)
