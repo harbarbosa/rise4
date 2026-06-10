@@ -146,7 +146,7 @@ class PontoRH_records extends PontoRH_Base_Controller
                 'id' => 0,
                 'team_member_id' => '',
                 'location_id' => '',
-                'date' => date('Y-m-d'),
+                'date' => get_my_local_time('Y-m-d'),
                 'punch_time' => get_my_local_time('H:i'),
                 'punch_type' => '',
                 'source' => 'manual',
@@ -196,7 +196,7 @@ class PontoRH_records extends PontoRH_Base_Controller
             $requested_team_member_id = (int) $this->login_user->id;
         }
 
-        $record_date = $this->service->normalizeDate($this->request->getPost('date')) ?: date('Y-m-d');
+        $record_date = $this->service->normalizeDate($this->request->getPost('date')) ?: get_my_local_time('Y-m-d');
         $punch_time_value = trim((string) $this->request->getPost('punch_time'));
         $punch_time = $this->combineDateTime($record_date, $punch_time_value);
         $requested_punch_type = clean_data($this->request->getPost('punch_type'));

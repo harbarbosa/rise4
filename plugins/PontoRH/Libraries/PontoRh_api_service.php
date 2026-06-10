@@ -274,7 +274,7 @@ class PontoRh_api_service
             return $auth;
         }
 
-        $today = date('Y-m-d');
+        $today = get_my_local_time('Y-m-d');
         $rows_result = $this->recordsModel->get_details(array(
             'team_member_id' => (int) $this->user->id,
             'date_from' => $today,
@@ -434,7 +434,7 @@ class PontoRh_api_service
             return array('ok' => false, 'code' => 422, 'status' => false, 'message' => 'Selfie is required.');
         }
 
-        $today = date('Y-m-d');
+        $today = get_my_local_time('Y-m-d');
         $schedule = $this->shiftsModel->get_active_schedule_for_member((int) $this->user->id);
         if (!$schedule) {
             $this->auditEvent('invalid_attempt', 'No active schedule found.', array('payload' => $payload), 'invalid', 'checkin');
@@ -513,7 +513,7 @@ class PontoRh_api_service
             'location_id' => $matched_location ? (int) $matched_location->id : null,
         ), 'logged', 'record', $record_id);
 
-        $this->refreshMonthlySummary((int) $this->user->id, (int) date('Y'), (int) date('n'));
+        $this->refreshMonthlySummary((int) $this->user->id, (int) get_my_local_time('Y'), (int) get_my_local_time('n'));
 
         return array(
             'ok' => true,

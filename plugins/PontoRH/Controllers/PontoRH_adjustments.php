@@ -104,7 +104,7 @@ class PontoRH_adjustments extends PontoRH_Base_Controller
             $view_data['model_info'] = (object) array(
                 'id' => 0,
                 'team_member_id' => '',
-                'request_date' => date('Y-m-d'),
+                'request_date' => get_my_local_time('Y-m-d'),
                 'requested_time' => get_my_local_time('H:i'),
                 'adjustment_type' => 'in',
                 'reason' => '',
@@ -154,7 +154,7 @@ class PontoRH_adjustments extends PontoRH_Base_Controller
             $requested_team_member_id = (int) $this->login_user->id;
         }
 
-        $request_date = $this->service->normalizeDate($this->request->getPost('request_date')) ?: date('Y-m-d');
+        $request_date = $this->service->normalizeDate($this->request->getPost('request_date')) ?: get_my_local_time('Y-m-d');
         $requested_time = trim((string) $this->request->getPost('requested_time'));
         $requested_datetime = $this->combineDateTime($request_date, $requested_time);
         $status = 'pending';
