@@ -89,6 +89,12 @@ class PontoRh_api_service
 
     protected function formatLocalTimeValue($date_time): string
     {
+        if (function_exists('pontorh_convert_utc_to_local')) {
+            $date_time = pontorh_convert_utc_to_local($date_time);
+        } elseif (function_exists('convert_date_utc_to_local') && is_date_exists($date_time)) {
+            $date_time = convert_date_utc_to_local($date_time);
+        }
+
         return pontorh_extract_time($date_time);
     }
 
@@ -104,11 +110,13 @@ class PontoRh_api_service
         }
 
         try {
-            if (function_exists('convert_date_utc_to_local') && is_date_exists($date_time)) {
+            if (function_exists('pontorh_convert_utc_to_local') && is_date_exists($date_time)) {
+                $date_time = pontorh_convert_utc_to_local($date_time);
+            } elseif (function_exists('convert_date_utc_to_local') && is_date_exists($date_time)) {
                 $date_time = convert_date_utc_to_local($date_time);
             }
 
-            $timezone = new \DateTimeZone(get_setting('timezone') ?: (date_default_timezone_get() ?: 'UTC'));
+            $timezone = new \DateTimeZone(pontorh_timezone_name());
             $date = new \DateTime($date_time, $timezone);
             return $date->getTimestamp();
         } catch (\Throwable $e) {
@@ -256,7 +264,7 @@ class PontoRh_api_service
                 'role' => (string) ($this->context['role_title'] ?? ''),
                 'work_schedule' => $schedule ? $this->normalizeSchedule($schedule) : null,
                 'current_status' => $status['status'],
-                'last_record' => $last_record ?: null,
+                'last_record' => $last_record ? $this->mapRecordRow($last_record) : null,
             ),
         );
     }

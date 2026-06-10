@@ -139,6 +139,55 @@ if (!function_exists('pontorh_safe_json')) {
     }
 }
 
+if (!function_exists('pontorh_timezone_name')) {
+    function pontorh_timezone_name()
+    {
+        $timezone = trim((string) get_setting('timezone'));
+
+        if ($timezone !== '') {
+            try {
+                new DateTimeZone($timezone);
+                return $timezone;
+            } catch (Throwable $e) {
+                // Fall through to the next source.
+            }
+        }
+
+        if (function_exists('app_timezone')) {
+            $timezone = trim((string) app_timezone());
+            if ($timezone !== '') {
+                try {
+                    new DateTimeZone($timezone);
+                    return $timezone;
+                } catch (Throwable $e) {
+                    // Fall through to the final fallback.
+                }
+            }
+        }
+
+        return 'America/Sao_Paulo';
+    }
+}
+
+if (!function_exists('pontorh_convert_utc_to_local')) {
+    function pontorh_convert_utc_to_local($date_time, $format = 'Y-m-d H:i:s')
+    {
+        $date_time = trim((string) $date_time);
+        if ($date_time === '') {
+            return '';
+        }
+
+        try {
+            $date = new DateTime($date_time, new DateTimeZone('UTC'));
+            $date->setTimezone(new DateTimeZone(pontorh_timezone_name()));
+            return $date->format($format);
+        } catch (Throwable $e) {
+            $timestamp = strtotime($date_time);
+            return $timestamp ? date($format, $timestamp) : $date_time;
+        }
+    }
+}
+
 if (!function_exists('pontorh_extract_time')) {
     function pontorh_extract_time($date_time)
     {
@@ -147,8 +196,8 @@ if (!function_exists('pontorh_extract_time')) {
             return '';
         }
 
-        if (function_exists('is_date_exists') && is_date_exists($date_time) && function_exists('convert_date_utc_to_local')) {
-            $date_time = convert_date_utc_to_local($date_time);
+        if (function_exists('is_date_exists') && is_date_exists($date_time)) {
+            $date_time = pontorh_convert_utc_to_local($date_time);
         }
 
         if (preg_match('/\b(\d{2}:\d{2})(?::\d{2})?\b/', $date_time, $matches)) {
