@@ -340,14 +340,13 @@ class PontoRh_api_service
             return $auth;
         }
 
-        $type = strtolower(trim((string) $this->arrayValue($payload, 'type', '')));
+        $requested_type = strtolower(trim((string) $this->arrayValue($payload, 'type', '')));
         $latitude = trim((string) $this->arrayValue($payload, 'latitude', ''));
         $longitude = trim((string) $this->arrayValue($payload, 'longitude', ''));
         $device_id = trim((string) $this->arrayValue($payload, 'device_id', ''));
         $device_name = trim((string) $this->arrayValue($payload, 'device_name', ''));
         $battery_level = $this->arrayValue($payload, 'battery_level', null);
 
-        $allowed = array('entrada', 'saida_intervalo', 'retorno_intervalo', 'saida');
         $type_map = array(
             'entrada' => 'in',
             'saida_intervalo' => 'lunch_out',
@@ -374,11 +373,10 @@ class PontoRh_api_service
             'date_from' => $today,
             'date_to' => $today,
         ))->getNumRows();
-        $type = $this->normalizePunchType($type, $existing_count);
-
-        if (!$this->isSequenceValid((int) $this->user->id, $type)) {
-            $this->auditEvent('invalid_attempt', 'Invalid punch sequence.', array('payload' => $payload), 'invalid', 'checkin');
-            return array('ok' => false, 'code' => 422, 'status' => false, 'message' => 'Invalid punch sequence.');
+        $expected_type = $this->punchTypeSequence($existing_count);
+        $type = $expected_type;
+        if ($requested_type !== '' && in_array($requested_type, array('entrada', 'saida_intervalo', 'retorno_intervalo', 'saida'), true)) {
+            $type = $expected_type;
         }
 
         $device = null;
