@@ -448,6 +448,7 @@ register_installation_hook("ProjectAnalizer", function ($item_purchase_code) {
             `project_id` INT(11) NOT NULL,
             `group_key` VARCHAR(50) NULL DEFAULT NULL,
             `user_id` INT(11) NOT NULL,
+            `leader_id` INT(11) NULL DEFAULT NULL,
             `start_date` DATE NOT NULL,
             `end_date` DATE NOT NULL,
             `status` VARCHAR(25) NOT NULL DEFAULT 'planned',
@@ -459,7 +460,8 @@ register_installation_hook("ProjectAnalizer", function ($item_purchase_code) {
             PRIMARY KEY (`id`),
             INDEX `idx_pa_execution_schedule_group_key` (`group_key`),
             INDEX `idx_pa_execution_schedule_project_date` (`project_id`, `start_date`, `end_date`),
-            INDEX `idx_pa_execution_schedule_user_date` (`user_id`, `start_date`, `end_date`)
+            INDEX `idx_pa_execution_schedule_user_date` (`user_id`, `start_date`, `end_date`),
+            INDEX `idx_pa_execution_schedule_leader_date` (`leader_id`, `start_date`, `end_date`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
    
     });
@@ -716,6 +718,7 @@ register_update_hook("ProjectAnalizer", function () {
         `project_id` INT(11) NOT NULL,
         `group_key` VARCHAR(50) NULL DEFAULT NULL,
         `user_id` INT(11) NOT NULL,
+        `leader_id` INT(11) NULL DEFAULT NULL,
         `start_date` DATE NOT NULL,
         `end_date` DATE NOT NULL,
         `status` VARCHAR(25) NOT NULL DEFAULT 'planned',
@@ -727,7 +730,8 @@ register_update_hook("ProjectAnalizer", function () {
         PRIMARY KEY (`id`),
         INDEX `idx_pa_execution_schedule_group_key` (`group_key`),
         INDEX `idx_pa_execution_schedule_project_date` (`project_id`, `start_date`, `end_date`),
-        INDEX `idx_pa_execution_schedule_user_date` (`user_id`, `start_date`, `end_date`)
+        INDEX `idx_pa_execution_schedule_user_date` (`user_id`, `start_date`, `end_date`),
+        INDEX `idx_pa_execution_schedule_leader_date` (`leader_id`, `start_date`, `end_date`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     $messages[] = "Ensured projectanalizer_execution_schedule";
 
@@ -736,6 +740,13 @@ register_update_hook("ProjectAnalizer", function () {
         $db->query("ALTER TABLE `" . $dbprefix . "projectanalizer_execution_schedule` ADD COLUMN `group_key` VARCHAR(50) NULL DEFAULT NULL AFTER `project_id`;");
         $db->query("ALTER TABLE `" . $dbprefix . "projectanalizer_execution_schedule` ADD INDEX `idx_pa_execution_schedule_group_key` (`group_key`);");
         $messages[] = "Added projectanalizer_execution_schedule.group_key";
+    }
+
+    $execution_schedule_leader_id = $db->query("SHOW COLUMNS FROM `" . $dbprefix . "projectanalizer_execution_schedule` LIKE 'leader_id'")->getRow();
+    if (!$execution_schedule_leader_id) {
+        $db->query("ALTER TABLE `" . $dbprefix . "projectanalizer_execution_schedule` ADD COLUMN `leader_id` INT(11) NULL DEFAULT NULL AFTER `user_id`;");
+        $db->query("ALTER TABLE `" . $dbprefix . "projectanalizer_execution_schedule` ADD INDEX `idx_pa_execution_schedule_leader_date` (`leader_id`, `start_date`, `end_date`);");
+        $messages[] = "Added projectanalizer_execution_schedule.leader_id";
     }
 
     // Garantir colunas de compatibilidade (soft delete) e defaults, caso as tabelas já existam.

@@ -35,6 +35,19 @@ echo form_hidden("id", (string) $model_info->id);
 
         <div class="form-group">
             <div class="row">
+                <label for="leader_id" class="col-md-3"><?php echo app_lang("execution_schedule_leader"); ?></label>
+                <div class="col-md-9">
+                    <?php
+                    $leader_options = array("" => "- " . app_lang("member") . " -") + $members_dropdown;
+                    echo form_dropdown("leader_id", $leader_options, $selected_leader_id ? $selected_leader_id : "", "class='form-control select2' id='leader_id' data-rule-required='true' data-msg-required='" . app_lang("field_required") . "'");
+                    ?>
+                    <small class="text-muted"><?php echo app_lang("execution_schedule_leader_help"); ?></small>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="row">
                 <label for="start_date" class="col-md-3"><?php echo app_lang("start_date"); ?></label>
                 <div class="col-md-9">
                     <?php

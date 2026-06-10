@@ -225,7 +225,15 @@ class ProjectAnalizerController extends ModuleApiController
 		$rows = is_object($result) && method_exists($result, 'getResult') ? $result->getResult() : [];
 		$data = [];
 		foreach ($rows as $row) {
-			$data[] = $this->formatExecutionScheduleRow($row);
+			$groupRows = [];
+			if (!empty($row->group_key)) {
+				$groupRows = $this->executionScheduleModel->get_group_rows($row->group_key, $row->id, true);
+			}
+			if (!$groupRows) {
+				$groupRows = [$row];
+			}
+
+			$data[] = $this->formatExecutionScheduleRow($row, $groupRows);
 		}
 
 		return $this->respond([
@@ -258,7 +266,7 @@ class ProjectAnalizerController extends ModuleApiController
 
 		$data = [];
 		foreach ($groupRows as $groupRow) {
-			$data[] = $this->formatExecutionScheduleRow($groupRow);
+			$data[] = $this->formatExecutionScheduleRow($groupRow, $groupRows);
 		}
 
 		return $this->respond([
@@ -909,8 +917,23 @@ class ProjectAnalizerController extends ModuleApiController
         return $saved;
     }
 
-	protected function formatExecutionScheduleRow(object $row): array
+	protected function formatExecutionScheduleRow(object $row, array $groupRows = []): array
 	{
+		$scheduleMembers = [];
+		$seenUserIds = [];
+		foreach ($groupRows as $groupRow) {
+			$memberId = (int) ($groupRow->user_id ?? 0);
+			if ($memberId <= 0 || isset($seenUserIds[$memberId])) {
+				continue;
+			}
+
+			$seenUserIds[$memberId] = true;
+			$scheduleMembers[] = [
+				'user_id' => $memberId,
+				'member_name' => $groupRow->member_name ?? null,
+			];
+		}
+
 		return [
 			'id' => (int) ($row->id ?? 0),
 			'group_key' => $row->group_key ?? null,
@@ -918,6 +941,9 @@ class ProjectAnalizerController extends ModuleApiController
 			'project_title' => $row->project_title ?? null,
 			'user_id' => (int) ($row->user_id ?? 0),
 			'member_name' => $row->member_name ?? null,
+			'leader_id' => isset($row->leader_id) ? (int) $row->leader_id : null,
+			'leader_name' => $row->leader_name ?? null,
+			'schedule_members' => $scheduleMembers,
 			'start_date' => $row->start_date ?? null,
 			'end_date' => $row->end_date ?? null,
 			'status' => $row->status ?? null,

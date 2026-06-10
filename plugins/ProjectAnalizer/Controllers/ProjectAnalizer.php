@@ -2111,11 +2111,17 @@ class ProjectAnalizer extends Security_Controller {
                     "end_date" => $row->end_date,
                     "status" => $row->status,
                     "notes" => $row->notes,
+                    "leader_id" => isset($row->leader_id) ? (int) $row->leader_id : 0,
+                    "leader_name" => isset($row->leader_name) ? $row->leader_name : "",
                     "member_names" => array()
                 );
             }
 
             $grouped_rows[$grouping_key]["member_names"][] = $row->member_name;
+            if (!$grouped_rows[$grouping_key]["leader_id"] && isset($row->leader_id) && $row->leader_id) {
+                $grouped_rows[$grouping_key]["leader_id"] = (int) $row->leader_id;
+                $grouped_rows[$grouping_key]["leader_name"] = isset($row->leader_name) ? $row->leader_name : "";
+            }
         }
 
         foreach ($grouped_rows as $group_key => $group_row) {
@@ -2139,6 +2145,8 @@ class ProjectAnalizer extends Security_Controller {
                     "project_title" => $group_row["project_title"],
                     "member_names" => $member_names,
                     "member_names_text" => implode(", ", $member_names),
+                    "leader_id" => $group_row["leader_id"],
+                    "leader_name" => $group_row["leader_name"],
                     "status" => $group_row["status"],
                     "notes" => $group_row["notes"]
                 )
@@ -2187,10 +2195,16 @@ class ProjectAnalizer extends Security_Controller {
         $model_info = $schedule_model->get_one($id);
         $group_rows = array();
         $is_edit = (bool) $model_info->id;
+        $selected_leader_id = 0;
 
         if ($is_edit) {
             $project_id = (int) $model_info->project_id;
             $group_rows = $schedule_model->get_group_rows($model_info->group_key, $model_info->id);
+            if ($group_rows) {
+                $selected_leader_id = (int) (isset($group_rows[0]->leader_id) ? $group_rows[0]->leader_id : 0);
+            } elseif (!empty($model_info->leader_id)) {
+                $selected_leader_id = (int) $model_info->leader_id;
+            }
         }
 
         if ($project_id) {
@@ -2208,6 +2222,7 @@ class ProjectAnalizer extends Security_Controller {
             "selected_member_ids" => $group_rows ? array_map(function ($row) {
                 return (string) $row->user_id;
             }, $group_rows) : array(),
+            "selected_leader_id" => $selected_leader_id,
             "projects_dropdown" => $this->_get_execution_schedule_projects_dropdown(true, $project_id),
             "members_dropdown" => $this->_get_execution_schedule_members_dropdown(true),
             "status_dropdown" => array(
@@ -2235,6 +2250,7 @@ class ProjectAnalizer extends Security_Controller {
         $project_id = get_only_numeric_value($this->request->getPost("project_id"));
         $start_date = $this->request->getPost("start_date");
         $end_date = $this->request->getPost("end_date");
+        $leader_id = get_only_numeric_value($this->request->getPost("leader_id"));
         $user_ids = $this->request->getPost("user_ids");
         $user_ids = is_array($user_ids) ? $user_ids : array($user_ids);
         $user_ids = array_values(array_unique(array_filter(array_map("get_only_numeric_value", $user_ids))));
@@ -2242,6 +2258,25 @@ class ProjectAnalizer extends Security_Controller {
         $user_ids = array_values(array_filter($user_ids, function ($user_id) use ($eligible_members) {
             return isset($eligible_members[(int) $user_id]);
         }));
+
+        if ($leader_id && !isset($eligible_members[(int) $leader_id])) {
+            echo json_encode(array("success" => false, "message" => app_lang("execution_schedule_leader_required")));
+            return;
+        }
+
+        if (!$leader_id && count($user_ids) === 1) {
+            $leader_id = (int) $user_ids[0];
+        }
+
+        if (!$leader_id) {
+            echo json_encode(array("success" => false, "message" => app_lang("execution_schedule_leader_required")));
+            return;
+        }
+
+        if (!in_array((int) $leader_id, $user_ids, true)) {
+            $user_ids[] = (int) $leader_id;
+            $user_ids = array_values(array_unique($user_ids));
+        }
 
         $this->init_project_permission_checker($project_id);
         if (!$this->_can_view_project_tasks($project_id)) {
@@ -2304,6 +2339,7 @@ class ProjectAnalizer extends Security_Controller {
             "group_key" => $group_key,
             "start_date" => $start_date,
             "end_date" => $end_date,
+            "leader_id" => $leader_id,
             "status" => $this->request->getPost("status") ?: "planned",
             "notes" => $this->request->getPost("notes")
         );

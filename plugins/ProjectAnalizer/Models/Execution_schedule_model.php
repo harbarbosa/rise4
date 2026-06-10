@@ -21,6 +21,7 @@ class Execution_schedule_model extends Crud_model
         $execution_schedule_table = $this->table;
         $projects_table = $this->db->prefixTable("projects");
         $users_table = $this->db->prefixTable("users");
+        $leader_users_table = $this->db->prefixTable("users");
 
         $where = "$execution_schedule_table.deleted = 0";
 
@@ -42,6 +43,12 @@ class Execution_schedule_model extends Crud_model
             $where .= " AND $execution_schedule_table.user_id = $user_id";
         }
 
+        $leader_id = get_array_value($options, "leader_id");
+        if ($leader_id) {
+            $leader_id = $this->_get_clean_value($leader_id);
+            $where .= " AND $execution_schedule_table.leader_id = $leader_id";
+        }
+
         $start_date = get_array_value($options, "start_date");
         if ($start_date) {
             $start_date = $this->_get_clean_value($start_date);
@@ -56,10 +63,13 @@ class Execution_schedule_model extends Crud_model
 
         $sql = "SELECT $execution_schedule_table.*,
                        $projects_table.title AS project_title,
-                       CONCAT($users_table.first_name, ' ', $users_table.last_name) AS member_name
+                       CONCAT($users_table.first_name, ' ', $users_table.last_name) AS member_name,
+                       CONCAT(leader_users.first_name, ' ', leader_users.last_name) AS leader_name,
+                       leader_users.image AS leader_image
                 FROM $execution_schedule_table
                 LEFT JOIN $projects_table ON $projects_table.id = $execution_schedule_table.project_id
                 LEFT JOIN $users_table ON $users_table.id = $execution_schedule_table.user_id
+                LEFT JOIN $leader_users_table AS leader_users ON leader_users.id = $execution_schedule_table.leader_id
                 WHERE $where
                 ORDER BY $execution_schedule_table.start_date ASC, $users_table.first_name ASC";
 

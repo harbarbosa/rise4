@@ -158,6 +158,10 @@ $page_title = isset($project_info) && $project_info ? $project_info->title : app
                     tooltipLines.push("Equipe: " + info.event.extendedProps.member_names.join(", "));
                 }
 
+                if (info.event.extendedProps.leader_name) {
+                    tooltipLines.push("<?php echo app_lang("execution_schedule_leader"); ?>: " + info.event.extendedProps.leader_name);
+                }
+
                 if (info.event.extendedProps.notes) {
                     tooltipLines.push("Obs: " + info.event.extendedProps.notes);
                 }
