@@ -26,11 +26,11 @@ $year_dropdown = $year_dropdown ?? array();
                 <div class="row g-2 align-items-end">
                     <div class="col-md-3 col-sm-6">
                         <label class="form-label"><?php echo app_lang('start_date'); ?></label>
-                        <?php echo form_input(array('name' => 'date_from', 'id' => 'pontorh-treatment-date-from', 'class' => 'form-control datepicker', 'autocomplete' => 'off', 'value' => $filters['date_from'] ?? date('Y-m-01'))); ?>
+                        <?php echo form_input(array('name' => 'date_from', 'id' => 'pontorh-treatment-date-from', 'class' => 'form-control datepicker', 'autocomplete' => 'off', 'value' => $filters['date_from'] ?? get_my_local_time('Y-m-01'))); ?>
                     </div>
                     <div class="col-md-3 col-sm-6">
                         <label class="form-label"><?php echo app_lang('end_date'); ?></label>
-                        <?php echo form_input(array('name' => 'date_to', 'id' => 'pontorh-treatment-date-to', 'class' => 'form-control datepicker', 'autocomplete' => 'off', 'value' => $filters['date_to'] ?? date('Y-m-t'))); ?>
+                        <?php echo form_input(array('name' => 'date_to', 'id' => 'pontorh-treatment-date-to', 'class' => 'form-control datepicker', 'autocomplete' => 'off', 'value' => $filters['date_to'] ?? get_my_local_time('Y-m-t'))); ?>
                     </div>
                     <div class="col-md-3 col-sm-6">
                         <label class="form-label"><?php echo app_lang('pontorh_employee'); ?></label>

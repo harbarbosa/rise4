@@ -24,7 +24,7 @@ $punch_type_dropdown = $punch_type_dropdown ?? array();
             <div class="row">
                 <label class="col-md-3"><?php echo app_lang('pontorh_work_date'); ?></label>
                 <div class="col-md-9">
-                    <input type="text" name="work_date" id="pontorh-treatment-work-date" class="form-control datepicker" value="<?php echo esc($case->work_date ?? date('Y-m-d')); ?>" autocomplete="off" required />
+                    <input type="text" name="work_date" id="pontorh-treatment-work-date" class="form-control datepicker" value="<?php echo esc($case->work_date ?? get_my_local_time('Y-m-d')); ?>" autocomplete="off" required />
                 </div>
             </div>
         </div>

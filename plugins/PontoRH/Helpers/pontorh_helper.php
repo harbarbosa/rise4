@@ -147,6 +147,10 @@ if (!function_exists('pontorh_extract_time')) {
             return '';
         }
 
+        if (function_exists('is_date_exists') && is_date_exists($date_time) && function_exists('convert_date_utc_to_local')) {
+            $date_time = convert_date_utc_to_local($date_time);
+        }
+
         if (preg_match('/\b(\d{2}:\d{2})(?::\d{2})?\b/', $date_time, $matches)) {
             return $matches[1];
         }

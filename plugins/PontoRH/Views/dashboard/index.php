@@ -40,11 +40,11 @@ $bank_series = get_array_value($charts, 'bank_hours', array());
                 <div class="row g-2 align-items-end">
                     <div class="col-md-3 col-sm-6">
                         <label class="form-label"><?php echo app_lang('month'); ?></label>
-                        <?php echo form_dropdown('month', $month_dropdown, $dashboard_filters['month'] ?? date('n'), 'class="form-control select2"'); ?>
+                        <?php echo form_dropdown('month', $month_dropdown, $dashboard_filters['month'] ?? get_my_local_time('n'), 'class="form-control select2"'); ?>
                     </div>
                     <div class="col-md-3 col-sm-6">
                         <label class="form-label"><?php echo app_lang('year'); ?></label>
-                        <?php echo form_dropdown('year', $year_dropdown, $dashboard_filters['year'] ?? date('Y'), 'class="form-control select2"'); ?>
+                        <?php echo form_dropdown('year', $year_dropdown, $dashboard_filters['year'] ?? get_my_local_time('Y'), 'class="form-control select2"'); ?>
                     </div>
                     <div class="col-md-6">
                         <button type="submit" class="btn btn-primary btn-sm"><?php echo app_lang('filter'); ?></button>

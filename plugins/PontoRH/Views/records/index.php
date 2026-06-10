@@ -1,6 +1,6 @@
 <?php
-$default_date_from = date('Y-m-01');
-$default_date_to = date('Y-m-t');
+$default_date_from = get_my_local_time('Y-m-01');
+$default_date_to = get_my_local_time('Y-m-t');
 ?>
 
 <div id="page-content" class="page-wrapper clearfix">

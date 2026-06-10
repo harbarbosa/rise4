@@ -11,6 +11,27 @@ class PontoRh_records_model extends PontoRhBaseModel
         parent::__construct($this->table);
     }
 
+    protected function localTimestamp($date_time): ?int
+    {
+        $date_time = trim((string) $date_time);
+        if ($date_time === '') {
+            return null;
+        }
+
+        try {
+            if (function_exists('convert_date_utc_to_local') && is_date_exists($date_time)) {
+                $date_time = convert_date_utc_to_local($date_time);
+            }
+
+            $timezone = new \DateTimeZone(get_setting('timezone') ?: (date_default_timezone_get() ?: 'UTC'));
+            $date = new \DateTime($date_time, $timezone);
+            return $date->getTimestamp();
+        } catch (\Throwable $e) {
+            $timestamp = strtotime($date_time);
+            return $timestamp ?: null;
+        }
+    }
+
     public function get_details($options = array())
     {
         if (!$this->hasTable()) {
@@ -203,10 +224,10 @@ class PontoRh_records_model extends PontoRhBaseModel
                     'extra_hours' => array(),
                     'bank_hours' => array(),
                 ),
-                'period_start' => date('Y-m-01'),
-                'period_end' => date('Y-m-t'),
-                'month' => (int) date('n'),
-                'year' => (int) date('Y'),
+                'period_start' => get_my_local_time('Y-m-01'),
+                'period_end' => get_my_local_time('Y-m-t'),
+                'month' => (int) get_my_local_time('n'),
+                'year' => (int) get_my_local_time('Y'),
             );
         }
 
@@ -391,10 +412,10 @@ class PontoRh_records_model extends PontoRhBaseModel
                     'absences' => array(),
                     'outside_area' => array(),
                 ),
-                'period_start' => date('Y-m-01'),
-                'period_end' => date('Y-m-t'),
-                'month' => (int) date('n'),
-                'year' => (int) date('Y'),
+                'period_start' => get_my_local_time('Y-m-01'),
+                'period_end' => get_my_local_time('Y-m-t'),
+                'month' => (int) get_my_local_time('n'),
+                'year' => (int) get_my_local_time('Y'),
             );
         }
 
@@ -562,10 +583,10 @@ class PontoRh_records_model extends PontoRhBaseModel
                     'absences_total' => 0,
                     'lateness_total' => 0,
                 ),
-                'period_start' => date('Y-m-01'),
-                'period_end' => date('Y-m-t'),
-                'month' => (int) date('n'),
-                'year' => (int) date('Y'),
+                'period_start' => get_my_local_time('Y-m-01'),
+                'period_end' => get_my_local_time('Y-m-t'),
+                'month' => (int) get_my_local_time('n'),
+                'year' => (int) get_my_local_time('Y'),
                 'schedule' => null,
             );
         }
@@ -666,8 +687,8 @@ class PontoRh_records_model extends PontoRhBaseModel
     private function _build_mirror_day_row($date, $records, $schedule, $scheduled_minutes, $scheduled_start_minutes, $scheduled_tolerance, $scheduled_extra_tolerance, $running_bank, $is_workday = null)
     {
         $records = is_array($records) ? $records : array();
-        usort($records, static function ($a, $b) {
-            return strcmp((string) $a->punch_time, (string) $b->punch_time);
+        usort($records, function ($a, $b) {
+            return ($this->localTimestamp($a->punch_time ?? '') ?? 0) <=> ($this->localTimestamp($b->punch_time ?? '') ?? 0);
         });
 
         $entries = array();
@@ -681,7 +702,7 @@ class PontoRh_records_model extends PontoRhBaseModel
         $first_entry_time = null;
 
         foreach ($records as $record) {
-            $record_time = strtotime((string) $record->punch_time);
+            $record_time = $this->localTimestamp($record->punch_time ?? '');
             if (!$record_time) {
                 continue;
             }
@@ -714,7 +735,8 @@ class PontoRh_records_model extends PontoRhBaseModel
         }
 
         if ($schedule && $first_entry_time && $scheduled_start_minutes) {
-            $entry_minutes = (int) floor(($first_entry_time - strtotime($date . ' 00:00:00')) / 60);
+            $day_start = $this->localTimestamp($date . ' 00:00:00') ?: strtotime($date . ' 00:00:00');
+            $entry_minutes = (int) floor(($first_entry_time - $day_start) / 60);
             $late_minutes = max(0, $entry_minutes - $scheduled_start_minutes - $scheduled_tolerance);
         }
 

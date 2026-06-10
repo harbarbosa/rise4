@@ -81,7 +81,7 @@ class PontoRh_location_assignments_model extends PontoRhBaseModel
             return array();
         }
 
-        $date = $date ?: date('Y-m-d');
+        $date = $date ?: get_my_local_time('Y-m-d');
         $table = $this->db->prefixTable($this->table);
         $sql = "SELECT a.location_id
                 FROM {$table} a

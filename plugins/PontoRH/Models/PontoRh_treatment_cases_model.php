@@ -129,13 +129,13 @@ class PontoRh_treatment_cases_model extends PontoRhBaseModel
     public function build_cases($options = array())
     {
         $options = is_array($options) ? $options : array();
-        $date_from = trim((string) get_array_value($options, 'date_from', date('Y-m-01')));
-        $date_to = trim((string) get_array_value($options, 'date_to', date('Y-m-t')));
+        $date_from = trim((string) get_array_value($options, 'date_from', get_my_local_time('Y-m-01')));
+        $date_to = trim((string) get_array_value($options, 'date_to', get_my_local_time('Y-m-t')));
         if (!$date_from) {
-            $date_from = date('Y-m-01');
+            $date_from = get_my_local_time('Y-m-01');
         }
         if (!$date_to) {
-            $date_to = date('Y-m-t');
+            $date_to = get_my_local_time('Y-m-t');
         }
 
         $scope = get_array_value($options, 'scope', 'own');

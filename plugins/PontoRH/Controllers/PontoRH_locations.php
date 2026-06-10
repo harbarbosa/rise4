@@ -186,8 +186,8 @@ class PontoRH_locations extends PontoRH_Base_Controller
             'model_info' => (object) array(
                 'id' => 0,
                 'location_id' => $location_id,
-                'week_start' => date('Y-m-01'),
-                'week_end' => date('Y-m-t'),
+                'week_start' => get_my_local_time('Y-m-01'),
+                'week_end' => get_my_local_time('Y-m-t'),
                 'active' => 1,
                 'notes' => '',
             ),

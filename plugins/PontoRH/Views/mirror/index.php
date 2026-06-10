@@ -1,5 +1,5 @@
 <?php
-$filters = $filters ?? array('team_member_id' => '', 'month' => date('n'), 'year' => date('Y'));
+$filters = $filters ?? array('team_member_id' => '', 'month' => get_my_local_time('n'), 'year' => get_my_local_time('Y'));
 ?>
 
 <div id="page-content" class="page-wrapper clearfix">
@@ -28,11 +28,11 @@ $filters = $filters ?? array('team_member_id' => '', 'month' => date('n'), 'year
                 </div>
                 <div class="col-md-3">
                     <label class="form-label"><?php echo app_lang('month'); ?></label>
-                    <?php echo form_dropdown('month', $month_dropdown, $filters['month'] ?? date('n'), 'class="form-control select2"'); ?>
+                    <?php echo form_dropdown('month', $month_dropdown, $filters['month'] ?? get_my_local_time('n'), 'class="form-control select2"'); ?>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label"><?php echo app_lang('year'); ?></label>
-                    <?php echo form_dropdown('year', $year_dropdown, $filters['year'] ?? date('Y'), 'class="form-control select2"'); ?>
+                    <?php echo form_dropdown('year', $year_dropdown, $filters['year'] ?? get_my_local_time('Y'), 'class="form-control select2"'); ?>
                 </div>
                 <div class="col-md-3">
                     <button type="submit" class="btn btn-primary btn-sm"><?php echo app_lang('filter'); ?></button>

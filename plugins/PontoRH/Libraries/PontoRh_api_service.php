@@ -89,21 +89,32 @@ class PontoRh_api_service
 
     protected function formatLocalTimeValue($date_time): string
     {
+        return pontorh_extract_time($date_time);
+    }
+
+    protected function localTimestamp($date_time): ?int
+    {
         $date_time = trim((string) $date_time);
         if ($date_time === '') {
-            return '';
+            return null;
         }
 
-        if (preg_match('/\b(\d{2}:\d{2})(?::\d{2})?\b/', $date_time, $matches)) {
-            return $matches[1];
+        if (preg_match('/^\d{2}:\d{2}(?::\d{2})?$/', $date_time)) {
+            $date_time = get_my_local_time('Y-m-d') . ' ' . substr($date_time, 0, 5) . ':00';
         }
 
-        $timestamp = strtotime($date_time);
-        if (!$timestamp) {
-            return $date_time;
-        }
+        try {
+            if (function_exists('convert_date_utc_to_local') && is_date_exists($date_time)) {
+                $date_time = convert_date_utc_to_local($date_time);
+            }
 
-        return date('H:i', $timestamp);
+            $timezone = new \DateTimeZone(get_setting('timezone') ?: (date_default_timezone_get() ?: 'UTC'));
+            $date = new \DateTime($date_time, $timezone);
+            return $date->getTimestamp();
+        } catch (\Throwable $e) {
+            $timestamp = strtotime($date_time);
+            return $timestamp ?: null;
+        }
     }
 
     public function normalizeDateTime($date, $time = '')
@@ -313,8 +324,8 @@ class PontoRh_api_service
             return $auth;
         }
 
-        $month = (int) $this->arrayValue($filters, 'month', (int) date('n'));
-        $year = (int) $this->arrayValue($filters, 'year', (int) date('Y'));
+        $month = (int) $this->arrayValue($filters, 'month', (int) get_my_local_time('n'));
+        $year = (int) $this->arrayValue($filters, 'year', (int) get_my_local_time('Y'));
         if ($month < 1 || $month > 12) {
             return array('ok' => false, 'code' => 422, 'status' => false, 'message' => 'Invalid month.');
         }
@@ -460,19 +471,20 @@ class PontoRh_api_service
         $matched_location = $this->matchLocation($latitude, $longitude, $settings, (int) $this->user->id, $today);
         $record_status = $matched_location ? 'pending' : 'outside_area';
 
-        $now = get_my_local_time();
+        $now_local = get_my_local_time();
+        $now_utc = get_current_utc_time();
         $record_data = array(
             'team_member_id' => (int) $this->user->id,
             'user_id' => (int) $this->user->id,
             'work_schedule_id' => (int) ($schedule->id ?? 0),
             'device_id' => $device ? (int) $device->id : null,
             'location_id' => $matched_location ? (int) $matched_location->id : null,
-            'date' => substr($now, 0, 10),
-            'work_date' => substr($now, 0, 10),
-            'punch_time' => $now,
+            'date' => substr($now_local, 0, 10),
+            'work_date' => substr($now_local, 0, 10),
+            'punch_time' => $now_utc,
             'punch_type' => $type,
-            'check_in' => in_array($type, array('in', 'lunch_return'), true) ? $now : null,
-            'check_out' => in_array($type, array('lunch_out', 'out'), true) ? $now : null,
+            'check_in' => in_array($type, array('in', 'lunch_return'), true) ? $now_utc : null,
+            'check_out' => in_array($type, array('lunch_out', 'out'), true) ? $now_utc : null,
             'latitude' => $latitude !== '' ? (float) $latitude : 0,
             'longitude' => $longitude !== '' ? (float) $longitude : 0,
             'ip_address' => $this->requestIpAddress(),
@@ -482,7 +494,7 @@ class PontoRh_api_service
             'hash' => hash('sha256', implode('|', array(
                 (int) $this->user->id,
                 $type,
-                $now,
+                $now_utc,
                 $latitude,
                 $longitude,
                 $device_id,
@@ -491,7 +503,7 @@ class PontoRh_api_service
             ))),
             'notes' => $this->buildRecordNotes($payload, $device_name, $battery_level),
             'created_by' => (int) $this->user->id,
-            'created_at' => $now,
+            'created_at' => $now_utc,
             'updated_at' => null,
             'deleted' => 0,
         );
@@ -596,12 +608,16 @@ class PontoRh_api_service
             return array('ok' => false, 'code' => 422, 'status' => false, 'message' => 'Invalid date or time.');
         }
 
+        $adjustment_datetime_utc = function_exists('convert_date_local_to_utc')
+            ? convert_date_local_to_utc($adjustment_datetime)
+            : $adjustment_datetime;
+
         $data = array(
             'team_member_id' => (int) $this->user->id,
             'user_id' => (int) $this->user->id,
             'record_id' => null,
-            'request_date' => date('Y-m-d', strtotime($record_date)),
-            'requested_time' => $adjustment_datetime,
+            'request_date' => $record_date,
+            'requested_time' => $adjustment_datetime_utc,
             'adjustment_type' => $this->arrayValue(array(
                 'entrada' => 'in',
                 'saida_intervalo' => 'lunch_out',
@@ -897,7 +913,7 @@ class PontoRh_api_service
 
     protected function buildCurrentStatus(int $team_member_id, ?object $schedule = null): array
     {
-        $today = date('Y-m-d');
+        $today = get_my_local_time('Y-m-d');
         if (!$schedule) {
             $schedule = $this->shiftsModel->get_active_schedule_for_member($team_member_id);
         }
@@ -917,8 +933,8 @@ class PontoRh_api_service
 
     protected function summarizeDayRecords(string $date, array $records, ?object $schedule = null, bool $include_current_time = false): array
     {
-        usort($records, static function ($a, $b) {
-            return strcmp((string) $a->punch_time, (string) $b->punch_time);
+        usort($records, function ($a, $b) {
+            return ($this->localTimestamp($a->punch_time ?? '') ?? 0) <=> ($this->localTimestamp($b->punch_time ?? '') ?? 0);
         });
 
         $schedule_minutes = $this->scheduleMinutes($schedule);
@@ -938,7 +954,7 @@ class PontoRh_api_service
         $first_entry_time = null;
 
         foreach ($records as $record) {
-            $record_time = strtotime((string) $record->punch_time);
+            $record_time = $this->localTimestamp($record->punch_time ?? '');
             if (!$record_time) {
                 continue;
             }
@@ -976,7 +992,8 @@ class PontoRh_api_service
 
         $late_minutes = 0;
         if ($schedule && $first_entry_time && !empty($schedule->start_time)) {
-            $entry_minutes = (int) floor(($first_entry_time - strtotime($date . ' 00:00:00')) / 60);
+            $day_start = $this->localTimestamp($date . ' 00:00:00') ?: strtotime($date . ' 00:00:00');
+            $entry_minutes = (int) floor(($first_entry_time - $day_start) / 60);
             $scheduled_start = $this->timeToMinutes((string) $schedule->start_time);
             $late_minutes = max(0, $entry_minutes - $scheduled_start - $scheduled_tolerance);
         }
@@ -1137,7 +1154,7 @@ class PontoRh_api_service
 
     protected function isSequenceValid(int $team_member_id, string $type): bool
     {
-        $today = date('Y-m-d');
+        $today = get_my_local_time('Y-m-d');
         $records = $this->recordsModel->get_details(array(
             'team_member_id' => $team_member_id,
             'date_from' => $today,

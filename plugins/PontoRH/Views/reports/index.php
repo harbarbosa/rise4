@@ -28,11 +28,11 @@ $outside_area = get_array_value($charts, 'outside_area', array());
                     </div>
                     <div class="col-md-2">
                         <label class="form-label"><?php echo app_lang('month'); ?></label>
-                        <?php echo form_dropdown('month', $month_dropdown, $filters['month'] ?? date('n'), 'class="form-control select2"'); ?>
+                        <?php echo form_dropdown('month', $month_dropdown, $filters['month'] ?? get_my_local_time('n'), 'class="form-control select2"'); ?>
                     </div>
                     <div class="col-md-2">
                         <label class="form-label"><?php echo app_lang('year'); ?></label>
-                        <?php echo form_dropdown('year', $year_dropdown, $filters['year'] ?? date('Y'), 'class="form-control select2"'); ?>
+                        <?php echo form_dropdown('year', $year_dropdown, $filters['year'] ?? get_my_local_time('Y'), 'class="form-control select2"'); ?>
                     </div>
                     <div class="col-md-4">
                         <button type="submit" class="btn btn-primary btn-sm"><?php echo app_lang('filter'); ?></button>

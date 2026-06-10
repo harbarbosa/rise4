@@ -239,7 +239,7 @@ class PontoRH extends PontoRH_Base_Controller
 
     private function getMirrorYearOptions()
     {
-        $current_year = (int) date('Y');
+        $current_year = (int) get_my_local_time('Y');
         $years = array();
         for ($year = $current_year - 2; $year <= $current_year + 1; $year++) {
             $years[$year] = $year;
@@ -279,7 +279,7 @@ class PontoRH extends PontoRH_Base_Controller
 
     private function getDashboardYearOptions()
     {
-        $current_year = (int) date('Y');
+        $current_year = (int) get_my_local_time('Y');
         $years = array();
         for ($year = $current_year - 1; $year <= $current_year + 1; $year++) {
             $years[$year] = $year;

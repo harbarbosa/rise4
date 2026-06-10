@@ -30,7 +30,7 @@ echo form_open(get_uri('pontorh/locais/assignment_save'), array('id' => 'pontorh
             <div class="row">
                 <label for="week_start" class="col-md-3"><?php echo app_lang('pontorh_period_start'); ?></label>
                 <div class="col-md-9">
-                    <input type="text" name="week_start" id="week_start" class="form-control datepicker" value="<?php echo esc($model_info->week_start ?? date('Y-m-d')); ?>" autocomplete="off" required />
+                    <input type="text" name="week_start" id="week_start" class="form-control datepicker" value="<?php echo esc($model_info->week_start ?? get_my_local_time('Y-m-d')); ?>" autocomplete="off" required />
                 </div>
             </div>
         </div>
@@ -39,7 +39,7 @@ echo form_open(get_uri('pontorh/locais/assignment_save'), array('id' => 'pontorh
             <div class="row">
                 <label for="week_end" class="col-md-3"><?php echo app_lang('pontorh_period_end'); ?></label>
                 <div class="col-md-9">
-                    <input type="text" name="week_end" id="week_end" class="form-control datepicker" value="<?php echo esc($model_info->week_end ?? date('Y-m-d')); ?>" autocomplete="off" required />
+                    <input type="text" name="week_end" id="week_end" class="form-control datepicker" value="<?php echo esc($model_info->week_end ?? get_my_local_time('Y-m-d')); ?>" autocomplete="off" required />
                 </div>
             </div>
         </div>

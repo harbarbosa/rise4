@@ -30,7 +30,7 @@ echo form_open(get_uri('pontorh/registros/save'), array('id' => 'pontorh-record-
             <div class="row">
                 <label for="date" class="col-md-3"><?php echo app_lang('pontorh_work_date'); ?></label>
                 <div class="col-md-9">
-                    <input type="text" name="date" id="date" class="form-control datepicker" value="<?php echo esc($model_info->date ?? date('Y-m-d')); ?>" autocomplete="off" required />
+                    <input type="text" name="date" id="date" class="form-control datepicker" value="<?php echo esc($model_info->date ?? get_my_local_time('Y-m-d')); ?>" autocomplete="off" required />
                 </div>
             </div>
         </div>

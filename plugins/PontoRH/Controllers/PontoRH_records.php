@@ -159,7 +159,7 @@ class PontoRH_records extends PontoRH_Base_Controller
 
         $view_data['model_info']->team_member_id = $view_data['model_info']->team_member_id ?? $this->login_user->id;
         $view_data['team_members_dropdown'] = $this->teamMembersDropdown(true, $scope);
-        $view_data['locations_dropdown'] = $this->assignedLocationsDropdown((int) ($view_data['model_info']->team_member_id ?? $this->login_user->id), $view_data['model_info']->date ?? date('Y-m-d'));
+        $view_data['locations_dropdown'] = $this->assignedLocationsDropdown((int) ($view_data['model_info']->team_member_id ?? $this->login_user->id), $view_data['model_info']->date ?? get_my_local_time('Y-m-d'));
         $view_data['punch_type_dropdown'] = pontorh_punch_type_options();
         $view_data['status_dropdown'] = pontorh_status_options();
 
@@ -198,7 +198,8 @@ class PontoRH_records extends PontoRH_Base_Controller
 
         $record_date = $this->service->normalizeDate($this->request->getPost('date')) ?: get_my_local_time('Y-m-d');
         $punch_time_value = trim((string) $this->request->getPost('punch_time'));
-        $punch_time = $this->combineDateTime($record_date, $punch_time_value);
+        $punch_time_local = $this->combineDateTime($record_date, $punch_time_value);
+        $punch_time = function_exists('convert_date_local_to_utc') ? convert_date_local_to_utc($punch_time_local) : $punch_time_local;
         $requested_punch_type = clean_data($this->request->getPost('punch_type'));
         $existing_count = (int) $this->records_model->get_details(array(
             'scope' => $scope,

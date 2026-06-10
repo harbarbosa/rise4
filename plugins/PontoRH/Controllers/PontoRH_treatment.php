@@ -142,8 +142,9 @@ class PontoRH_treatment extends PontoRH_Base_Controller
         ));
 
         $team_member_id = (int) $this->request->getPost('team_member_id');
-        $work_date = $this->service->normalizeDate($this->request->getPost('work_date')) ?: date('Y-m-d');
-        $punch_time = $this->combineDateTime($work_date, trim((string) $this->request->getPost('punch_time')));
+        $work_date = $this->service->normalizeDate($this->request->getPost('work_date')) ?: get_my_local_time('Y-m-d');
+        $punch_time_local = $this->combineDateTime($work_date, trim((string) $this->request->getPost('punch_time')));
+        $punch_time = function_exists('convert_date_local_to_utc') ? convert_date_local_to_utc($punch_time_local) : $punch_time_local;
         $punch_type = clean_data($this->request->getPost('punch_type'));
         $justification = clean_data($this->request->getPost('justification'));
         $notes = clean_data($this->request->getPost('notes'));
