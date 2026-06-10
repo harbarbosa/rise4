@@ -228,7 +228,7 @@ class ProjectAnalizerController extends ModuleApiController
 		foreach ($rows as $row) {
 			$groupRows = [];
 			if (!empty($row->group_key)) {
-				$groupRows = $this->executionScheduleModel->get_group_rows($row->group_key, $row->id, true);
+				$groupRows = $this->executionScheduleModel->get_group_rows($row->group_key, $row->id, false);
 			}
 			if (!$groupRows) {
 				$groupRows = [$row];
@@ -259,7 +259,7 @@ class ProjectAnalizerController extends ModuleApiController
 
 		$groupRows = [];
 		if (!empty($row->group_key)) {
-			$groupRows = $this->executionScheduleModel->get_group_rows($row->group_key, $row->id, true);
+			$groupRows = $this->executionScheduleModel->get_group_rows($row->group_key, $row->id, false);
 		}
 		if (!$groupRows) {
 			$groupRows = [$row];
@@ -954,6 +954,8 @@ class ProjectAnalizerController extends ModuleApiController
 			'group_key' => $row->group_key ?? null,
 			'project_id' => (int) ($row->project_id ?? 0),
 			'project_title' => $row->project_title ?? null,
+			'client_id' => isset($row->client_id) ? (int) $row->client_id : null,
+			'client_name' => $row->client_name ?? null,
 			'user_id' => (int) ($row->user_id ?? 0),
 			'member_name' => $rowMemberName,
 			'leader_id' => isset($row->leader_id) ? (int) $row->leader_id : null,
