@@ -142,30 +142,35 @@ if (!function_exists('pontorh_safe_json')) {
 if (!function_exists('pontorh_timezone_name')) {
     function pontorh_timezone_name()
     {
-        $timezone = trim((string) get_setting('timezone'));
+        $candidates = array(
+            trim((string) get_setting('timezone')),
+            function_exists('app_timezone') ? trim((string) app_timezone()) : '',
+            date_default_timezone_get() ?: '',
+            'America/Sao_Paulo',
+        );
 
-        if ($timezone !== '') {
+        $fallback = 'America/Sao_Paulo';
+        foreach ($candidates as $timezone) {
+            if ($timezone === '') {
+                continue;
+            }
+
             try {
                 new DateTimeZone($timezone);
-                return $timezone;
             } catch (Throwable $e) {
-                // Fall through to the next source.
+                continue;
+            }
+
+            if (strcasecmp($timezone, 'UTC') !== 0 && strcasecmp($timezone, 'Etc/UTC') !== 0) {
+                return $timezone;
+            }
+
+            if ($fallback === '') {
+                $fallback = $timezone;
             }
         }
 
-        if (function_exists('app_timezone')) {
-            $timezone = trim((string) app_timezone());
-            if ($timezone !== '') {
-                try {
-                    new DateTimeZone($timezone);
-                    return $timezone;
-                } catch (Throwable $e) {
-                    // Fall through to the final fallback.
-                }
-            }
-        }
-
-        return 'America/Sao_Paulo';
+        return $fallback;
     }
 }
 
