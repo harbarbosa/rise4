@@ -12,10 +12,10 @@ class PontoRH_audit_logs extends PontoRH_Base_Controller
         $view_data['action_dropdown'] = $this->auditActionsDropdown();
         $view_data['status_dropdown'] = array(
             '' => '-',
-            'logged' => 'Logged',
-            'reviewed' => 'Reviewed',
-            'blocked' => 'Blocked',
-            'invalid' => 'Invalid',
+            'logged' => app_lang('pontorh_audit_status_logged'),
+            'reviewed' => app_lang('pontorh_audit_status_reviewed'),
+            'blocked' => app_lang('pontorh_audit_status_blocked'),
+            'invalid' => app_lang('pontorh_audit_status_invalid'),
         );
 
         return $this->template->rander('PontoRH\\Views\\audit_logs\\index', $view_data);
@@ -50,7 +50,7 @@ class PontoRH_audit_logs extends PontoRH_Base_Controller
             app_redirect('forbidden');
         }
 
-        $view_data['log'] = $log;
+        $view_data['log'] = $this->normalizeAuditLog($log);
         return $this->template->rander('PontoRH\\Views\\audit_logs\\details', $view_data);
     }
 
@@ -63,7 +63,7 @@ class PontoRH_audit_logs extends PontoRH_Base_Controller
             app_redirect('forbidden');
         }
 
-        return $this->renderPluginView('audit_logs/details', array('log' => $log));
+        return $this->renderPluginView('audit_logs/details', array('log' => $this->normalizeAuditLog($log)));
     }
 
     private function _make_row($log)
@@ -75,14 +75,14 @@ class PontoRH_audit_logs extends PontoRH_Base_Controller
         ));
 
         return array(
-            esc($log->created_at),
+            esc($this->formatAuditDateTime($log->created_at ?? '')),
             esc($log->team_member_name ?: '-'),
             esc($log->creator_name ?: '-'),
-            esc($log->entity_type),
-            esc($log->action),
+            esc($this->translateAuditValue('pontorh_audit_entity_' . strtolower((string) ($log->entity_type ?? '')), $log->entity_type ?? '-')),
+            esc($this->translateAuditAction((string) ($log->action ?? ''))),
             esc($log->description ?: '-'),
-            esc($log->source ?: '-'),
-            esc($log->status ?: '-'),
+            esc($this->translateAuditSource((string) ($log->source ?? ''))),
+            esc($this->translateAuditStatus((string) ($log->status ?? ''))),
             $options,
         );
     }
@@ -95,8 +95,57 @@ class PontoRH_audit_logs extends PontoRH_Base_Controller
             'update' => app_lang('edit'),
             'approve' => app_lang('approve'),
             'reject' => app_lang('reject'),
-            'login_api' => 'Login API',
-            'invalid_attempt' => 'Invalid attempt',
+            'login_api' => app_lang('pontorh_audit_action_login_api'),
+            'invalid_attempt' => app_lang('pontorh_audit_action_invalid_attempt'),
         );
+    }
+
+    private function normalizeAuditLog($log)
+    {
+        if (!$log) {
+            return $log;
+        }
+
+        $log->created_at_formatted = $this->formatAuditDateTime($log->created_at ?? '');
+        $log->action_label = $this->translateAuditAction((string) ($log->action ?? ''));
+        $log->status_label = $this->translateAuditStatus((string) ($log->status ?? ''));
+        $log->source_label = $this->translateAuditSource((string) ($log->source ?? ''));
+        $log->entity_type_label = $this->translateAuditValue('pontorh_audit_entity_' . strtolower((string) ($log->entity_type ?? '')), $log->entity_type ?? '-');
+        return $log;
+    }
+
+    private function formatAuditDateTime($date_time): string
+    {
+        $date_time = trim((string) $date_time);
+        if ($date_time === '' || !is_date_exists($date_time)) {
+            return '-';
+        }
+
+        return format_to_datetime($date_time);
+    }
+
+    private function translateAuditAction(string $action): string
+    {
+        return $this->translateAuditValue('pontorh_audit_action_' . strtolower($action), $action ?: '-');
+    }
+
+    private function translateAuditStatus(string $status): string
+    {
+        return $this->translateAuditValue('pontorh_audit_status_' . strtolower($status), $status ?: '-');
+    }
+
+    private function translateAuditSource(string $source): string
+    {
+        return $this->translateAuditValue('pontorh_audit_source_' . strtolower($source), $source ?: '-');
+    }
+
+    private function translateAuditValue(string $key, string $fallback): string
+    {
+        $value = app_lang($key);
+        if ($value === $key || $value === '') {
+            return $fallback;
+        }
+
+        return $value;
     }
 }
