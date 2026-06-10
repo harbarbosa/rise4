@@ -8,6 +8,7 @@ class CreatePontoRhWorkScheduleMembers extends Migration
 {
     public function up()
     {
+    
         $table = $this->db->prefixTable('pontorh_work_schedule_members');
         if ($this->db->tableExists($table)) {
             return;
@@ -16,9 +17,9 @@ class CreatePontoRhWorkScheduleMembers extends Migration
         $this->forge->addField(array(
             'id' => array('type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true),
             'work_schedule_id' => array('type' => 'INT', 'constraint' => 11, 'unsigned' => true),
-            'team_member_id' => array('type' => 'INT', 'constraint' => 11, 'unsigned' => true),
+            'team_member_id' => array('type' => 'INT', 'constraint' => 11),
             'active' => array('type' => 'TINYINT', 'constraint' => 1, 'default' => 1),
-            'created_by' => array('type' => 'INT', 'constraint' => 11, 'unsigned' => true),
+            'created_by' => array('type' => 'INT', 'constraint' => 11),
             'created_at' => array('type' => 'DATETIME'),
             'updated_at' => array('type' => 'DATETIME', 'null' => true, 'default' => null),
             'deleted' => array('type' => 'TINYINT', 'constraint' => 1, 'default' => 0),

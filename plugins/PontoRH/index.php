@@ -39,6 +39,7 @@ register_activation_hook('PontoRH', function () {
 register_update_hook('PontoRH', function () {
     require_once __DIR__ . '/install.php';
     \PontoRH\install\pontorh_install();
+    \PontoRH\Plugin::runMigrations();
 });
 
 register_deactivation_hook('PontoRH', function () {
@@ -48,8 +49,4 @@ register_deactivation_hook('PontoRH', function () {
 register_uninstallation_hook('PontoRH', function () {
     require_once __DIR__ . '/uninstall.php';
     \PontoRH\install\pontorh_uninstall();
-});
-
-register_update_hook('PontoRH', function () {
-    \PontoRH\Plugin::runMigrations();
 });

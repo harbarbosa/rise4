@@ -17,7 +17,7 @@ class CreatePontoRhAdjustmentRequests extends Migration
             'id' => array('type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true),
             'team_member_id' => array('type' => 'INT', 'constraint' => 11),
             'user_id' => array('type' => 'INT', 'constraint' => 11),
-            'record_id' => array('type' => 'INT', 'constraint' => 11, 'null' => true, 'default' => null),
+            'record_id' => array('type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'null' => true, 'default' => null),
             'request_date' => array('type' => 'DATE'),
             'requested_time' => array('type' => 'DATETIME', 'null' => true, 'default' => null),
             'adjustment_type' => array('type' => 'VARCHAR', 'constraint' => 30, 'default' => 'manual'),

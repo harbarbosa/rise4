@@ -15,7 +15,7 @@ class CreatePontoRhScheduleDays extends Migration
 
         $this->forge->addField(array(
             'id' => array('type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true),
-            'work_schedule_id' => array('type' => 'INT', 'constraint' => 11),
+            'work_schedule_id' => array('type' => 'INT', 'constraint' => 11, 'unsigned' => true),
             'team_member_id' => array('type' => 'INT', 'constraint' => 11, 'null' => true, 'default' => null),
             'day_of_week' => array('type' => 'TINYINT', 'constraint' => 1),
             'start_time' => array('type' => 'TIME', 'null' => true, 'default' => null),

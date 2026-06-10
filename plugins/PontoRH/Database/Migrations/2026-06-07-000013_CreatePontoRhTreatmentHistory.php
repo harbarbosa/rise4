@@ -15,7 +15,7 @@ class CreatePontoRhTreatmentHistory extends Migration
 
         $this->forge->addField(array(
             'id' => array('type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true),
-            'treatment_case_id' => array('type' => 'INT', 'constraint' => 11),
+            'treatment_case_id' => array('type' => 'INT', 'constraint' => 11, 'unsigned' => true),
             'team_member_id' => array('type' => 'INT', 'constraint' => 11),
             'user_id' => array('type' => 'INT', 'constraint' => 11),
             'action' => array('type' => 'VARCHAR', 'constraint' => 60),
