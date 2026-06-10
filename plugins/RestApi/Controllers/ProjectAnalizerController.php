@@ -17,6 +17,7 @@ class ProjectAnalizerController extends ModuleApiController
     protected Execution_schedule_model $executionScheduleModel;
     protected Photos_model $photosModel;
     protected $db;
+    protected array $userNameCache = [];
 
     public function __construct()
     {
@@ -928,10 +929,24 @@ class ProjectAnalizerController extends ModuleApiController
 			}
 
 			$seenUserIds[$memberId] = true;
+			$memberName = trim((string) ($groupRow->member_name ?? ''));
+			if ($memberName === '') {
+				$memberName = $this->getUserNameById($memberId) ?: null;
+			}
 			$scheduleMembers[] = [
 				'user_id' => $memberId,
-				'member_name' => $groupRow->member_name ?? null,
+				'member_name' => $memberName,
 			];
+		}
+
+		$rowMemberName = trim((string) ($row->member_name ?? ''));
+		if ($rowMemberName === '') {
+			$rowMemberName = $this->getUserNameById((int) ($row->user_id ?? 0)) ?: null;
+		}
+
+		$leaderName = trim((string) ($row->leader_name ?? ''));
+		if ($leaderName === '' && !empty($row->leader_id)) {
+			$leaderName = $this->getUserNameById((int) $row->leader_id) ?: null;
 		}
 
 		return [
@@ -940,9 +955,9 @@ class ProjectAnalizerController extends ModuleApiController
 			'project_id' => (int) ($row->project_id ?? 0),
 			'project_title' => $row->project_title ?? null,
 			'user_id' => (int) ($row->user_id ?? 0),
-			'member_name' => $row->member_name ?? null,
+			'member_name' => $rowMemberName,
 			'leader_id' => isset($row->leader_id) ? (int) $row->leader_id : null,
-			'leader_name' => $row->leader_name ?? null,
+			'leader_name' => $leaderName,
 			'schedule_members' => $scheduleMembers,
 			'start_date' => $row->start_date ?? null,
 			'end_date' => $row->end_date ?? null,
@@ -1075,5 +1090,32 @@ class ProjectAnalizerController extends ModuleApiController
         }
 
         return max(0, min(100, round($percentageTotal, 2)));
+    }
+
+    protected function getUserNameById(int $userId): ?string
+    {
+        if ($userId <= 0) {
+            return null;
+        }
+
+        if (array_key_exists($userId, $this->userNameCache)) {
+            return $this->userNameCache[$userId];
+        }
+
+        $usersTable = $this->db->prefixTable('users');
+        if (!$this->db->tableExists($usersTable)) {
+            return null;
+        }
+
+        $row = $this->db->table($usersTable)
+            ->select("CONCAT(TRIM(COALESCE(first_name, '')), ' ', TRIM(COALESCE(last_name, ''))) AS user_name")
+            ->where('id', $userId)
+            ->get()
+            ->getRow();
+
+        $name = $row && isset($row->user_name) ? trim((string) $row->user_name) : '';
+        $this->userNameCache[$userId] = $name !== '' ? $name : null;
+
+        return $this->userNameCache[$userId];
     }
 }

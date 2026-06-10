@@ -79,6 +79,7 @@ class Execution_schedule_model extends Crud_model
     public function get_group_rows($group_key = null, $fallback_id = 0, $include_deleted = false)
     {
         $execution_schedule_table = $this->table;
+        $users_table = $this->db->prefixTable("users");
         $has_group_key_column = $this->ensure_group_key_column();
 
         if ($group_key && $has_group_key_column) {
@@ -93,8 +94,13 @@ class Execution_schedule_model extends Crud_model
             $where .= " AND $execution_schedule_table.deleted = 0";
         }
 
-        $sql = "SELECT *
+        $sql = "SELECT $execution_schedule_table.*,
+                       CONCAT($users_table.first_name, ' ', $users_table.last_name) AS member_name,
+                       CONCAT(leader_users.first_name, ' ', leader_users.last_name) AS leader_name,
+                       leader_users.image AS leader_image
                 FROM $execution_schedule_table
+                LEFT JOIN $users_table ON $users_table.id = $execution_schedule_table.user_id
+                LEFT JOIN $users_table AS leader_users ON leader_users.id = $execution_schedule_table.leader_id
                 WHERE $where
                 ORDER BY $execution_schedule_table.id ASC";
 
