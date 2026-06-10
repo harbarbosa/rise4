@@ -43,17 +43,7 @@ class ProjectsController extends Rest_api_Controller {
 			return $projects;
 		}
 
-		$members_by_project = [];
-		$all_members = $this->project_members_model->get_details(['project_id' => null])->getResult();
-		foreach ($all_members as $member) {
-			$project_id = (int) ($member->project_id ?? 0);
-			if ($project_id > 0) {
-				if (!isset($members_by_project[$project_id])) {
-					$members_by_project[$project_id] = [];
-				}
-				$members_by_project[$project_id][] = $member;
-			}
-		}
+		$members_by_project = $this->getActiveProjectMembersByProjectIds($project_ids);
 
 		foreach ($projects as $project) {
 			$project_id = (int) ($project->id ?? 0);
@@ -74,8 +64,59 @@ class ProjectsController extends Rest_api_Controller {
 			return $project;
 		}
 
-		$project->members = $this->project_members_model->get_details(['project_id' => $project->id])->getResult();
+		$active_members = $this->getActiveProjectMembersByProjectIds([(int) $project->id]);
+		$project->members = $active_members[(int) $project->id] ?? [];
 		return $project;
+	}
+
+	/**
+	 * Return active staff members attached to the given project IDs.
+	 *
+	 * @param array $projectIds
+	 * @return array<int, array<int, object>>
+	 */
+	private function getActiveProjectMembersByProjectIds(array $projectIds): array {
+		$projectIds = array_values(array_unique(array_filter(array_map('intval', $projectIds))));
+		if (empty($projectIds)) {
+			return [];
+		}
+
+		$db = db_connect('default');
+		$projectMembersTable = $db->prefixTable('project_members');
+		$usersTable = $db->prefixTable('users');
+		$idList = implode(',', $projectIds);
+
+		$sql = "SELECT pm.project_id, pm.user_id, pm.id, pm.deleted,
+                    CONCAT(u.first_name, ' ', u.last_name) AS member_name,
+                    u.image AS member_image,
+                    u.job_title,
+                    u.user_type,
+                    u.status AS member_status
+                FROM $projectMembersTable pm
+                INNER JOIN $usersTable u ON u.id = pm.user_id
+                WHERE pm.deleted=0
+                    AND pm.project_id IN ($idList)
+                    AND u.deleted=0
+                    AND u.user_type='staff'
+                    AND u.status='active'
+                ORDER BY pm.project_id ASC, u.first_name ASC";
+
+		$rows = $db->query($sql)->getResult();
+		$grouped = [];
+		foreach ($rows as $row) {
+			$projectId = (int) ($row->project_id ?? 0);
+			if ($projectId <= 0) {
+				continue;
+			}
+
+			if (!isset($grouped[$projectId])) {
+				$grouped[$projectId] = [];
+			}
+
+			$grouped[$projectId][] = $row;
+		}
+
+		return $grouped;
 	}
 
 	/**
