@@ -23,8 +23,36 @@ class PontoRh_records_model extends PontoRhBaseModel
         $locations_table = $this->db->prefixTable('pontorh_locations');
         $creator_users_table = $this->db->prefixTable('users');
 
-        $sql = "SELECT r.*,
-                    r.work_schedule_id AS shift_id,
+        $include_photo = (bool) get_array_value($options, 'include_photo');
+        $photo_select = $include_photo ? 'r.photo AS photo' : 'NULL AS photo';
+
+        $sql = "SELECT r.id,
+                    r.team_member_id,
+                    r.user_id,
+                    r.work_schedule_id,
+                    r.device_id,
+                    r.location_id,
+                    r.date,
+                    r.punch_time,
+                    r.punch_type,
+                    r.latitude,
+                    r.longitude,
+                    r.ip_address,
+                    r.source,
+                    r.status,
+                    r.hash,
+                    r.work_date,
+                    r.check_in,
+                    r.check_out,
+                    r.break_minutes,
+                    r.minutes_worked,
+                    r.shift_id,
+                    r.notes,
+                    {$photo_select},
+                    r.created_by,
+                    r.created_at,
+                    r.updated_at,
+                    r.deleted,
                     CONCAT(TRIM(COALESCE(u.first_name, '')), ' ', TRIM(COALESCE(u.last_name, ''))) AS team_member_name,
                     s.name AS shift_name,
                     l.name AS location_name,
@@ -94,6 +122,7 @@ class PontoRh_records_model extends PontoRhBaseModel
     public function get_one_with_details($id = 0, $options = array())
     {
         $options['id'] = $id;
+        $options['include_photo'] = true;
         $row = $this->get_details($options)->getRow();
         return $row ?: null;
     }
@@ -862,7 +891,36 @@ class PontoRh_records_model extends PontoRhBaseModel
         $locations_table = $this->db->prefixTable('pontorh_locations');
         $creator_users_table = $this->db->prefixTable('users');
 
-        return "SELECT r.*,
+        $include_photo = (bool) get_array_value($options, 'include_photo');
+        $photo_select = $include_photo ? 'r.photo AS photo' : 'NULL AS photo';
+
+        return "SELECT r.id,
+                    r.team_member_id,
+                    r.user_id,
+                    r.work_schedule_id,
+                    r.device_id,
+                    r.location_id,
+                    r.date,
+                    r.punch_time,
+                    r.punch_type,
+                    r.latitude,
+                    r.longitude,
+                    r.ip_address,
+                    r.source,
+                    r.status,
+                    r.hash,
+                    r.work_date,
+                    r.check_in,
+                    r.check_out,
+                    r.break_minutes,
+                    r.minutes_worked,
+                    r.shift_id,
+                    r.notes,
+                    {$photo_select},
+                    r.created_by,
+                    r.created_at,
+                    r.updated_at,
+                    r.deleted,
                     CONCAT(TRIM(COALESCE(u.first_name, '')), ' ', TRIM(COALESCE(u.last_name, ''))) AS team_member_name,
                     s.name AS shift_name,
                     l.name AS location_name,

@@ -91,6 +91,21 @@ $record = $record ?? (object) array();
                 <div class="col-md-6">
                     <div class="card h-100">
                         <div class="card-body">
+                            <div class="text-muted"><?php echo app_lang('pontorh_selfie'); ?></div>
+                            <?php $photo_src = function_exists('pontorh_record_photo_src') ? pontorh_record_photo_src($record->photo ?? '') : ''; ?>
+                            <?php if ($photo_src) { ?>
+                                <div class="mt-2">
+                                    <img src="<?php echo esc($photo_src); ?>" alt="<?php echo app_lang('pontorh_selfie'); ?>" class="img-fluid rounded border" style="max-height: 320px; object-fit: cover;">
+                                </div>
+                            <?php } else { ?>
+                                <div class="font-18 fw-bold">-</div>
+                            <?php } ?>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body">
                             <table class="table table-bordered mb-0">
                                 <tbody>
                                     <tr>

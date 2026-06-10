@@ -346,12 +346,18 @@ class PontoRh_api_service
         $device_id = trim((string) $this->arrayValue($payload, 'device_id', ''));
         $device_name = trim((string) $this->arrayValue($payload, 'device_name', ''));
         $battery_level = $this->arrayValue($payload, 'battery_level', null);
+        $photo = trim((string) $this->arrayValue($payload, 'photo', ''));
 
         $settings = $this->settingsModel->get_all_settings_with_defaults();
         $require_gps = $this->arrayValue($settings, 'require_gps') != '0';
         if ($require_gps && ($latitude === '' || $longitude === '')) {
             $this->auditEvent('invalid_attempt', 'GPS coordinates are required.', array('payload' => $payload), 'invalid', 'checkin');
             return array('ok' => false, 'code' => 422, 'status' => false, 'message' => 'GPS coordinates are required.');
+        }
+
+        if ((string) $this->settingsModel->get_setting('require_selfie', '0') !== '0' && $photo === '') {
+            $this->auditEvent('invalid_attempt', 'Selfie is required.', array('payload' => $payload), 'invalid', 'checkin');
+            return array('ok' => false, 'code' => 422, 'status' => false, 'message' => 'Selfie is required.');
         }
 
         $today = date('Y-m-d');
@@ -398,6 +404,7 @@ class PontoRh_api_service
             'ip_address' => $this->requestIpAddress(),
             'source' => 'mobile_app',
             'status' => $record_status,
+            'photo' => $photo !== '' ? $photo : null,
             'hash' => hash('sha256', implode('|', array(
                 (int) $this->user->id,
                 $type,
@@ -428,6 +435,7 @@ class PontoRh_api_service
             'device_id' => $device_id,
             'device_name' => $device_name,
             'battery_level' => $battery_level,
+            'has_photo' => $photo !== '',
             'location_id' => $matched_location ? (int) $matched_location->id : null,
         ), 'logged', 'record', $record_id);
 
@@ -1021,6 +1029,8 @@ class PontoRh_api_service
             'latitude' => (string) ($row['latitude'] ?? '0'),
             'longitude' => (string) ($row['longitude'] ?? '0'),
             'team_member_name' => (string) ($row['team_member_name'] ?? ''),
+            'photo' => (string) ($row['photo'] ?? ''),
+            'photo_src' => function_exists('pontorh_record_photo_src') ? pontorh_record_photo_src($row['photo'] ?? '') : '',
         );
     }
 

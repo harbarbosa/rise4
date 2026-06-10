@@ -155,6 +155,29 @@ if (!function_exists('pontorh_extract_time')) {
     }
 }
 
+if (!function_exists('pontorh_record_photo_src')) {
+    function pontorh_record_photo_src($photo)
+    {
+        $photo = trim((string) $photo);
+        if ($photo === '') {
+            return '';
+        }
+
+        if (stripos($photo, 'data:image/') === 0) {
+            return $photo;
+        }
+
+        $mime = 'image/jpeg';
+        if (str_starts_with($photo, 'iVBOR')) {
+            $mime = 'image/png';
+        } elseif (str_starts_with($photo, 'R0lGOD')) {
+            $mime = 'image/gif';
+        }
+
+        return 'data:' . $mime . ';base64,' . $photo;
+    }
+}
+
 if (!function_exists('pontorh_infer_punch_type_from_index')) {
     function pontorh_infer_punch_type_from_index($index)
     {

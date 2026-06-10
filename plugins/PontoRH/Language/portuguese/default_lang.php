@@ -58,6 +58,7 @@ $lang['pontorh_lateness'] = 'Atrasos';
 $lang['export_pdf'] = 'Exportar PDF';
 $lang['export_excel'] = 'Exportar Excel';
 $lang['pontorh_notes'] = 'Observacoes';
+$lang['pontorh_selfie'] = 'Selfie';
 $lang['pontorh_active'] = 'Ativo';
 
 $lang['pontorh_status_open'] = 'Aberto';
