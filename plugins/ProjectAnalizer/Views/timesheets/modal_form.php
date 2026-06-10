@@ -526,6 +526,28 @@
                     </div>
                 </div>
             <?php endif; ?>
+            <?php if (!empty($photos)): ?>
+                <hr>
+                <div class="mt-3">
+                    <h5><?php echo app_lang('photos'); ?></h5>
+                    <div id="saved-photo-gallery" class="row g-2">
+                        <?php foreach ($photos as $photo): ?>
+                            <?php $photo_url = base_url($photo['file_path'] ?? ('files/projectanalizer/' . ($photo['file_name'] ?? ''))); ?>
+                            <div class="col-6 col-sm-4 col-md-3">
+                                <div class="photo-item position-relative border rounded p-1 bg-white h-100">
+                                    <a href="<?= $photo_url; ?>" target="_blank" rel="noopener">
+                                        <img src="<?= $photo_url; ?>" class="img-fluid rounded" style="width:100%;height:120px;object-fit:cover;">
+                                    </a>
+                                    <button type="button"
+                                            class="btn btn-danger btn-sm delete-photo position-absolute"
+                                            data-id="<?= $photo['id']; ?>"
+                                            style="top:4px;right:4px;padding:0 6px;line-height:1;">&times;</button>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
   
             
 
@@ -547,6 +569,32 @@
                 var table = $(".dataTable:visible").attr("id");
                 if (table === "project-timesheet-table" || table === "all-project-timesheet-table") {
                     $("#" + table).appTable({newData: result.data, dataId: result.id});
+                }
+
+                if (result && result.photos && result.photos.length) {
+                    var gallery = $("#saved-photo-gallery");
+                    if (!gallery.length) {
+                        $(".modal-body .container-fluid").append(
+                            '<hr><div class="mt-3"><h5><?php echo app_lang('photos'); ?></h5><div id="saved-photo-gallery" class="row g-2"></div></div>'
+                        );
+                        gallery = $("#saved-photo-gallery");
+                    }
+
+                    result.photos.forEach(function (photo) {
+                        if (!photo || !photo.url) {
+                            return;
+                        }
+
+                        gallery.append(
+                            '<div class="col-6 col-sm-4 col-md-3">' +
+                                '<div class="photo-item position-relative border rounded p-1 bg-white h-100">' +
+                                    '<a href="' + photo.url + '" target="_blank" rel="noopener">' +
+                                        '<img src="' + photo.url + '" class="img-fluid rounded" style="width:100%;height:120px;object-fit:cover;">' +
+                                    '</a>' +
+                                '</div>' +
+                            '</div>'
+                        );
+                    });
                 }
             }
         });
@@ -674,23 +722,23 @@
     });
 
     $("#photos").on("change", function (e) {
-    const preview = $("#photo-preview");
-    preview.empty();
-    const files = e.target.files;
+        const preview = $("#photo-preview");
+        preview.empty();
+        const files = e.target.files;
 
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const reader = new FileReader();
-        reader.onload = function (e) {
-            preview.append(
-                `<div style="width:80px;height:80px;border:1px solid #ccc;border-radius:6px;overflow:hidden">
-                    <img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">
-                </div>`
-            );
-        };
-        reader.readAsDataURL(file);
-    }
-});
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                preview.append(
+                    `<div style="width:80px;height:80px;border:1px solid #ccc;border-radius:6px;overflow:hidden">
+                        <img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">
+                    </div>`
+                );
+            };
+            reader.readAsDataURL(file);
+        }
+    });
 
 // Excluir foto via AJAX
 $(document).on("click", ".delete-photo", function () {
