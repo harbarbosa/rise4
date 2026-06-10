@@ -347,13 +347,6 @@ class PontoRh_api_service
         $device_name = trim((string) $this->arrayValue($payload, 'device_name', ''));
         $battery_level = $this->arrayValue($payload, 'battery_level', null);
 
-        $type_map = array(
-            'entrada' => 'in',
-            'saida_intervalo' => 'lunch_out',
-            'retorno_intervalo' => 'lunch_return',
-            'saida' => 'out',
-        );
-
         $settings = $this->settingsModel->get_all_settings_with_defaults();
         $require_gps = $this->arrayValue($settings, 'require_gps') != '0';
         if ($require_gps && ($latitude === '' || $longitude === '')) {
@@ -397,9 +390,9 @@ class PontoRh_api_service
             'date' => substr($now, 0, 10),
             'work_date' => substr($now, 0, 10),
             'punch_time' => $now,
-            'punch_type' => $this->arrayValue($type_map, $type),
-            'check_in' => in_array($type, array('entrada', 'retorno_intervalo'), true) ? $now : null,
-            'check_out' => in_array($type, array('saida_intervalo', 'saida'), true) ? $now : null,
+            'punch_type' => $type,
+            'check_in' => in_array($type, array('in', 'lunch_return'), true) ? $now : null,
+            'check_out' => in_array($type, array('lunch_out', 'out'), true) ? $now : null,
             'latitude' => $latitude !== '' ? (float) $latitude : 0,
             'longitude' => $longitude !== '' ? (float) $longitude : 0,
             'ip_address' => $this->requestIpAddress(),
