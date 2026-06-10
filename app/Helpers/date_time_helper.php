@@ -50,8 +50,7 @@ if (!function_exists('convert_date_local_to_utc')) {
 if (!function_exists('get_current_utc_time')) {
 
     function get_current_utc_time($format = "Y-m-d H:i:s") {
-        $d = DateTime::createFromFormat("Y-m-d H:i:s", date("Y-m-d H:i:s"));
-        $d->setTimeZone(new DateTimeZone("UTC"));
+        $d = new DateTime("now", new DateTimeZone("UTC"));
         return $d->format($format);
     }
 }
@@ -66,9 +65,18 @@ if (!function_exists('get_current_utc_time')) {
 if (!function_exists('convert_date_utc_to_local')) {
 
     function convert_date_utc_to_local($date_time, $format = "Y-m-d H:i:s") {
-        $date = new DateTime($date_time . ' +00:00');
-        $date->setTimezone(new DateTimeZone(get_setting('timezone')));
-        return $date->format($format);
+        $timezoneName = trim((string) get_setting('timezone'));
+        if (!$timezoneName) {
+            $timezoneName = date_default_timezone_get() ?: 'UTC';
+        }
+
+        try {
+            $date = new DateTime($date_time . ' +00:00');
+            $date->setTimezone(new DateTimeZone($timezoneName));
+            return $date->format($format);
+        } catch (Throwable $e) {
+            return date($format, strtotime($date_time));
+        }
     }
 }
 
@@ -81,7 +89,9 @@ if (!function_exists('convert_date_utc_to_local')) {
 if (!function_exists('get_my_local_time')) {
 
     function get_my_local_time($format = "Y-m-d H:i:s") {
-        return date($format, strtotime(get_current_utc_time()) + get_timezone_offset());
+        $d = new DateTime("now", new DateTimeZone("UTC"));
+        $d->setTimezone(new DateTimeZone(get_setting('timezone') ?: (date_default_timezone_get() ?: 'UTC')));
+        return $d->format($format);
     }
 }
 
