@@ -9,11 +9,73 @@ class ProjectsController extends Rest_api_Controller {
 		parent::__construct();
 		
 		$this->projects_model         = model('App\Models\Projects_model');
+		$this->project_members_model  = model('App\Models\Project_members_model');
 		$this->restapi_projects_model = model($this->ProjectsModel);
 		$this->restapi_clients_model  = model("RestApi\Models\ClientsModel");
 		$this->restapi_labels_model   = model("RestApi\Models\LabelsModel");
 		$this->clients_model          = model('App\Models\Clients_model');
 		$this->labels_model           = model('App\Models\Labels_model');
+	}
+
+	/**
+	 * Attach project members to project rows.
+	 *
+	 * @param array $projects
+	 * @return array
+	 */
+	private function appendProjectMembers(array $projects): array {
+		if (empty($projects)) {
+			return $projects;
+		}
+
+		$project_ids = [];
+		foreach ($projects as $project) {
+			if (!empty($project->id)) {
+				$project_ids[] = (int) $project->id;
+			}
+		}
+
+		$project_ids = array_values(array_unique(array_filter($project_ids)));
+		if (empty($project_ids)) {
+			foreach ($projects as $project) {
+				$project->members = [];
+			}
+			return $projects;
+		}
+
+		$members_by_project = [];
+		$all_members = $this->project_members_model->get_details(['project_id' => null])->getResult();
+		foreach ($all_members as $member) {
+			$project_id = (int) ($member->project_id ?? 0);
+			if ($project_id > 0) {
+				if (!isset($members_by_project[$project_id])) {
+					$members_by_project[$project_id] = [];
+				}
+				$members_by_project[$project_id][] = $member;
+			}
+		}
+
+		foreach ($projects as $project) {
+			$project_id = (int) ($project->id ?? 0);
+			$project->members = $members_by_project[$project_id] ?? [];
+		}
+
+		return $projects;
+	}
+
+	/**
+	 * Attach project members to a single project row.
+	 *
+	 * @param object|null $project
+	 * @return object|null
+	 */
+	private function appendProjectMembersToSingle($project) {
+		if (!$project || empty($project->id)) {
+			return $project;
+		}
+
+		$project->members = $this->project_members_model->get_details(['project_id' => $project->id])->getResult();
+		return $project;
 	}
 
 	/**
@@ -62,7 +124,7 @@ class ProjectsController extends Rest_api_Controller {
 		if (empty($list_data)) {
 			return $this->failNotFound(app_lang('no_data_were_found'));
 		}
-		return $this->respond($list_data, 200);
+		return $this->respond($this->appendProjectMembers($list_data), 200);
 	}
 
 	/**
@@ -76,7 +138,7 @@ class ProjectsController extends Rest_api_Controller {
 			if (empty($list_data)) {
 				return $this->failNotFound(app_lang('no_data_were_found'));
 			}
-			return $this->respond($list_data, 200);
+			return $this->respond($this->appendProjectMembersToSingle($list_data), 200);
 		}
 	}
 
@@ -123,7 +185,7 @@ class ProjectsController extends Rest_api_Controller {
 			if (empty($list_data)) {
 				return $this->failNotFound(app_lang('no_data_were_found'));
 			}
-			return $this->respond($list_data, 200);
+			return $this->respond($this->appendProjectMembers($list_data), 200);
 		}
 	}
 
