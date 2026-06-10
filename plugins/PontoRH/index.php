@@ -49,3 +49,7 @@ register_uninstallation_hook('PontoRH', function () {
     require_once __DIR__ . '/uninstall.php';
     \PontoRH\install\pontorh_uninstall();
 });
+
+register_update_hook('PontoRH', function () {
+    \PontoRH\Plugin::runMigrations();
+});
