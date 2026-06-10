@@ -2534,6 +2534,12 @@ class ProjectAnalizer extends Security_Controller {
         $view_data["tasks_dropdown"] = get_array_value($related_data, "tasks_dropdown");
         $view_data["project_members_dropdown"] = get_array_value($related_data, "project_members_dropdown");
         $view_data["add_type"] = "";
+        $view_data["photos"] = [];
+
+        if ($model_info->id) {
+            $Photos_model = new \ProjectAnalizer\Models\Photos_model();
+            $view_data["photos"] = $Photos_model->get_by_timelog($model_info->id);
+        }
 
         $view_data["model_info"] = $model_info;
 
@@ -2705,6 +2711,7 @@ class ProjectAnalizer extends Security_Controller {
     function save_timelog() {
         $this->access_only_team_members();
         $Photos_model = new \ProjectAnalizer\Models\Photos_model();
+        $Photos_model->ensureTableExists();
         
         $id = $this->request->getPost('id');
 

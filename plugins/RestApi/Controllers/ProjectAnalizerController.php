@@ -872,6 +872,8 @@ class ProjectAnalizerController extends ModuleApiController
 
     protected function saveTimelogPhotos(int $timelogId): array
     {
+        $this->photosModel->ensureTableExists();
+
         $files = $this->request->getFiles();
         $photos = $files['photos'] ?? [];
 
@@ -906,6 +908,14 @@ class ProjectAnalizerController extends ModuleApiController
                 'uploaded_by' => $uploadedBy,
                 'created_at' => get_current_utc_time(),
             ]);
+
+            if (!$photoId) {
+                log_message('error', '[ProjectAnalizerController] Failed to save timelog photo for timelog_id {timelog_id}: {errors}', [
+                    'timelog_id' => $timelogId,
+                    'errors' => json_encode($this->photosModel->errors(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ]);
+                continue;
+            }
 
             $saved[] = [
                 'id' => $photoId,

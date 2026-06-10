@@ -503,29 +503,6 @@
                 </div>
             </div>
 
-            <?php
-                $Photos_model = new \ProjectAnalizer\Models\Photos_model();
-                $photos = $Photos_model->get_by_timelog($model_info->id);
-                ?>
-
-                <?php if (!empty($photos)): ?>
-                <hr>
-                <div class="mt-3">
-                    <h5>📸 Fotos Anexadas</h5>
-                    <div class="d-flex flex-wrap gap-2">
-                        <?php foreach ($photos as $photo): ?>
-                            <div class="photo-item text-center" style="position: relative;">
-                                <img src="<?= base_url($photo['file_path']); ?>"
-                                    style="width:100px;height:100px;border-radius:6px;object-fit:cover;border:1px solid #ccc;">
-                                <button type="button"
-                                        class="btn btn-danger btn-sm delete-photo"
-                                        data-id="<?= $photo['id']; ?>"
-                                        style="position:absolute;top:-5px;right:-5px;padding:0 5px;">×</button>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            <?php endif; ?>
             <?php if (!empty($photos)): ?>
                 <hr>
                 <div class="mt-3">
