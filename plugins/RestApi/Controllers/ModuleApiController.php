@@ -12,13 +12,22 @@ class ModuleApiController extends Rest_api_Controller
 
     protected function payload(): array
     {
+        $json = $this->request->getJSON(true);
+        if (is_array($json) && $json) {
+            return $json;
+        }
+
         $post = $this->request->getPost();
         if (is_array($post) && $post) {
             return $post;
         }
 
         $raw = $this->request->getRawInput();
-        return is_array($raw) ? $raw : [];
+        if (is_array($raw) && $raw) {
+            return $raw;
+        }
+
+        return [];
     }
 
     protected function tableColumns(string $table): array
