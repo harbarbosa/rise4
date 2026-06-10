@@ -89,12 +89,6 @@ class PontoRh_api_service
 
     protected function formatLocalTimeValue($date_time): string
     {
-        if (function_exists('pontorh_convert_utc_to_local')) {
-            $date_time = pontorh_convert_utc_to_local($date_time);
-        } elseif (function_exists('convert_date_utc_to_local') && is_date_exists($date_time)) {
-            $date_time = convert_date_utc_to_local($date_time);
-        }
-
         return pontorh_extract_time($date_time);
     }
 
