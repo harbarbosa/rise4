@@ -188,6 +188,22 @@ if (!function_exists('pontorh_convert_utc_to_local')) {
     }
 }
 
+if (!function_exists('pontorh_local_datetime')) {
+    function pontorh_local_datetime($date_time, $format = 'Y-m-d H:i:s')
+    {
+        $date_time = trim((string) $date_time);
+        if ($date_time === '') {
+            return '';
+        }
+
+        if (function_exists('is_date_exists') && is_date_exists($date_time)) {
+            return pontorh_convert_utc_to_local($date_time, $format);
+        }
+
+        return $date_time;
+    }
+}
+
 if (!function_exists('pontorh_extract_time')) {
     function pontorh_extract_time($date_time)
     {

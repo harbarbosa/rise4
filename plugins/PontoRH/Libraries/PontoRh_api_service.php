@@ -89,7 +89,22 @@ class PontoRh_api_service
 
     protected function formatLocalTimeValue($date_time): string
     {
-        return pontorh_extract_time($date_time);
+        if (function_exists('pontorh_local_datetime')) {
+            $date_time = pontorh_local_datetime($date_time, 'Y-m-d H:i:s');
+        } elseif (function_exists('convert_date_utc_to_local') && is_date_exists($date_time)) {
+            $date_time = convert_date_utc_to_local($date_time);
+        }
+
+        $date_time = trim((string) $date_time);
+        if ($date_time === '') {
+            return '';
+        }
+
+        if (preg_match('/\b(\d{2}:\d{2})(?::\d{2})?\b/', $date_time, $matches)) {
+            return $matches[1];
+        }
+
+        return substr($date_time, 11, 5) ?: $date_time;
     }
 
     protected function localTimestamp($date_time): ?int
@@ -104,8 +119,8 @@ class PontoRh_api_service
         }
 
         try {
-            if (function_exists('pontorh_convert_utc_to_local') && is_date_exists($date_time)) {
-                $date_time = pontorh_convert_utc_to_local($date_time);
+            if (function_exists('pontorh_local_datetime') && is_date_exists($date_time)) {
+                $date_time = pontorh_local_datetime($date_time);
             } elseif (function_exists('convert_date_utc_to_local') && is_date_exists($date_time)) {
                 $date_time = convert_date_utc_to_local($date_time);
             }
