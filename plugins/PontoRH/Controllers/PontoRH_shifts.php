@@ -180,9 +180,13 @@ class PontoRH_shifts extends PontoRH_Base_Controller
             return;
         }
 
+        $primary_team_member_id = (int) ($team_member_ids[0] ?? 0);
         $shift = $this->shifts_model->get_one_with_details($save_id);
         $this->shifts_model->sync_members($save_id, $team_member_ids, (int) $this->login_user->id);
         $shift = $this->shifts_model->get_one_with_details($save_id);
+        if (!$shift) {
+            $shift = (object) array();
+        }
         $member_names = array();
         foreach ($team_members as $team_member) {
             $member_names[] = trim((string) ($team_member->first_name ?? '') . ' ' . (string) ($team_member->last_name ?? ''));
@@ -194,7 +198,7 @@ class PontoRH_shifts extends PontoRH_Base_Controller
             $id ? 'update' : 'create',
             $id ? app_lang('pontorh_record_updated') : app_lang('pontorh_record_created'),
             array('before' => $before, 'after' => $shift),
-            $team_member_id
+            $primary_team_member_id
         );
 
         echo json_encode(array(
