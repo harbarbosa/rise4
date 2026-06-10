@@ -31,6 +31,7 @@ class PontoRH_settings extends PontoRH_Base_Controller
             'allowed_radius_meters',
             'default_tolerance_minutes',
             'bank_hours_enabled',
+            'google_maps_api_key',
         );
 
         foreach ($keys as $key) {

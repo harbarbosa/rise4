@@ -32,6 +32,13 @@ class PontoRh_locations_model extends PontoRhBaseModel
             $sql .= ' AND l.active = ' . (int) $active;
         }
 
+        $search = trim((string) get_array_value($options, 'search'));
+        if ($search !== '') {
+            $search = $this->db->escapeLikeString($search);
+            $sql .= " AND (l.name LIKE '%{$search}%' ESCAPE '!'"
+                . " OR l.address LIKE '%{$search}%' ESCAPE '!')";
+        }
+
         $sql .= ' ORDER BY l.name ASC';
         return $this->queryOrEmpty($sql);
     }

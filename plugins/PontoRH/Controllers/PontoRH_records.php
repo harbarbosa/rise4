@@ -159,7 +159,7 @@ class PontoRH_records extends PontoRH_Base_Controller
 
         $view_data['model_info']->team_member_id = $view_data['model_info']->team_member_id ?? $this->login_user->id;
         $view_data['team_members_dropdown'] = $this->teamMembersDropdown(true, $scope);
-        $view_data['locations_dropdown'] = $this->locationsDropdown();
+        $view_data['locations_dropdown'] = $this->assignedLocationsDropdown((int) ($view_data['model_info']->team_member_id ?? $this->login_user->id), $view_data['model_info']->date ?? date('Y-m-d'));
         $view_data['punch_type_dropdown'] = pontorh_punch_type_options();
         $view_data['status_dropdown'] = pontorh_status_options();
 

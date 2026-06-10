@@ -10,6 +10,7 @@ function pontorh_uninstall()
             $db->prefixTable('pontorh_treatment_history'),
             $db->prefixTable('pontorh_treatment_cases'),
             $db->prefixTable('pontorh_work_schedule_members'),
+            $db->prefixTable('pontorh_location_assignments'),
             $db->prefixTable('pontorh_audit_logs'),
             $db->prefixTable('pontorh_monthly_summaries'),
             $db->prefixTable('pontorh_adjustment_requests'),

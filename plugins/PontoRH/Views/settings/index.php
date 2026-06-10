@@ -114,6 +114,16 @@ echo form_open(get_uri('pontorh/configuracoes/save'), array('id' => 'pontorh-set
                         <label for="pontorh-bank-hours" class="form-check-label"><?php echo app_lang('active'); ?></label>
                     </div>
                 </div>
+                <div class="col-md-6">
+                    <label class="form-label"><?php echo app_lang('pontorh_google_maps_api_key'); ?></label>
+                    <?php echo form_input(array(
+                        'name' => 'google_maps_api_key',
+                        'value' => get_array_value($settings, 'google_maps_api_key'),
+                        'class' => 'form-control',
+                        'autocomplete' => 'off',
+                        'placeholder' => 'AIza...',
+                    )); ?>
+                </div>
             </div>
         </div>
 

@@ -7,6 +7,7 @@ use PontoRH\Libraries\PontoRh_service;
 use PontoRH\Models\PontoRh_adjustments_model;
 use PontoRH\Models\PontoRh_audit_logs_model;
 use PontoRH\Models\PontoRh_assignments_model;
+use PontoRH\Models\PontoRh_location_assignments_model;
 use PontoRH\Models\PontoRh_locations_model;
 use PontoRH\Models\PontoRh_records_model;
 use PontoRH\Models\PontoRh_treatment_cases_model;
@@ -21,6 +22,7 @@ abstract class PontoRH_Base_Controller extends Security_Controller
     protected PontoRh_records_model $records_model;
     protected PontoRh_shifts_model $shifts_model;
     protected PontoRh_assignments_model $assignments_model;
+    protected PontoRh_location_assignments_model $location_assignments_model;
     protected PontoRh_locations_model $locations_model;
     protected PontoRh_adjustments_model $adjustments_model;
     protected PontoRh_audit_logs_model $audit_logs_model;
@@ -37,6 +39,7 @@ abstract class PontoRH_Base_Controller extends Security_Controller
         $this->records_model = model(PontoRh_records_model::class);
         $this->shifts_model = model(PontoRh_shifts_model::class);
         $this->assignments_model = model(PontoRh_assignments_model::class);
+        $this->location_assignments_model = model(PontoRh_location_assignments_model::class);
         $this->locations_model = model(PontoRh_locations_model::class);
         $this->adjustments_model = model(PontoRh_adjustments_model::class);
         $this->audit_logs_model = model(PontoRh_audit_logs_model::class);
@@ -244,6 +247,29 @@ abstract class PontoRH_Base_Controller extends Security_Controller
     protected function locationsDropdown($include_blank = true)
     {
         return $this->locations_model->get_active_dropdown($include_blank);
+    }
+
+    protected function assignedLocationsDropdown(int $team_member_id, ?string $date = null, $include_blank = true)
+    {
+        $dropdown = array();
+        if ($include_blank) {
+            $dropdown[''] = '-';
+        }
+
+        $assigned_ids = $this->location_assignments_model->get_location_ids_for_member($team_member_id, $date);
+        if (!$assigned_ids) {
+            return $this->locationsDropdown($include_blank);
+        }
+
+        $result = $this->locations_model->get_details(array('active' => 1));
+        foreach ($result ? $result->getResult() : array() as $row) {
+            if (!in_array((int) $row->id, $assigned_ids, true)) {
+                continue;
+            }
+            $dropdown[$row->id] = $row->name;
+        }
+
+        return $dropdown;
     }
 
     protected function combineDateTime($date, $time)

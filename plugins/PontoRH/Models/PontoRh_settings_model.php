@@ -60,6 +60,7 @@ class PontoRh_settings_model extends PontoRhBaseModel
             'allowed_radius_meters' => '200',
             'default_tolerance_minutes' => '10',
             'bank_hours_enabled' => '1',
+            'google_maps_api_key' => '',
         );
     }
 

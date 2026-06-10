@@ -12,9 +12,13 @@ class ModuleApiController extends Rest_api_Controller
 
     protected function payload(): array
     {
-        $json = $this->request->getJSON(true);
-        if (is_array($json) && $json) {
-            return $json;
+        try {
+            $json = $this->request->getJSON(true);
+            if (is_array($json) && $json) {
+                return $json;
+            }
+        } catch (\Throwable $e) {
+            log_message('error', '[RestApi] Invalid JSON payload: ' . $e->getMessage());
         }
 
         $post = $this->request->getPost();
@@ -22,9 +26,17 @@ class ModuleApiController extends Rest_api_Controller
             return $post;
         }
 
-        $raw = $this->request->getRawInput();
-        if (is_array($raw) && $raw) {
-            return $raw;
+        $raw_input = trim((string) $this->request->getBody());
+        if ($raw_input !== '') {
+            $decoded = json_decode($raw_input, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && $decoded) {
+                return $decoded;
+            }
+
+            $raw = $this->request->getRawInput();
+            if (is_array($raw) && $raw) {
+                return $raw;
+            }
         }
 
         return [];

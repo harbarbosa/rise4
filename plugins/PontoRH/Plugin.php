@@ -104,6 +104,13 @@ class Plugin
         return self::hasAnyPermission($login_user, array('pontorh_manage_settings'));
     }
 
+    public static function canManageLocations($login_user)
+    {
+        return self::canManageSchedules($login_user)
+            || self::canManageSettings($login_user)
+            || self::canAdmin($login_user);
+    }
+
     public static function canViewAllData($login_user)
     {
         if (self::canAdmin($login_user)) {
@@ -346,6 +353,10 @@ class Plugin
                 $submenu['pontorh_mirror'] = array('name' => 'pontorh_mirror', 'url' => 'pontorh/espelho', 'class' => 'copy');
             }
 
+            if (self::canManageLocations($login_user)) {
+                $submenu['pontorh_locations'] = array('name' => 'pontorh_locations', 'url' => 'pontorh/locais', 'class' => 'map-pin');
+            }
+
             if (self::canViewReportsScope($login_user)) {
                 $submenu['pontorh_reports'] = array('name' => 'pontorh_reports', 'url' => 'pontorh/relatorios', 'class' => 'bar-chart-2');
             }
@@ -375,6 +386,11 @@ class Plugin
                     'pontorh/jornadas',
                     'pontorh/ajustes',
                     'pontorh/espelho',
+                    'pontorh/locais',
+                    'pontorh/locais/detalhes',
+                    'pontorh/locais/modal_form',
+                    'pontorh/locais/view_modal',
+                    'pontorh/locais/assignment_modal',
                     'pontorh/relatorios',
                     'pontorh/tratamento',
                     'pontorh/configuracoes',

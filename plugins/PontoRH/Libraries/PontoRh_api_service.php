@@ -13,6 +13,7 @@ class PontoRh_api_service
     protected \PontoRH\Models\PontoRh_audit_logs_model $auditLogsModel;
     protected \PontoRH\Models\PontoRh_devices_model $devicesModel;
     protected \PontoRH\Models\PontoRh_locations_model $locationsModel;
+    protected \PontoRH\Models\PontoRh_location_assignments_model $locationAssignmentsModel;
     protected \PontoRH\Models\PontoRh_monthly_summaries_model $monthlySummariesModel;
     protected \PontoRH\Models\PontoRh_records_model $recordsModel;
     protected \PontoRH\Models\PontoRh_settings_model $settingsModel;
@@ -34,6 +35,7 @@ class PontoRh_api_service
         $this->auditLogsModel = model(\PontoRH\Models\PontoRh_audit_logs_model::class);
         $this->devicesModel = model(\PontoRH\Models\PontoRh_devices_model::class);
         $this->locationsModel = model(\PontoRH\Models\PontoRh_locations_model::class);
+        $this->locationAssignmentsModel = model(\PontoRH\Models\PontoRh_location_assignments_model::class);
         $this->monthlySummariesModel = model(\PontoRH\Models\PontoRh_monthly_summaries_model::class);
         $this->recordsModel = model(\PontoRH\Models\PontoRh_records_model::class);
         $this->settingsModel = model(\PontoRH\Models\PontoRh_settings_model::class);
@@ -455,7 +457,7 @@ class PontoRh_api_service
             $device = $this->devicesModel->get_by_member_and_device((int) $this->user->id, $device_id);
         }
 
-        $matched_location = $this->matchLocation($latitude, $longitude, $settings);
+        $matched_location = $this->matchLocation($latitude, $longitude, $settings, (int) $this->user->id, $today);
         $record_status = $matched_location ? 'pending' : 'outside_area';
 
         $now = get_my_local_time();
@@ -1168,7 +1170,7 @@ class PontoRh_api_service
         return true;
     }
 
-    protected function matchLocation(string $latitude, string $longitude, array $settings)
+    protected function matchLocation(string $latitude, string $longitude, array $settings, int $team_member_id = 0, ?string $date = null)
     {
         if ($latitude === '' || $longitude === '') {
             return null;
@@ -1179,9 +1181,18 @@ class PontoRh_api_service
             return null;
         }
 
+        $allowed_location_ids = array();
+        if ($team_member_id > 0) {
+            $allowed_location_ids = $this->locationAssignmentsModel->get_location_ids_for_member($team_member_id, $date);
+        }
+
         $locations_result = $this->locationsModel->get_details(array('active' => 1));
         $locations = $locations_result ? $locations_result->getResult() : array();
         foreach ($locations as $location) {
+            if ($allowed_location_ids && !in_array((int) $location->id, $allowed_location_ids, true)) {
+                continue;
+            }
+
             $radius = (int) ($location->radius_meters ?? $allowed_radius);
             $distance = $this->distanceMeters((float) $latitude, (float) $longitude, (float) ($location->latitude ?? 0), (float) ($location->longitude ?? 0));
             if ($distance <= $radius) {
