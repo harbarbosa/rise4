@@ -6,12 +6,14 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
 {
     protected $timesheetsModel;
     protected $projectsModel;
+    protected $usersModel;
 
     public function __construct()
     {
         parent::__construct();
         $this->timesheetsModel = model('App\Models\Timesheets_model');
         $this->projectsModel = model('App\Models\Projects_model');
+        $this->usersModel = model('App\Models\Users_model');
     }
 
     public function listByProject(int $projectId)
@@ -46,6 +48,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         ];
 
         $result = $this->timesheetsModel->get_details($options);
+        $data = $this->decorateTimesheetRows($result['data'] ?? []);
 
         return $this->respond([
             'status' => true,
@@ -57,7 +60,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
                 'filtered' => (int) ($result['recordsFiltered'] ?? 0),
             ],
             'summation' => $result['summation'] ?? new \stdClass(),
-            'data' => $result['data'] ?? [],
+            'data' => $data,
         ]);
     }
 
@@ -70,7 +73,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         $row = $this->timesheetsModel->get_details([
             'project_id' => $projectId,
             'id' => $id,
-        ])->getRowArray();
+        ])->getRow();
 
         if (!$row) {
             return $this->failNotFound('Timesheet not found.');
@@ -78,7 +81,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
 
         return $this->respond([
             'status' => true,
-            'data' => $row,
+            'data' => $this->decorateTimesheetRow($row),
         ]);
     }
 
@@ -89,6 +92,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         }
 
         $payload = $this->getPayload();
+        $payload = $this->normalizeTimesheetCollaborators($payload);
         $data = $this->mapPayload($payload);
         $data['project_id'] = $projectId;
 
@@ -138,6 +142,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         }
 
         $payload = $this->getPayload();
+        $payload = $this->normalizeTimesheetCollaborators($payload);
         $data = $this->mapPayload($payload);
         unset($data['project_id']);
 
@@ -247,7 +252,12 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
                 continue;
             }
 
-            if (in_array($field, ['user_id', 'project_id', 'task_id'], true)) {
+            if ($field === 'user_id') {
+                $data[$field] = is_array($value) ? implode(',', array_values(array_filter(array_map('get_only_numeric_value', $value)))) : trim((string) $value);
+                continue;
+            }
+
+            if (in_array($field, ['project_id', 'task_id'], true)) {
                 $data[$field] = (int) $value;
                 continue;
             }
@@ -261,6 +271,97 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         }
 
         return $data;
+    }
+
+    protected function normalizeTimesheetCollaborators(array $payload): array
+    {
+        $userIds = $payload['user_ids'] ?? ($payload['collaborators'] ?? ($payload['user_id'] ?? []));
+        $normalized = $this->normalizeUserIdList($userIds);
+        if (!$normalized) {
+            return $payload;
+        }
+
+        $payload['user_id'] = implode(',', $normalized);
+        unset($payload['user_ids'], $payload['collaborators']);
+
+        return $payload;
+    }
+
+    protected function normalizeUserIdList($value): array
+    {
+        if (is_string($value)) {
+            $value = array_map('trim', explode(',', $value));
+        } elseif (!is_array($value)) {
+            $value = [$value];
+        }
+
+        $ids = [];
+        foreach ($value as $item) {
+            $id = get_only_numeric_value($item);
+            if ($id) {
+                $ids[] = (int) $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    protected function decorateTimesheetRows(array $rows): array
+    {
+        if (!$rows) {
+            return $rows;
+        }
+
+        foreach ($rows as $index => $row) {
+            $rows[$index] = $this->decorateTimesheetRow($row);
+        }
+
+        return $rows;
+    }
+
+    protected function decorateTimesheetRow($row)
+    {
+        if (!$row) {
+            return $row;
+        }
+
+        $isArray = is_array($row);
+        if ($isArray) {
+            $row = (object) $row;
+        }
+
+        $userIds = $this->normalizeUserIdList($row->user_id ?? '');
+        $row->collaborator_ids = $userIds;
+        $row->collaborators = [];
+
+        if (!$userIds) {
+            return $row;
+        }
+
+        $db = db_connect('default');
+        $usersTable = $db->prefixTable('users');
+        $idsList = implode(',', $userIds);
+        $users = $db->query("SELECT id, first_name, last_name, image FROM $usersTable WHERE deleted=0 AND id IN ($idsList) ORDER BY first_name ASC")->getResult();
+
+        $names = [];
+        foreach ($users as $user) {
+            $fullName = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
+            $names[] = $fullName;
+            $row->collaborators[] = [
+                'id' => (int) ($user->id ?? 0),
+                'name' => $fullName,
+                'image' => $user->image ?? null,
+            ];
+        }
+
+        if (!empty($names)) {
+            $row->logged_by_user = implode(', ', $names);
+            if (!empty($row->collaborators[0]['image']) && empty($row->logged_by_avatar)) {
+                $row->logged_by_avatar = $row->collaborators[0]['image'];
+            }
+        }
+
+        return $isArray ? (array) $row : $row;
     }
 
     protected function validateTaskPercentage(int $taskId, float $percentageExecuted, int $excludeId = 0)
