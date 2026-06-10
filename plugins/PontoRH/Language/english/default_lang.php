@@ -92,6 +92,7 @@ $lang['pontorh_treatment_status_complete'] = 'Complete';
 $lang['pontorh_treatment_status_incomplete'] = 'Incomplete';
 $lang['pontorh_treatment_status_inconsistent'] = 'Inconsistent';
 $lang['pontorh_treatment_status_outside_area'] = 'Outside area';
+$lang['pontorh_status_outside_area'] = $lang['pontorh_treatment_status_outside_area'];
 $lang['pontorh_treatment_status_no_photo'] = 'No photo';
 $lang['pontorh_treatment_status_adjustment_requested'] = 'Adjustment requested';
 $lang['pontorh_treatment_status_awaiting_justification'] = 'Awaiting justification';
