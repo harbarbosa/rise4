@@ -73,7 +73,7 @@ $default_date_to = get_my_local_time('Y-m-t');
                 </div>
                 <div class="col-md-12">
                     <button type="button" id="pontorh-filter-btn" class="btn btn-primary btn-sm me-2"><?php echo app_lang('filter'); ?></button>
-                    <button type="button" id="pontorh-clear-btn" class="btn btn-default btn-sm">Limpar</button>
+                    <button type="button" id="pontorh-clear-btn" class="btn btn-default btn-sm"><?php echo app_lang('clear'); ?></button>
                 </div>
             </div>
         </div>
