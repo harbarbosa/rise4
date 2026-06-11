@@ -531,6 +531,7 @@ class TravelRefunds extends Security_Controller
         $id = (int) $this->request->getPost('id');
         $existing = $id ? $this->reimbursementsModel->get_one($id) : null;
         $attachment_id = (int) $this->request->getPost('attachment_id') ?: (int) ($existing->attachment_id ?? 0);
+        $receipt_file = trim((string) $this->request->getPost('receipt_file')) ?: trim((string) ($existing->receipt_file ?? ''));
         $trip_id = (int) $this->request->getPost('trip_id');
         $trip = $trip_id ? $this->tripsModel->get_one($trip_id) : null;
         $db = db_connect('default');
@@ -540,7 +541,13 @@ class TravelRefunds extends Security_Controller
         if ($uploaded_files) {
             $uploaded_list = @unserialize($uploaded_files);
             if (is_array($uploaded_list) && get_array_value($uploaded_list, 0)) {
-                $attachment_id = (int) get_array_value(get_array_value($uploaded_list, 0), 'file_id');
+                $uploaded_file = get_array_value($uploaded_list, 0);
+                $uploaded_file_id = (int) get_array_value($uploaded_file, 'file_id');
+                if ($uploaded_file_id) {
+                    $attachment_id = $uploaded_file_id;
+                } else if (!$receipt_file) {
+                    $receipt_file = trim((string) get_array_value($uploaded_file, 'file_name'));
+                }
             }
         }
 
@@ -556,6 +563,7 @@ class TravelRefunds extends Security_Controller
             'invoice_number' => trim((string) $this->request->getPost('invoice_number')) ?: trim((string) $this->request->getPost('receipt_number')),
             'supplier_name' => trim((string) $this->request->getPost('supplier_name')) ?: trim((string) $this->request->getPost('vendor')),
             'attachment_id' => $attachment_id ?: null,
+            'receipt_file' => $receipt_file ?: null,
             'status' => trim((string) $this->request->getPost('status')) ?: 'pending',
             'rejection_reason' => trim((string) $this->request->getPost('rejection_reason')),
             'notes' => trim((string) $this->request->getPost('notes')),
@@ -619,11 +627,18 @@ class TravelRefunds extends Security_Controller
 
         $id = (int) $this->request->getPost('id');
         $attachment_id = (int) $this->request->getPost('attachment_id');
+        $receipt_file = trim((string) $this->request->getPost('receipt_file'));
         $uploaded_files = move_files_from_temp_dir_to_permanent_dir('files/travelrefunds/' . $trip_id . '/', 'travelrefunds');
         if ($uploaded_files) {
             $uploaded_list = @unserialize($uploaded_files);
             if (is_array($uploaded_list) && get_array_value($uploaded_list, 0)) {
-                $attachment_id = (int) get_array_value(get_array_value($uploaded_list, 0), 'file_id');
+                $uploaded_file = get_array_value($uploaded_list, 0);
+                $uploaded_file_id = (int) get_array_value($uploaded_file, 'file_id');
+                if ($uploaded_file_id) {
+                    $attachment_id = $uploaded_file_id;
+                } else if (!$receipt_file) {
+                    $receipt_file = trim((string) get_array_value($uploaded_file, 'file_name'));
+                }
             }
         }
 
@@ -639,6 +654,7 @@ class TravelRefunds extends Security_Controller
             'invoice_number' => trim((string) $this->request->getPost('invoice_number')),
             'supplier_name' => trim((string) $this->request->getPost('supplier_name')),
             'attachment_id' => $attachment_id ?: null,
+            'receipt_file' => $receipt_file ?: null,
             'status' => trim((string) $this->request->getPost('status')) ?: 'pending',
             'rejection_reason' => trim((string) $this->request->getPost('rejection_reason')),
             'notes' => trim((string) $this->request->getPost('notes')),
@@ -736,7 +752,7 @@ class TravelRefunds extends Security_Controller
 
         $expenses = $this->reimbursementsModel->get_details(array('trip_id' => $trip->id))->getResult();
         foreach ($expenses as $expense) {
-            $expense->attachment_url = $this->buildExpenseAttachmentUrl($expense->attachment_id);
+            $expense->attachment_url = $this->buildExpenseAttachmentUrl($expense->attachment_id, $expense->receipt_file ?? '');
             $expense->category_label = $expense->category_name ?: $expense->category_title ?: '-';
         }
 
@@ -1520,11 +1536,16 @@ class TravelRefunds extends Security_Controller
         $this->tripsModel->ci_save($update, $trip_id);
     }
 
-    protected function buildExpenseAttachmentUrl($attachment_id = 0): string
+    protected function buildExpenseAttachmentUrl($attachment_id = 0, string $receipt_file = ''): string
     {
         $attachment_id = (int) $attachment_id;
         if (!$attachment_id) {
-            return '';
+            $receipt_file = trim($receipt_file);
+            if (!$receipt_file) {
+                return '';
+            }
+
+            return base_url('files/travelrefunds/reimbursements/' . rawurlencode($receipt_file));
         }
 
         return get_uri('file_manager/view_file/' . $attachment_id);

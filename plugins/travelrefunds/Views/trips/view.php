@@ -166,6 +166,7 @@ $estimated_amount = $trip->total_amount ?? ($trip->estimated_amount ?? 0);
                         <?php echo form_open(get_uri('travelrefunds/trips/save-expense/' . $trip_id), array('id' => 'travelrefunds-expense-form', 'class' => 'general-form', 'role' => 'form')); ?>
                             <input type="hidden" name="id" value="<?php echo $expense_edit_id; ?>" />
                             <input type="hidden" name="attachment_id" value="<?php echo esc($expense_edit->attachment_id ?? ''); ?>" />
+                            <input type="hidden" name="receipt_file" value="<?php echo esc($expense_edit->receipt_file ?? ''); ?>" />
                             <div class="row">
                                 <div class="col-md-3 mb10">
                                     <label class="form-label" for="expense_category_id">Categoria</label>
@@ -235,6 +236,10 @@ $estimated_amount = $trip->total_amount ?? ($trip->estimated_amount ?? 0);
                                         </div>
                                         <?php if (!empty($expense_edit->attachment_id)) { ?>
                                             <div class="text-off mt10">Anexo existente preservado ate novo upload.</div>
+                                        <?php } else if (!empty($expense_edit->receipt_file)) { ?>
+                                            <div class="text-off mt10">
+                                                <a href="<?php echo base_url('files/travelrefunds/' . (int) $trip_id . '/' . rawurlencode($expense_edit->receipt_file)); ?>" target="_blank">Ver anexo existente</a>
+                                            </div>
                                         <?php } ?>
                                     </div>
                                 </div>

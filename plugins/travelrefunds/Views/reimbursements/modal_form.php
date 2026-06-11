@@ -29,6 +29,7 @@ $selected_vendor = isset($model_info->vendor) ? $model_info->vendor : '';
 $selected_receipt_number = isset($model_info->receipt_number) ? $model_info->receipt_number : '';
 $selected_attachment_id = isset($model_info->attachment_id) ? $model_info->attachment_id : '';
 $selected_attachment_files = isset($selected_attachment_files) ? $selected_attachment_files : '';
+$selected_receipt_file = isset($model_info->receipt_file) ? $model_info->receipt_file : '';
 $selected_description = isset($model_info->description) ? $model_info->description : '';
 $selected_notes = isset($model_info->notes) ? $model_info->notes : '';
 ?>
@@ -172,6 +173,10 @@ $selected_notes = isset($model_info->notes) ? $model_info->notes : '';
                     <?php } else if (!empty($selected_attachment_id)) { ?>
                         <div class="text-off mt10">
                             <a href="<?php echo get_uri('file_manager/view_file/' . $selected_attachment_id); ?>" target="_blank">Ver anexo existente</a>
+                        </div>
+                    <?php } else if (!empty($selected_receipt_file)) { ?>
+                        <div class="text-off mt10">
+                            <a href="<?php echo base_url('files/travelrefunds/reimbursements/' . rawurlencode($selected_receipt_file)); ?>" target="_blank">Ver anexo existente</a>
                         </div>
                     <?php } ?>
                     <?php echo view("includes/dropzone_preview"); ?>
