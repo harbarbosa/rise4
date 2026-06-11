@@ -107,6 +107,27 @@ class PontoRh_api_service
         return substr($date_time, 11, 5) ?: $date_time;
     }
 
+    protected function formatLocalDateValue($date_time): string
+    {
+        $date_time = trim((string) $date_time);
+        if ($date_time === '') {
+            return '';
+        }
+
+        if (function_exists('pontorh_local_datetime')) {
+            $date_time = pontorh_local_datetime($date_time, 'Y-m-d H:i:s');
+        } elseif (function_exists('convert_date_utc_to_local') && is_date_exists($date_time)) {
+            $date_time = convert_date_utc_to_local($date_time);
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}/', $date_time)) {
+            return substr($date_time, 0, 10);
+        }
+
+        $timestamp = strtotime($date_time);
+        return $timestamp ? date('Y-m-d', $timestamp) : substr($date_time, 0, 10);
+    }
+
     protected function localTimestamp($date_time): ?int
     {
         $date_time = trim((string) $date_time);
@@ -295,14 +316,14 @@ class PontoRh_api_service
         );
     }
 
-    public function today(): array
+    public function today(?string $date = null): array
     {
         $auth = $this->permissionResponse('pontorh_view_own');
         if (!$auth['ok']) {
             return $auth;
         }
 
-        $today = get_my_local_time('Y-m-d');
+        $today = $this->normalizeDate($date ?? '') ?: get_my_local_time('Y-m-d');
         $rows_result = $this->recordsModel->get_details(array(
             'team_member_id' => (int) $this->user->id,
             'date_from' => $today,
@@ -316,7 +337,7 @@ class PontoRh_api_service
                 'id' => (int) $row['id'],
                 'type' => (string) $row['punch_type'],
                 'time' => !empty($row['punch_time']) ? $this->formatLocalTimeValue($row['punch_time']) : null,
-                'date' => (string) $row['date'],
+                'date' => !empty($row['punch_time']) ? $this->formatLocalDateValue($row['punch_time']) : (string) $row['date'],
                 'latitude' => (string) ($row['latitude'] ?? '0'),
                 'longitude' => (string) ($row['longitude'] ?? '0'),
                 'status' => (string) ($row['status'] ?? ''),
@@ -490,14 +511,15 @@ class PontoRh_api_service
 
         $now_local = get_my_local_time();
         $now_utc = get_current_utc_time();
+        $now_local_date = get_my_local_time('Y-m-d');
         $record_data = array(
             'team_member_id' => (int) $this->user->id,
             'user_id' => (int) $this->user->id,
             'work_schedule_id' => (int) ($schedule->id ?? 0),
             'device_id' => $device ? (int) $device->id : null,
             'location_id' => $matched_location ? (int) $matched_location->id : null,
-            'date' => substr($now_local, 0, 10),
-            'work_date' => substr($now_local, 0, 10),
+            'date' => $now_local_date,
+            'work_date' => $now_local_date,
             'punch_time' => $now_utc,
             'punch_type' => $type,
             'check_in' => in_array($type, array('in', 'lunch_return'), true) ? $now_utc : null,
@@ -1130,7 +1152,7 @@ class PontoRh_api_service
             'id' => (int) ($row['id'] ?? 0),
             'type' => $this->arrayValue($type_map, (string) ($row['punch_type'] ?? ''), (string) ($row['punch_type'] ?? '')),
             'time' => !empty($row['punch_time']) ? $this->formatLocalTimeValue($row['punch_time']) : null,
-            'date' => (string) ($row['date'] ?? ''),
+            'date' => !empty($row['punch_time']) ? $this->formatLocalDateValue($row['punch_time']) : (string) ($row['date'] ?? ''),
             'location' => (string) ($row['location_name'] ?? ''),
             'source' => (string) ($row['source'] ?? ''),
             'status' => (string) ($row['status'] ?? ''),

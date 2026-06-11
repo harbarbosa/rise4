@@ -48,7 +48,7 @@ class PontoRhController extends ModuleApiController
             return $response;
         }
 
-        return $this->sendResult($this->service->today());
+        return $this->sendResult($this->service->today((string) $this->request->getGet('date')));
     }
 
     public function month()
