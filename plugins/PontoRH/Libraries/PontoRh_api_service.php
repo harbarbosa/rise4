@@ -509,9 +509,10 @@ class PontoRh_api_service
         $matched_location = $this->matchLocation($latitude, $longitude, $settings, (int) $this->user->id, $today);
         $record_status = $matched_location ? 'pending' : 'outside_area';
 
-        $now_local = get_my_local_time();
         $now_utc = get_current_utc_time();
-        $now_local_date = get_my_local_time('Y-m-d');
+        $now_local_date = function_exists('pontorh_convert_utc_to_local')
+            ? $this->formatLocalDateValue($now_utc)
+            : get_my_local_time('Y-m-d');
         $record_data = array(
             'team_member_id' => (int) $this->user->id,
             'user_id' => (int) $this->user->id,
