@@ -58,6 +58,7 @@ $routes->group('api', $rest_api_namespace, function ($routes) {
 	$routes->match(['GET', 'POST'], 'projectanalizer/team-activities', 'ProjectAnalizerController::teamActivities');
 	$routes->match(['GET', 'POST'], 'projectanalizer/timelogs', 'ProjectAnalizerController::timelogs');
 	$routes->get('projectanalizer/timelogs/(:num)/photos', 'ProjectAnalizerController::timelogPhotos/$1');
+	$routes->get('projectanalizer/milestones/(:num)', 'ProjectAnalizerController::milestones/$1');
 	$routes->match(['GET', 'POST'], 'projectanalizer/execution-schedules', 'ProjectAnalizerController::executionSchedules');
 	$routes->match(['GET', 'POST'], 'projectanalizer/execution-schedules/(:num)', 'ProjectAnalizerController::executionSchedules/$1');
 	$routes->delete('projectanalizer/execution-schedules/(:num)', 'ProjectAnalizerController::deleteExecutionSchedule/$1');

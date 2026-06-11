@@ -4,6 +4,7 @@ namespace RestApi\Controllers;
 
 use App\Models\Timesheets_model;
 use App\Models\Tasks_model;
+use App\Models\Milestones_model;
 use Config\Database;
 use ProjectAnalizer\Models\Execution_schedule_model;
 use ProjectAnalizer\Models\Photos_model;
@@ -14,6 +15,7 @@ class ProjectAnalizerController extends ModuleApiController
     protected Team_activities_model $teamActivitiesModel;
     protected Timesheets_model $timesheetsModel;
     protected Tasks_model $tasksModel;
+    protected Milestones_model $milestonesModel;
     protected Execution_schedule_model $executionScheduleModel;
     protected Photos_model $photosModel;
     protected $db;
@@ -28,6 +30,7 @@ class ProjectAnalizerController extends ModuleApiController
         $this->teamActivitiesModel = model('ProjectAnalizer\Models\Team_activities_model');
         $this->timesheetsModel = model('App\Models\Timesheets_model');
         $this->tasksModel = model('App\Models\Tasks_model');
+        $this->milestonesModel = model('App\Models\Milestones_model');
         $this->executionScheduleModel = model('ProjectAnalizer\Models\Execution_schedule_model');
         $this->photosModel = model('ProjectAnalizer\Models\Photos_model');
     }
@@ -60,6 +63,12 @@ class ProjectAnalizerController extends ModuleApiController
                     'method' => 'GET',
                     'route' => get_uri('api/projectanalizer/tasks/{project_id}'),
                     'description' => 'List project tasks and execution percentage.',
+                ],
+                [
+                    'key' => 'milestones',
+                    'method' => 'GET',
+                    'route' => get_uri('api/projectanalizer/milestones/{project_id}'),
+                    'description' => 'List project milestones.',
                 ],
 				[
 					'key' => 'task',
@@ -131,6 +140,33 @@ class ProjectAnalizerController extends ModuleApiController
         return $this->respond([
             'status' => true,
             'resource' => 'projectanalizer_tasks',
+            'project_id' => $projectId,
+            'count' => count($data),
+            'data' => $data,
+        ]);
+    }
+
+    public function milestones($projectId = 0)
+    {
+        $projectId = (int) ($projectId ?: ($this->request->getGet('project_id') ?? 0));
+        if ($projectId <= 0) {
+            return $this->failValidationErrors('Invalid project id.');
+        }
+
+        $result = $this->milestonesModel->get_details([
+            'project_id' => $projectId,
+            'deleted' => 0,
+        ]);
+
+        $rows = is_object($result) && method_exists($result, 'getResult') ? $result->getResult() : [];
+        $data = [];
+        foreach ($rows as $row) {
+            $data[] = $this->formatMilestoneRow($row);
+        }
+
+        return $this->respond([
+            'status' => true,
+            'resource' => 'projectanalizer_milestones',
             'project_id' => $projectId,
             'count' => count($data),
             'data' => $data,
@@ -1062,6 +1098,27 @@ class ProjectAnalizerController extends ModuleApiController
             'percentage' => isset($row->percentage) ? (float) $row->percentage : null,
             'execution_percentage' => $executionPercentage,
             'percentage_bar' => $percentageBar,
+        ];
+    }
+
+    protected function formatMilestoneRow(object $row): array
+    {
+        $totalPoints = isset($row->total_points) ? (float) $row->total_points : 0.0;
+        $completedPoints = isset($row->completed_points) ? (float) $row->completed_points : 0.0;
+        $progress = $totalPoints > 0 ? round(($completedPoints / $totalPoints) * 100, 2) : 0.0;
+
+        return [
+            'id' => (int) ($row->id ?? 0),
+            'project_id' => (int) ($row->project_id ?? 0),
+            'title' => $row->title ?? null,
+            'description' => $row->description ?? null,
+            'due_date' => $row->due_date ?? null,
+            'percentage' => isset($row->percentage) ? (float) $row->percentage : null,
+            'total_points' => $totalPoints,
+            'total_tasks' => isset($row->total_tasks) ? (int) $row->total_tasks : 0,
+            'completed_points' => $completedPoints,
+            'completed_tasks' => isset($row->completed_tasks) ? (int) $row->completed_tasks : 0,
+            'progress_percentage' => $progress,
         ];
     }
 
