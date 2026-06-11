@@ -23,6 +23,10 @@ $routes->post('restapi/remove/(:num)', 'Api_settings_Controller::delete_user/$1'
 //mobile auth
 	$routes->post('api/auth/login', 'AuthController::login', $rest_api_namespace);
 	$routes->post('api/auth/logout', 'AuthController::logout', $rest_api_namespace);
+	$routes->get('api/notifications', 'NotificationsController::index', $rest_api_namespace);
+	$routes->get('api/notifications/unread-count', 'NotificationsController::unreadCount', $rest_api_namespace);
+	$routes->post('api/notifications/read-all', 'NotificationsController::readAll', $rest_api_namespace);
+	$routes->post('api/notifications/(:num)/read', 'NotificationsController::read/$1', $rest_api_namespace);
 	$routes->get('api/pontorh/me', 'PontoRhController::me', $rest_api_namespace);
 	$routes->get('api/pontorh/status', 'PontoRhController::status', $rest_api_namespace);
 	$routes->post('api/pontorh/checkin', 'PontoRhController::checkin', $rest_api_namespace);

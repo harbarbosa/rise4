@@ -1168,4 +1168,215 @@ class Notifications_model extends Crud_model {
 
         return $this->db->query($sql)->getRow()->to_user_name;
     }
+
+    public function get_api_notifications($user_id, $offset = 0, $limit = 20, $unread_only = false)
+    {
+        $user_id = $this->_get_clean_value($user_id);
+        $offset = max(0, (int) $this->_get_clean_value($offset));
+        $limit = max(1, (int) $this->_get_clean_value($limit));
+
+        $notifications_table = $this->db->prefixTable('notifications');
+        $users_table = $this->db->prefixTable('users');
+        $projects_table = $this->db->prefixTable('projects');
+        $project_comments_table = $this->db->prefixTable('project_comments');
+        $project_files_table = $this->db->prefixTable('project_files');
+        $tasks_table = $this->db->prefixTable('tasks');
+        $leave_applications_table = $this->db->prefixTable('leave_applications');
+        $tickets_table = $this->db->prefixTable('tickets');
+        $ticket_comments_table = $this->db->prefixTable('ticket_comments');
+        $activity_logs_table = $this->db->prefixTable('activity_logs');
+        $invoice_payments_table = $this->db->prefixTable('invoice_payments');
+        $posts_table = $this->db->prefixTable('posts');
+        $invoices_table = $this->db->prefixTable('invoices');
+        $clients_table = $this->db->prefixTable('clients');
+        $events_table = $this->db->prefixTable('events');
+        $announcements_table = $this->db->prefixTable('announcements');
+        $contracts_table = $this->db->prefixTable('contracts');
+        $estimates_table = $this->db->prefixTable('estimates');
+        $proposals_table = $this->db->prefixTable('proposals');
+        $estimate_comments_table = $this->db->prefixTable('estimate_comments');
+        $expenses_table = $this->db->prefixTable('expenses');
+        $subscriptions_table = $this->db->prefixTable('subscriptions');
+        $proposal_comments_table = $this->db->prefixTable('proposal_comments');
+        $reminder_logs_table = $this->db->prefixTable('reminder_logs');
+
+        $read_filter_sql = $unread_only ? " AND FIND_IN_SET($user_id, $notifications_table.read_by) = 0" : "";
+
+        $sql = "SELECT SQL_CALC_FOUND_ROWS $notifications_table.*, CONCAT($users_table.first_name, ' ', $users_table.last_name) AS user_name, $users_table.image AS user_image,
+                 $projects_table.title AS project_title,
+                 $project_comments_table.description AS project_comment_title,
+                 $project_files_table.file_name AS project_file_title,
+                 $contracts_table.title AS contract_title, $contracts_table.meta_data AS contract_meta_data,
+                 $estimates_table.meta_data AS estimate_meta_data,
+                 $proposals_table.meta_data AS proposal_meta_data,
+                 $tasks_table.title AS task_title,
+                 $events_table.title AS event_title,
+                 $tickets_table.title AS ticket_title,
+                 $ticket_comments_table.description AS ticket_comment_description,
+                 $posts_table.description AS posts_title,
+                 $subscriptions_table.title AS subscription_title,
+                 $announcements_table.title AS announcement_title,
+                 $estimate_comments_table.description AS estimate_comment_description,
+                 $clients_table.company_name AS company_name, lead_table.company_name AS lead_company_name,
+                 $expenses_table.title AS expense_title,
+                 $proposal_comments_table.description AS proposal_comment_description,
+                 $activity_logs_table.changes AS activity_log_changes, $activity_logs_table.log_type AS activity_log_type,
+                 $leave_applications_table.start_date AS leave_start_date, $leave_applications_table.end_date AS leave_end_date,
+                 $invoice_payments_table.invoice_id AS payment_invoice_id, $invoice_payments_table.amount AS payment_amount, (SELECT currency_symbol FROM $clients_table WHERE $clients_table.id=$invoices_table.client_id) AS client_currency_symbol,
+                 payment_invoice_table.display_id AS payment_invoice_display_id,
+                 (SELECT CONCAT($users_table.first_name, ' ', $users_table.last_name) FROM $users_table WHERE $users_table.id=$notifications_table.to_user_id) AS to_user_name,
+                 (SELECT $clients_table.company_name FROM $clients_table WHERE $clients_table.id=$notifications_table.lead_id) AS lead_title,
+                 FIND_IN_SET($user_id, $notifications_table.read_by) as is_read
+        FROM $notifications_table
+        LEFT JOIN $projects_table ON $projects_table.id=$notifications_table.project_id
+        LEFT JOIN $project_comments_table ON $project_comments_table.id=$notifications_table.project_comment_id
+        LEFT JOIN $project_files_table ON $project_files_table.id=$notifications_table.project_file_id
+        LEFT JOIN $tasks_table ON $tasks_table.id=$notifications_table.task_id
+        LEFT JOIN $contracts_table ON $contracts_table.id=$notifications_table.contract_id
+        LEFT JOIN $estimates_table ON $estimates_table.id=$notifications_table.estimate_id
+        LEFT JOIN $proposals_table ON $proposals_table.id=$notifications_table.proposal_id
+        LEFT JOIN $leave_applications_table ON $leave_applications_table.id=$notifications_table.leave_id
+        LEFT JOIN $tickets_table ON $tickets_table.id=$notifications_table.ticket_id
+        LEFT JOIN $ticket_comments_table ON $ticket_comments_table.id=$notifications_table.ticket_comment_id
+        LEFT JOIN $posts_table ON $posts_table.id=$notifications_table.post_id
+        LEFT JOIN $subscriptions_table ON $subscriptions_table.id=$notifications_table.subscription_id
+        LEFT JOIN $users_table ON $users_table.id=$notifications_table.user_id
+        LEFT JOIN $activity_logs_table ON $activity_logs_table.id=$notifications_table.activity_log_id
+        LEFT JOIN $invoice_payments_table ON $invoice_payments_table.id=$notifications_table.invoice_payment_id
+        LEFT JOIN $invoices_table ON $invoices_table.id=$notifications_table.invoice_id
+        LEFT JOIN $events_table ON $events_table.id=$notifications_table.event_id
+        LEFT JOIN $announcements_table ON $announcements_table.id=$notifications_table.announcement_id
+        LEFT JOIN $estimate_comments_table ON $estimate_comments_table.id=$notifications_table.estimate_comment_id
+        LEFT JOIN $clients_table ON $clients_table.id=$notifications_table.client_id
+        LEFT JOIN $expenses_table ON $expenses_table.id=$notifications_table.expense_id
+        LEFT JOIN $proposal_comments_table ON $proposal_comments_table.id=$notifications_table.proposal_comment_id
+        LEFT JOIN $reminder_logs_table ON $reminder_logs_table.id=$notifications_table.reminder_log_id
+        LEFT JOIN (SELECT $clients_table.id, $clients_table.company_name FROM $clients_table) AS lead_table ON lead_table.id=$notifications_table.lead_id
+        LEFT JOIN (
+            SELECT $invoices_table.id, $invoices_table.display_id
+            FROM $invoices_table
+            WHERE $invoices_table.deleted=0
+        ) AS payment_invoice_table ON payment_invoice_table.id=$invoice_payments_table.invoice_id
+        WHERE $notifications_table.deleted=0 AND FIND_IN_SET($user_id, $notifications_table.notify_to) != 0{$read_filter_sql}
+        ORDER BY $notifications_table.id DESC LIMIT $offset, $limit";
+
+        $data = new \stdClass();
+        $data->result = $this->db->query($sql)->getResult();
+        $data->found_rows = $this->db->query("SELECT FOUND_ROWS() as found_rows")->getRow()->found_rows;
+        return $data;
+    }
+
+    public function get_api_notification($notification_id, $user_id)
+    {
+        $notification_id = $this->_get_clean_value($notification_id);
+        $user_id = $this->_get_clean_value($user_id);
+        if (!$notification_id || !$user_id) {
+            return null;
+        }
+
+        $notifications_table = $this->db->prefixTable('notifications');
+        $users_table = $this->db->prefixTable('users');
+        $projects_table = $this->db->prefixTable('projects');
+        $project_comments_table = $this->db->prefixTable('project_comments');
+        $project_files_table = $this->db->prefixTable('project_files');
+        $tasks_table = $this->db->prefixTable('tasks');
+        $leave_applications_table = $this->db->prefixTable('leave_applications');
+        $tickets_table = $this->db->prefixTable('tickets');
+        $ticket_comments_table = $this->db->prefixTable('ticket_comments');
+        $activity_logs_table = $this->db->prefixTable('activity_logs');
+        $invoice_payments_table = $this->db->prefixTable('invoice_payments');
+        $posts_table = $this->db->prefixTable('posts');
+        $invoices_table = $this->db->prefixTable('invoices');
+        $clients_table = $this->db->prefixTable('clients');
+        $events_table = $this->db->prefixTable('events');
+        $announcements_table = $this->db->prefixTable('announcements');
+        $contracts_table = $this->db->prefixTable('contracts');
+        $estimates_table = $this->db->prefixTable('estimates');
+        $proposals_table = $this->db->prefixTable('proposals');
+        $estimate_comments_table = $this->db->prefixTable('estimate_comments');
+        $expenses_table = $this->db->prefixTable('expenses');
+        $subscriptions_table = $this->db->prefixTable('subscriptions');
+        $proposal_comments_table = $this->db->prefixTable('proposal_comments');
+        $reminder_logs_table = $this->db->prefixTable('reminder_logs');
+
+        $sql = "SELECT $notifications_table.*, CONCAT($users_table.first_name, ' ', $users_table.last_name) AS user_name, $users_table.image AS user_image,
+                 $projects_table.title AS project_title,
+                 $project_comments_table.description AS project_comment_title,
+                 $project_files_table.file_name AS project_file_title,
+                 $contracts_table.title AS contract_title, $contracts_table.meta_data AS contract_meta_data,
+                 $estimates_table.meta_data AS estimate_meta_data,
+                 $proposals_table.meta_data AS proposal_meta_data,
+                 $tasks_table.title AS task_title,
+                 $events_table.title AS event_title,
+                 $tickets_table.title AS ticket_title,
+                 $ticket_comments_table.description AS ticket_comment_description,
+                 $posts_table.description AS posts_title,
+                 $subscriptions_table.title AS subscription_title,
+                 $announcements_table.title AS announcement_title,
+                 $estimate_comments_table.description AS estimate_comment_description,
+                 $clients_table.company_name AS company_name, lead_table.company_name AS lead_company_name,
+                 $expenses_table.title AS expense_title,
+                 $proposal_comments_table.description AS proposal_comment_description,
+                 $activity_logs_table.changes AS activity_log_changes, $activity_logs_table.log_type AS activity_log_type,
+                 $leave_applications_table.start_date AS leave_start_date, $leave_applications_table.end_date AS leave_end_date,
+                 $invoice_payments_table.invoice_id AS payment_invoice_id, $invoice_payments_table.amount AS payment_amount, (SELECT currency_symbol FROM $clients_table WHERE $clients_table.id=$invoices_table.client_id) AS client_currency_symbol,
+                 payment_invoice_table.display_id AS payment_invoice_display_id,
+                 (SELECT CONCAT($users_table.first_name, ' ', $users_table.last_name) FROM $users_table WHERE $users_table.id=$notifications_table.to_user_id) AS to_user_name,
+                 (SELECT $clients_table.company_name FROM $clients_table WHERE $clients_table.id=$notifications_table.lead_id) AS lead_title,
+                 FIND_IN_SET($user_id, $notifications_table.read_by) as is_read
+        FROM $notifications_table
+        LEFT JOIN $projects_table ON $projects_table.id=$notifications_table.project_id
+        LEFT JOIN $project_comments_table ON $project_comments_table.id=$notifications_table.project_comment_id
+        LEFT JOIN $project_files_table ON $project_files_table.id=$notifications_table.project_file_id
+        LEFT JOIN $tasks_table ON $tasks_table.id=$notifications_table.task_id
+        LEFT JOIN $contracts_table ON $contracts_table.id=$notifications_table.contract_id
+        LEFT JOIN $estimates_table ON $estimates_table.id=$notifications_table.estimate_id
+        LEFT JOIN $proposals_table ON $proposals_table.id=$notifications_table.proposal_id
+        LEFT JOIN $leave_applications_table ON $leave_applications_table.id=$notifications_table.leave_id
+        LEFT JOIN $tickets_table ON $tickets_table.id=$notifications_table.ticket_id
+        LEFT JOIN $ticket_comments_table ON $ticket_comments_table.id=$notifications_table.ticket_comment_id
+        LEFT JOIN $posts_table ON $posts_table.id=$notifications_table.post_id
+        LEFT JOIN $subscriptions_table ON $subscriptions_table.id=$notifications_table.subscription_id
+        LEFT JOIN $users_table ON $users_table.id=$notifications_table.user_id
+        LEFT JOIN $activity_logs_table ON $activity_logs_table.id=$notifications_table.activity_log_id
+        LEFT JOIN $invoice_payments_table ON $invoice_payments_table.id=$notifications_table.invoice_payment_id
+        LEFT JOIN $invoices_table ON $invoices_table.id=$notifications_table.invoice_id
+        LEFT JOIN $events_table ON $events_table.id=$notifications_table.event_id
+        LEFT JOIN $announcements_table ON $announcements_table.id=$notifications_table.announcement_id
+        LEFT JOIN $estimate_comments_table ON $estimate_comments_table.id=$notifications_table.estimate_comment_id
+        LEFT JOIN $clients_table ON $clients_table.id=$notifications_table.client_id
+        LEFT JOIN $expenses_table ON $expenses_table.id=$notifications_table.expense_id
+        LEFT JOIN $proposal_comments_table ON $proposal_comments_table.id=$notifications_table.proposal_comment_id
+        LEFT JOIN $reminder_logs_table ON $reminder_logs_table.id=$notifications_table.reminder_log_id
+        LEFT JOIN (SELECT $clients_table.id, $clients_table.company_name FROM $clients_table) AS lead_table ON lead_table.id=$notifications_table.lead_id
+        LEFT JOIN (
+            SELECT $invoices_table.id, $invoices_table.display_id
+            FROM $invoices_table
+            WHERE $invoices_table.deleted=0
+        ) AS payment_invoice_table ON payment_invoice_table.id=$invoice_payments_table.invoice_id
+        WHERE $notifications_table.deleted=0
+            AND $notifications_table.id=$notification_id
+            AND FIND_IN_SET($user_id, $notifications_table.notify_to) != 0
+        LIMIT 1";
+
+        return $this->db->query($sql)->getRow();
+    }
+
+    public function count_unread_notifications($user_id)
+    {
+        $notifications_table = $this->db->prefixTable('notifications');
+        $user_id = $this->_get_clean_value($user_id);
+        if (!$user_id) {
+            return 0;
+        }
+
+        $sql = "SELECT COUNT($notifications_table.id) AS total_notifications
+        FROM $notifications_table
+        WHERE $notifications_table.deleted=0
+            AND FIND_IN_SET($user_id, $notifications_table.notify_to) != 0
+            AND FIND_IN_SET($user_id, $notifications_table.read_by) = 0";
+
+        $row = $this->db->query($sql)->getRow();
+        return (int) ($row->total_notifications ?? 0);
+    }
 }

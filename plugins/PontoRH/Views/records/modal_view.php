@@ -16,7 +16,7 @@ $photo_src = function_exists('pontorh_record_photo_src') ? pontorh_record_photo_
         <div>
             <div class="text-muted text-uppercase small"><?php echo app_lang('pontorh_record_details'); ?></div>
             <h5 class="mb-1"><?php echo esc($record->team_member_name ?: '-'); ?></h5>
-            <div class="text-muted"><?php echo esc(($record->date ?: '-') . ' • ' . $time_label); ?></div>
+            <div class="text-muted"><?php echo esc(($record->date ?: '-') . ' â€¢ ' . $time_label); ?></div>
         </div>
         <div class="text-end">
             <div class="mb-2"><span class="badge bg-secondary"><?php echo esc($status_label); ?></span></div>
