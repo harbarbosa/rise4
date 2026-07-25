@@ -32,12 +32,12 @@ class Database extends Config
 	 */
 	public $default = [
 		'DSN'      => '',
-		'hostname' => 'localhost',
-		'username' => 'root',
-		'password' => '',
-		'database' => 'rise4',
-		'DBDriver' => 'MySQLi',
-		'DBPrefix' => 'rise_',
+		'hostname' => env('database.default.hostname', 'localhost'),
+		'username' => env('database.default.username', 'root'),
+		'password' => env('database.default.password', ''),
+		'database' => env('database.default.database', 'rise4'),
+		'DBDriver' => env('database.default.DBDriver', 'MySQLi'),
+		'DBPrefix' => env('database.default.DBPrefix', 'rise_'),
 		'pConnect' => false,
 		'DBDebug'  => (ENVIRONMENT !== 'production'),
 		'charset'  => 'utf8',
@@ -47,7 +47,7 @@ class Database extends Config
 		'compress' => false,
 		'strictOn' => false,
 		'failover' => [],
-		'port'     => 3306,
+		'port'     => env('database.default.port', 3306),
 	];
 
 	/**
