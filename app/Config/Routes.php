@@ -46,6 +46,12 @@ $routes->get("Updates", "Updates::index");
 $routes->get("Updates/(:any)", "Updates::$1");
 $routes->post("Updates/(:any)", "Updates::$1");
 
+// Rota de atualização do sistema
+$routes->get("atualizar", "Atualizar::index");
+$routes->post("atualizar", "Atualizar::index");
+$routes->get("atualizar/banco", "Atualizar::banco");
+$routes->post("atualizar/banco", "Atualizar::banco");
+
 /*
  * --------------------------------------------------------------------
  * Additional Routing
