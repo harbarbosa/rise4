@@ -6,4 +6,8 @@ writable/debugbar/*
 node_modules/
 vendor/
 *.zip
+
+# Configurações locais (não versionar)
+app/Config/Database.php
+app/Config/Session.php
 app/Config/activated_plugins.json
