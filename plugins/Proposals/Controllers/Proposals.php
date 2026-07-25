@@ -460,6 +460,7 @@ class Proposals extends Security_Controller
             'proposal_id' => $proposal_id,
             'parent_id' => $parent_id ? $parent_id : null,
             'title' => trim((string)$this->request->getPost('title')),
+            'description' => trim((string)$this->request->getPost('description')),
             'sort' => $sort,
             'created_by' => $this->login_user->id,
             'created_at' => get_my_local_time()
@@ -502,7 +503,8 @@ class Proposals extends Security_Controller
         }
 
         $data = array(
-            'title' => trim((string)$this->request->getPost('title'))
+            'title' => trim((string)$this->request->getPost('title')),
+            'description' => trim((string)$this->request->getPost('description'))
         );
 
         $ok = $this->Proposal_sections_model->ci_save($data, $id);
