@@ -50,28 +50,18 @@ class Database extends Config
 		'port'     => 3306,
 	];
 
-	// Sobrescrever com .env se existir
+	//--------------------------------------------------------------------
+
 	public function __construct()
 	{
 		parent::__construct();
-		
-		$envFile = dirname(APPPATH, 2) . '/.env';
-		if (file_exists($envFile)) {
-			$lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-			foreach ($lines as $line) {
-				if (strpos($line, '#') === 0) continue;
-				if (strpos($line, 'database.default.') === 0) {
-					$parts = explode('=', $line, 2);
-					if (count($parts) === 2) {
-						$key = trim($parts[0]);
-						$value = trim($parts[1]);
-						$configKey = str_replace('database.default.', '', $key);
-						if (isset($this->default[$configKey])) {
-							$this->default[$configKey] = $value;
-						}
-					}
-				}
-			}
+
+		// Ensure that we always set the database group to 'tests' if
+		// we are currently running an automated test suite, so that
+		// we don't overwrite live data on accident.
+		if (ENVIRONMENT === 'testing')
+		{
+			$this->defaultGroup = 'tests';
 		}
 	}
 
