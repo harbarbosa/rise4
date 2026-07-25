@@ -2,15 +2,15 @@
 
 namespace App\Controllers;
 
-use App\Controllers\Security_Controller;
+use CodeIgniter\Controller;
 
-class Atualizar extends Security_Controller
+class Atualizar extends Controller
 {
     private $token_seguranca = 'rise_atualizar_2024';
     
     public function __construct()
     {
-        parent::__construct(true);
+        helper(['url', 'text']);
     }
 
     public function index()
@@ -19,17 +19,9 @@ class Atualizar extends Security_Controller
         $token = $this->request->getGet('token') ?? $this->request->getPost('token');
         
         if ($token !== $this->token_seguranca) {
-            return $this->response->setJSON([
+            return $this->response->setStatusCode(403)->setJSON([
                 'success' => false,
                 'message' => 'Token de segurança inválido'
-            ]);
-        }
-
-        // Verificar se é admin
-        if (!isset($this->login_user->id) || !$this->access_only_admin()) {
-            return $this->response->setJSON([
-                'success' => false,
-                'message' => 'Acesso negado. Apenas administradores.'
             ]);
         }
 
@@ -85,16 +77,9 @@ class Atualizar extends Security_Controller
         $token = $this->request->getGet('token') ?? $this->request->getPost('token');
         
         if ($token !== $this->token_seguranca) {
-            return $this->response->setJSON([
+            return $this->response->setStatusCode(403)->setJSON([
                 'success' => false,
                 'message' => 'Token de segurança inválido'
-            ]);
-        }
-
-        if (!isset($this->login_user->id) || !$this->access_only_admin()) {
-            return $this->response->setJSON([
-                'success' => false,
-                'message' => 'Acesso negado'
             ]);
         }
 
