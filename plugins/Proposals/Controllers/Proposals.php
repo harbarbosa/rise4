@@ -911,6 +911,8 @@ class Proposals extends Security_Controller
         $markup = $this->_parse_decimal($this->request->getPost('markup'));
         $unit_type = trim((string)$this->request->getPost('unit_type'));
         $unit_type = $unit_type ? $unit_type : 'UN';
+        $item_type = trim((string)$this->request->getPost('item_type'));
+        $item_type = $item_type ? $item_type : 'material';
 
         $category_id = $this->_get_default_item_category_id();
         if (!$category_id) {
@@ -923,6 +925,7 @@ class Proposals extends Security_Controller
         $has_cost = $db->fieldExists("cost", $items_table);
         $has_sale = $db->fieldExists("sale", $items_table);
         $has_markup = $db->fieldExists("markup", $items_table);
+        $has_item_type = $db->fieldExists("item_type", $items_table);
         $item_data = array(
             'title' => $title,
             'description' => '',
@@ -940,6 +943,9 @@ class Proposals extends Security_Controller
         if ($has_markup) {
             $item_data['markup'] = $markup;
         }
+        if ($has_item_type) {
+            $item_data['item_type'] = $item_type;
+        }
 
         $item_id = $items_model->ci_save($item_data, 0);
         if (!$item_id) {
@@ -954,7 +960,8 @@ class Proposals extends Security_Controller
                 'rate' => $rate,
                 'sale' => $sale,
                 'markup' => $markup,
-                'unit_type' => $unit_type
+                'unit_type' => $unit_type,
+                'item_type' => $item_type
             )
         ));
     }

@@ -244,6 +244,11 @@ $columns_to_add[] = array(
 );
 $columns_to_add[] = array(
     "table" => $items_table,
+    "column" => "item_type",
+    "sql" => "ALTER TABLE `" . $items_table . "` ADD COLUMN `item_type` VARCHAR(20) NOT NULL DEFAULT 'material' AFTER `markup`"
+);
+$columns_to_add[] = array(
+    "table" => $items_table,
     "column" => "cost",
     "sql" => "ALTER TABLE `" . $items_table . "` ADD COLUMN `cost` DECIMAL(16,4) NOT NULL DEFAULT 0 AFTER `rate`"
 );

@@ -621,6 +621,7 @@
             var costUnit = parseNumber($row.find(".item-cost").val());
             var markup = parseNumber($row.find(".item-markup").val());
             var saleUnit = parseNumber($row.find(".item-sale").val());
+            var itemType = $row.find(".item-new-type").val() || "material";
             if (!saleUnit && costUnit) {
                 saleUnit = costUnit * (1 + (markup / 100));
                 $row.find(".item-sale").val(formatNumber2(saleUnit));
@@ -639,7 +640,8 @@
                     rate: costUnit,
                     sale: saleUnit,
                     markup: markupPercent,
-                    unit_type: "UN"
+                    unit_type: "UN",
+                    item_type: itemType
                 },
                 success: function (result) {
                     if (!result || !result.success || !result.data) {
@@ -647,10 +649,11 @@
                         return;
                     }
                     var data = result.data;
-                    appendItemOption(data.id, data.title || title, data.rate || costUnit, data.unit_type || "UN");
+                    var itemType = data.item_type || "material";
+                    appendItemOption(data.id, data.title || title, data.rate || costUnit, data.unit_type || "UN", itemType);
                     restoreItemSelect($row, String(data.id), true);
                     $row.find(".item-id").val(data.id);
-                    $row.find(".item-type").val("material");
+                    $row.find(".item-type").val(itemType);
                     $row.find(".item-display-text").text(data.title || title);
                     $row.find(".item-display-wrap").show();
                     $row.find(".item-select-wrap").hide();
@@ -870,8 +873,9 @@
         }
     }
 
-    function appendItemOption(id, title, rate, unit) {
-        var optionHtml = "<option value='" + id + "' data-rate='" + rate + "' data-unit='" + escapeHtml(unit) + "' data-type='material'>" + escapeHtml(title) + "</option>";
+    function appendItemOption(id, title, rate, unit, itemType) {
+        itemType = itemType || "material";
+        var optionHtml = "<option value='" + id + "' data-rate='" + rate + "' data-unit='" + escapeHtml(unit) + "' data-type='" + itemType + "'>" + escapeHtml(title) + "</option>";
         if (!config.itemsOptionsHtml) {
             config.itemsOptionsHtml = "<option value=''>-</option>";
         }
@@ -900,8 +904,14 @@
         var titleValue = escapeHtml(term || "");
         var saveLabel = (config.labels && config.labels.save) ? config.labels.save : "Salvar";
         var cancelLabel = (config.labels && config.labels.cancel) ? config.labels.cancel : "Cancelar";
-        var html = "<div class='item-new-wrap d-flex align-items-center gap5'>" +
-            "<input type='text' class='form-control item-new-title' value='" + titleValue + "' />" +
+        var materialLabel = (config.labels && config.labels.material) ? config.labels.material : "Produto";
+        var serviceLabel = (config.labels && config.labels.service) ? config.labels.service : "Serviço";
+        var html = "<div class='item-new-wrap d-flex align-items-center gap5' style='flex-wrap:wrap;'>" +
+            "<input type='text' class='form-control item-new-title' style='width:150px;' value='" + titleValue + "' placeholder='Nome do item' />" +
+            "<select class='form-control item-new-type' style='width:100px;'>" +
+                "<option value='material'>" + materialLabel + "</option>" +
+                "<option value='service'>" + serviceLabel + "</option>" +
+            "</select>" +
             "<button type='button' class='btn btn-primary btn-sm item-new-save'>" + saveLabel + "</button>" +
             "<button type='button' class='btn btn-default btn-sm item-new-cancel'>" + cancelLabel + "</button>" +
             "</div>";
