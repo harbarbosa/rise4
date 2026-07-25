@@ -84,30 +84,43 @@ class Atualizar extends Controller
         }
 
         $db = db_connect();
-        $dbprefix = get_db_prefix();
         
-        // Verificar se a coluna já existe
-        $fields = $db->getFieldNames($dbprefix . 'proposal_sections_custom');
+        // Obter o prefixo das tabelas
+        $dbprefix = $db->getPrefix();
         
-        if (!in_array('description', $fields)) {
-            $sql = "ALTER TABLE `{$dbprefix}proposal_sections_custom` ADD COLUMN `description` TEXT NULL AFTER `title`";
-            try {
+        $results = [];
+        
+        // 1. Verificar e adicionar coluna description na tabela de seções
+        try {
+            $fields = $db->getFieldNames($dbprefix . 'proposal_sections_custom');
+            if (!in_array('description', $fields)) {
+                $sql = "ALTER TABLE `{$dbprefix}proposal_sections_custom` ADD COLUMN `description` TEXT NULL AFTER `title`";
                 $db->query($sql);
-                return $this->response->setJSON([
-                    'success' => true,
-                    'message' => 'Coluna description adicionada com sucesso!'
-                ]);
-            } catch (\Exception $e) {
-                return $this->response->setJSON([
-                    'success' => false,
-                    'message' => 'Erro: ' . $e->getMessage()
-                ]);
+                $results[] = 'Coluna description adicionada em proposal_sections_custom';
+            } else {
+                $results[] = 'Coluna description já existe em proposal_sections_custom';
             }
+        } catch (\Exception $e) {
+            $results[] = 'Erro proposal_sections_custom: ' . $e->getMessage();
+        }
+        
+        // 2. Verificar e adicionar coluna item_type na tabela de itens
+        try {
+            $fields = $db->getFieldNames($dbprefix . 'items');
+            if (!in_array('item_type', $fields)) {
+                $sql = "ALTER TABLE `{$dbprefix}items` ADD COLUMN `item_type` VARCHAR(20) NOT NULL DEFAULT 'material' AFTER `markup`";
+                $db->query($sql);
+                $results[] = 'Coluna item_type adicionada em items';
+            } else {
+                $results[] = 'Coluna item_type já existe em items';
+            }
+        } catch (\Exception $e) {
+            $results[] = 'Erro items: ' . $e->getMessage();
         }
 
         return $this->response->setJSON([
             'success' => true,
-            'message' => 'Coluna description já existe'
+            'message' => implode('. ', $results)
         ]);
     }
 }
