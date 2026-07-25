@@ -10,7 +10,7 @@ class Atualizar extends Controller
     
     public function __construct()
     {
-        helper(['url', 'text']);
+        helper(['url', 'text', 'function']);
     }
 
     public function index()
