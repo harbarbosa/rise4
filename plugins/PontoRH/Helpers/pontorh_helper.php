@@ -325,6 +325,7 @@ if (!function_exists('pontorh_treatment_pending_type_options')) {
         return array(
             '' => '-',
             'no_entry' => app_lang('pontorh_treatment_pending_no_entry'),
+            'missing_punch' => app_lang('pontorh_treatment_pending_missing_punch'),
             'no_lunch_out' => app_lang('pontorh_treatment_pending_no_lunch_out'),
             'no_lunch_return' => app_lang('pontorh_treatment_pending_no_lunch_return'),
             'no_exit' => app_lang('pontorh_treatment_pending_no_exit'),

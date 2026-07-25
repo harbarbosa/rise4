@@ -1,29 +1,28 @@
 <div id="page-content" class="page-wrapper clearfix">
     <div class="card">
         <div class="page-title clearfix">
-            <h1><?php echo app_lang('pontorh_audit_logs'); ?></h1>
+            <div>
+                <h1><?php echo app_lang('pontorh_audit_logs'); ?></h1>
+            </div>
         </div>
 
         <div class="card-body border-bottom">
-            <div class="row g-2 align-items-end">
+            <div class="row g-3 align-items-end">
                 <div class="col-md-3">
                     <label class="form-label"><?php echo app_lang('pontorh_employee'); ?></label>
-                    <?php echo form_dropdown('team_member_id', $team_members_dropdown ?? array('' => '-'), '', 'class="form-control select2" id="pontorh-audit-member"'); ?>
+                    <?php echo form_dropdown('team_member_id', $team_members_dropdown ?? array('' => '-'), '', 'class="form-control select2 w100p" id="pontorh-audit-member"'); ?>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label"><?php echo app_lang('pontorh_action'); ?></label>
-                    <?php echo form_dropdown('action', $action_dropdown, '', 'class="form-control select2" id="pontorh-audit-action"'); ?>
+                    <?php echo form_dropdown('action', $action_dropdown, '', 'class="form-control select2 w100p" id="pontorh-audit-action"'); ?>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label"><?php echo app_lang('pontorh_entity_type'); ?></label>
-                    <?php echo form_input(array(
-                        'id' => 'pontorh-audit-entity',
-                        'class' => 'form-control',
-                    )); ?>
+                    <?php echo form_dropdown('entity_type', $entity_dropdown ?? array('' => '-'), '', 'class="form-control select2 w100p" id="pontorh-audit-entity"'); ?>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label"><?php echo app_lang('pontorh_status'); ?></label>
-                    <?php echo form_dropdown('status', $status_dropdown, '', 'class="form-control select2" id="pontorh-audit-status"'); ?>
+                    <?php echo form_dropdown('status', $status_dropdown, '', 'class="form-control select2 w100p" id="pontorh-audit-status"'); ?>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label"><?php echo app_lang('pontorh_work_date'); ?></label>
@@ -43,15 +42,15 @@
                         )); ?>
                     </div>
                 </div>
-                <div class="col-md-12">
-                    <button type="button" id="pontorh-audit-filter-btn" class="btn btn-primary btn-sm me-2"><?php echo app_lang('filter'); ?></button>
+                <div class="col-md-12 d-flex gap-2">
+                    <button type="button" id="pontorh-audit-filter-btn" class="btn btn-primary btn-sm"><?php echo app_lang('filter'); ?></button>
                     <button type="button" id="pontorh-audit-clear-btn" class="btn btn-default btn-sm"><?php echo app_lang('clear'); ?></button>
                 </div>
             </div>
         </div>
 
         <div class="table-responsive">
-            <table id="pontorh-audit-table" class="display" cellspacing="0" width="100%"></table>
+            <table id="pontorh-audit-table" class="display no-thead-border" cellspacing="0" width="100%"></table>
         </div>
     </div>
 </div>
@@ -69,6 +68,8 @@
     }
 
     $(document).ready(function () {
+        $(".page-wrapper .select2").select2();
+
         $("#pontorh-audit-table").appTable({
             source: "<?php echo_uri('pontorh/auditoria/list_data'); ?>",
             filterParams: $.extend({datatable: true}, pontorhAuditFilters()),
@@ -92,7 +93,8 @@
 
         $("#pontorh-audit-clear-btn").on("click", function () {
             $("#pontorh-audit-member, #pontorh-audit-action, #pontorh-audit-status").val("").trigger("change");
-            $("#pontorh-audit-entity, #pontorh-audit-date-from, #pontorh-audit-date-to").val("");
+            $("#pontorh-audit-entity").val("").trigger("change");
+            $("#pontorh-audit-date-from, #pontorh-audit-date-to").val("");
             $("#pontorh-audit-table").appTable({reload: true});
         });
     });

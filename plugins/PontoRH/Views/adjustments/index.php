@@ -10,13 +10,14 @@
         </div>
 
         <div class="card-body border-bottom">
+            <div class="text-muted small mb-2"><?php echo app_lang('pontorh_adjustment_details'); ?></div>
             <div class="row g-2 align-items-end">
-                <div class="col-md-3">
+                <div class="col-md-3 col-sm-6">
                     <label class="form-label"><?php echo app_lang('pontorh_employee'); ?></label>
-                    <?php echo form_dropdown('team_member_id', $team_members_dropdown, '', 'class="form-control select2" id="pontorh-adjustment-filter-member"'); ?>
+                    <?php echo form_dropdown('team_member_id', $team_members_dropdown, '', 'class="form-control select2 w100p" id="pontorh-adjustment-filter-member"'); ?>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label"><?php echo app_lang('pontorh_work_date'); ?></label>
+                <div class="col-md-3 col-sm-6">
+                    <label class="form-label"><?php echo app_lang('pontorh_adjustment_date'); ?></label>
                     <div class="input-daterange input-group">
                         <?php echo form_input(array(
                             'id' => 'pontorh-adjustment-date-from',
@@ -33,15 +34,15 @@
                         )); ?>
                     </div>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-2 col-sm-6">
                     <label class="form-label"><?php echo app_lang('pontorh_type'); ?></label>
-                    <?php echo form_dropdown('adjustment_type', $adjustment_type_dropdown, '', 'class="form-control select2" id="pontorh-adjustment-filter-type"'); ?>
+                    <?php echo form_dropdown('adjustment_type', $adjustment_type_dropdown, '', 'class="form-control select2 w100p" id="pontorh-adjustment-filter-type"'); ?>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-2 col-sm-6">
                     <label class="form-label"><?php echo app_lang('pontorh_status'); ?></label>
-                    <?php echo form_dropdown('status', $status_dropdown, '', 'class="form-control select2" id="pontorh-adjustment-filter-status"'); ?>
+                    <?php echo form_dropdown('status', $status_dropdown, '', 'class="form-control select2 w100p" id="pontorh-adjustment-filter-status"'); ?>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-2 col-sm-6">
                     <button type="button" id="pontorh-adjustment-filter-btn" class="btn btn-primary btn-sm me-2"><?php echo app_lang('filter'); ?></button>
                     <button type="button" id="pontorh-adjustment-clear-btn" class="btn btn-default btn-sm"><?php echo app_lang('clear'); ?></button>
                 </div>
@@ -73,6 +74,10 @@
     }
 
     $(document).ready(function () {
+        $(".page-wrapper .select2").select2();
+        setDatePicker("#pontorh-adjustment-date-from", {});
+        setDatePicker("#pontorh-adjustment-date-to", {});
+
         $("#pontorh-adjustments-table").appTable({
             source: "<?php echo_uri('pontorh/ajustes/list_data'); ?>",
             filterParams: $.extend({datatable: true}, pontorhAdjustmentFilters()),

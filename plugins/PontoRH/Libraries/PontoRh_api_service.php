@@ -474,19 +474,19 @@ class PontoRh_api_service
         $settings = $this->settingsModel->get_all_settings_with_defaults();
         $require_gps = $this->arrayValue($settings, 'require_gps') != '0';
         if ($require_gps && ($latitude === '' || $longitude === '')) {
-            $this->auditEvent('invalid_attempt', 'GPS coordinates are required.', array('payload' => $payload), 'invalid', 'checkin');
+            $this->auditEvent('invalid_attempt', 'Coordenadas de GPS são obrigatórias.', array('payload' => $payload), 'invalid', 'checkin');
             return array('ok' => false, 'code' => 422, 'status' => false, 'message' => 'GPS coordinates are required.');
         }
 
         if ((string) $this->settingsModel->get_setting('require_selfie', '0') !== '0' && $photo === '') {
-            $this->auditEvent('invalid_attempt', 'Selfie is required.', array('payload' => $payload), 'invalid', 'checkin');
+            $this->auditEvent('invalid_attempt', 'Selfie obrigatória.', array('payload' => $payload), 'invalid', 'checkin');
             return array('ok' => false, 'code' => 422, 'status' => false, 'message' => 'Selfie is required.');
         }
 
         $today = get_my_local_time('Y-m-d');
         $schedule = $this->shiftsModel->get_active_schedule_for_member((int) $this->user->id);
         if (!$schedule) {
-            $this->auditEvent('invalid_attempt', 'No active schedule found.', array('payload' => $payload), 'invalid', 'checkin');
+            $this->auditEvent('invalid_attempt', 'Nenhuma jornada ativa encontrada.', array('payload' => $payload), 'invalid', 'checkin');
             return array('ok' => false, 'code' => 422, 'status' => false, 'message' => 'No active schedule found.');
         }
 
@@ -549,13 +549,13 @@ class PontoRh_api_service
         );
 
         if (!$this->recordsModel->ci_save($record_data)) {
-            $this->auditEvent('invalid_attempt', 'Could not save record.', array('payload' => $payload), 'invalid', 'checkin');
+            $this->auditEvent('invalid_attempt', 'Não foi possível salvar o registro.', array('payload' => $payload), 'invalid', 'checkin');
             return array('ok' => false, 'code' => 500, 'status' => false, 'message' => 'Could not save record.');
         }
 
         $record_id = (int) db_connect('default')->insertID();
         $saved = $this->recordsModel->get_one_with_details($record_id, array('scope' => 'own', 'current_user_id' => (int) $this->user->id));
-        $this->auditEvent('checkin', 'Punch recorded through mobile app.', array(
+        $this->auditEvent('checkin', 'Marcação registrada pelo aplicativo mobile.', array(
             'record_id' => $record_id,
             'type' => $type,
             'device_id' => $device_id,
@@ -679,14 +679,14 @@ class PontoRh_api_service
         );
 
         if (!$this->adjustmentsModel->ci_save($data)) {
-            $this->auditEvent('invalid_attempt', 'Could not save adjustment request.', array('payload' => $payload), 'invalid', 'adjustment');
+            $this->auditEvent('invalid_attempt', 'Não foi possível salvar a solicitação de ajuste.', array('payload' => $payload), 'invalid', 'adjustment');
             return array('ok' => false, 'code' => 500, 'status' => false, 'message' => 'Could not save adjustment request.');
         }
 
         $adjustment_id = (int) db_connect('default')->insertID();
         $adjustment = $this->adjustmentsModel->get_one_with_details($adjustment_id, array('scope' => 'own', 'current_user_id' => (int) $this->user->id));
 
-        $this->auditEvent('adjustment_requested', 'Adjustment request created.', array(
+        $this->auditEvent('adjustment_requested', 'Solicitação de ajuste criada.', array(
             'adjustment_id' => $adjustment_id,
             'record_date' => $record_date,
             'requested_time' => $adjustment_datetime,
@@ -753,7 +753,7 @@ class PontoRh_api_service
             $data['created_at'] = $now;
         }
         if (!$this->devicesModel->save_device($data, $save_id)) {
-            $this->auditEvent('invalid_attempt', 'Could not save device.', array('payload' => $payload), 'invalid', 'device');
+            $this->auditEvent('invalid_attempt', 'Não foi possível salvar o dispositivo.', array('payload' => $payload), 'invalid', 'device');
             return array('ok' => false, 'code' => 500, 'status' => false, 'message' => 'Could not save device.');
         }
 
@@ -762,7 +762,7 @@ class PontoRh_api_service
             $save_id = (int) db_connect('default')->insertID();
         }
 
-        $this->auditEvent('device_registered', 'Device registered through mobile app.', array(
+        $this->auditEvent('device_registered', 'Dispositivo registrado pelo aplicativo mobile.', array(
             'device_id' => $device_id,
             'device_name' => $device_name,
             'platform' => $platform,
@@ -823,7 +823,7 @@ class PontoRh_api_service
             'entity_type' => $entity_type,
             'entity_id' => $entity_id,
             'action' => $action,
-            'description' => $description,
+            'description' => $this->translateAuditDescription((string) $description),
             'payload_json' => !empty($payload) ? pontorh_safe_json($payload) : null,
             'ip_address' => $this->requestIpAddress(),
             'source' => 'restapi',
@@ -836,6 +836,29 @@ class PontoRh_api_service
     public function logAuthAttempt(string $action, string $description, array $payload = array(), string $status = 'invalid'): bool
     {
         return $this->auditEvent($action, $description, $payload, $status, 'auth', null, null);
+    }
+
+    private function translateAuditDescription(string $description): string
+    {
+        $description = trim($description);
+        if ($description === '') {
+            return $description;
+        }
+
+        $map = array(
+            'GPS coordinates are required.' => 'Coordenadas de GPS são obrigatórias.',
+            'Selfie is required.' => 'Selfie obrigatória.',
+            'No active schedule found.' => 'Nenhuma jornada ativa encontrada.',
+            'Could not save record.' => 'Não foi possível salvar o registro.',
+            'Punch recorded through mobile app.' => 'Marcação registrada pelo aplicativo mobile.',
+            'Could not save adjustment request.' => 'Não foi possível salvar a solicitação de ajuste.',
+            'Adjustment request created.' => 'Solicitação de ajuste criada.',
+            'Could not save device.' => 'Não foi possível salvar o dispositivo.',
+            'Device registered through mobile app.' => 'Dispositivo registrado pelo aplicativo mobile.',
+            'Could not save adjustment request.' => 'Não foi possível salvar a solicitação de ajuste.',
+        );
+
+        return $map[$description] ?? $description;
     }
 
     protected function buildContextFromApiUser(object $api_user): array

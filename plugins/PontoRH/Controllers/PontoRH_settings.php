@@ -46,11 +46,13 @@ class PontoRH_settings extends PontoRH_Base_Controller
             'pontorh_settings',
             0,
             'update',
-            'Updated module settings',
+            'Configurações do módulo atualizadas',
             array('keys' => $keys),
             (int) $this->login_user->id
         );
 
-        echo json_encode(array('success' => true, 'message' => app_lang('record_saved')));
+        $session = \Config\Services::session();
+        $session->setFlashdata('success_message', app_lang('record_saved'));
+        app_redirect('pontorh/configuracoes');
     }
 }

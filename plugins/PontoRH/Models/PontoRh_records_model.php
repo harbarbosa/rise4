@@ -761,6 +761,7 @@ class PontoRh_records_model extends PontoRhBaseModel
         return array(
             'date' => $date,
             'weekday' => strtolower(date('l', strtotime($date))),
+            'weekday_label' => app_lang('short_' . strtolower(date('l', strtotime($date)))),
             'punch_count' => count($records),
             'entries' => implode(', ', $entries),
             'exits' => implode(', ', $exits),

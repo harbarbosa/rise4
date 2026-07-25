@@ -22,19 +22,19 @@ $filters = $filters ?? array('team_member_id' => '', 'month' => get_my_local_tim
         <div class="card-body border-bottom">
             <?php echo form_open(get_uri('pontorh/espelho'), array('method' => 'get', 'class' => 'general-form')); ?>
             <div class="row g-2 align-items-end">
-                <div class="col-md-4">
+                <div class="col-md-4 col-sm-6">
                     <label class="form-label"><?php echo app_lang('pontorh_employee'); ?></label>
-                    <?php echo form_dropdown('team_member_id', $team_members_dropdown, $filters['team_member_id'] ?? '', 'class="form-control select2"'); ?>
+                    <?php echo form_dropdown('team_member_id', $team_members_dropdown, $filters['team_member_id'] ?? '', 'class="form-control select2 w100p"'); ?>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 col-sm-6">
                     <label class="form-label"><?php echo app_lang('month'); ?></label>
-                    <?php echo form_dropdown('month', $month_dropdown, $filters['month'] ?? get_my_local_time('n'), 'class="form-control select2"'); ?>
+                    <?php echo form_dropdown('month', $month_dropdown, $filters['month'] ?? get_my_local_time('n'), 'class="form-control select2 w100p"'); ?>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-2 col-sm-6">
                     <label class="form-label"><?php echo app_lang('year'); ?></label>
-                    <?php echo form_dropdown('year', $year_dropdown, $filters['year'] ?? get_my_local_time('Y'), 'class="form-control select2"'); ?>
+                    <?php echo form_dropdown('year', $year_dropdown, $filters['year'] ?? get_my_local_time('Y'), 'class="form-control select2 w100p"'); ?>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 col-sm-6">
                     <button type="submit" class="btn btn-primary btn-sm"><?php echo app_lang('filter'); ?></button>
                     <a href="<?php echo get_uri('pontorh/espelho'); ?>" class="btn btn-default btn-sm"><?php echo app_lang('clear'); ?></a>
                 </div>
@@ -52,3 +52,9 @@ $filters = $filters ?? array('team_member_id' => '', 'month' => get_my_local_tim
         </div>
     </div>
 </div>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $(".page-wrapper .select2").select2();
+    });
+</script>

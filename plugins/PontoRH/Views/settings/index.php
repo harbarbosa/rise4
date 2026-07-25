@@ -134,9 +134,3 @@ echo form_open(get_uri('pontorh/configuracoes/save'), array('id' => 'pontorh-set
 </div>
 
 <?php echo form_close(); ?>
-
-<script type="text/javascript">
-    $(document).ready(function () {
-        $("#pontorh-settings-form").appForm();
-    });
-</script>

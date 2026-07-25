@@ -10,6 +10,7 @@ class PontoRH_audit_logs extends PontoRH_Base_Controller
 
         $view_data['team_members_dropdown'] = $this->teamMembersDropdown(true, 'all');
         $view_data['action_dropdown'] = $this->auditActionsDropdown();
+        $view_data['entity_dropdown'] = $this->auditEntitiesDropdown();
         $view_data['status_dropdown'] = array(
             '' => '-',
             'logged' => app_lang('pontorh_audit_status_logged'),
@@ -80,7 +81,7 @@ class PontoRH_audit_logs extends PontoRH_Base_Controller
             esc($log->creator_name ?: '-'),
             esc($this->translateAuditValue('pontorh_audit_entity_' . strtolower((string) ($log->entity_type ?? '')), $log->entity_type ?? '-')),
             esc($this->translateAuditAction((string) ($log->action ?? ''))),
-            esc($log->description ?: '-'),
+            esc($this->translateAuditDescription((string) ($log->description ?? '')) ?: '-'),
             esc($this->translateAuditSource((string) ($log->source ?? ''))),
             esc($this->translateAuditStatus((string) ($log->status ?? ''))),
             $options,
@@ -91,12 +92,32 @@ class PontoRH_audit_logs extends PontoRH_Base_Controller
     {
         return array(
             '' => '-',
-            'create' => app_lang('create'),
-            'update' => app_lang('edit'),
-            'approve' => app_lang('approve'),
-            'reject' => app_lang('reject'),
+            'create' => app_lang('pontorh_audit_action_create'),
+            'update' => app_lang('pontorh_audit_action_update'),
+            'approve' => app_lang('pontorh_audit_action_approve'),
+            'reject' => app_lang('pontorh_audit_action_reject'),
+            'checkin' => app_lang('pontorh_audit_action_checkin'),
+            'manual_mark_added' => app_lang('pontorh_audit_action_manual_mark_added'),
+            'adjustment_requested' => app_lang('pontorh_audit_action_adjustment_requested'),
+            'device_registered' => app_lang('pontorh_audit_action_device_registered'),
             'login_api' => app_lang('pontorh_audit_action_login_api'),
             'invalid_attempt' => app_lang('pontorh_audit_action_invalid_attempt'),
+        );
+    }
+
+    private function auditEntitiesDropdown()
+    {
+        return array(
+            '' => '-',
+            'auth' => app_lang('pontorh_audit_entity_auth'),
+            'checkin' => app_lang('pontorh_audit_entity_checkin'),
+            'adjustment' => app_lang('pontorh_audit_entity_adjustment'),
+            'device' => app_lang('pontorh_audit_entity_device'),
+            'record' => app_lang('pontorh_audit_entity_record'),
+            'pontorh_locations' => app_lang('pontorh_audit_entity_pontorh_locations'),
+            'pontorh_settings' => app_lang('pontorh_audit_entity_pontorh_settings'),
+            'pontorh_treatment' => app_lang('pontorh_audit_entity_treatment'),
+            'pontorh_access' => app_lang('pontorh_audit_entity_access'),
         );
     }
 
@@ -111,6 +132,7 @@ class PontoRH_audit_logs extends PontoRH_Base_Controller
         $log->status_label = $this->translateAuditStatus((string) ($log->status ?? ''));
         $log->source_label = $this->translateAuditSource((string) ($log->source ?? ''));
         $log->entity_type_label = $this->translateAuditValue('pontorh_audit_entity_' . strtolower((string) ($log->entity_type ?? '')), $log->entity_type ?? '-');
+        $log->description = $this->translateAuditDescription((string) ($log->description ?? ''));
         return $log;
     }
 

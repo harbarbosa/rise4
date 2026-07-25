@@ -11,19 +11,19 @@
 
         <div class="card-body border-bottom">
             <div class="row g-2 align-items-end">
-                <div class="col-md-3">
+                <div class="col-md-3 col-sm-6">
                     <label class="form-label"><?php echo app_lang('pontorh_schedule_team_member'); ?></label>
-                    <?php echo form_dropdown('team_member_id', $team_members_dropdown, '', 'class="form-control select2" id="pontorh-filter-team-member"'); ?>
+                    <?php echo form_dropdown('team_member_id', $team_members_dropdown, '', 'class="form-control select2 w100p" id="pontorh-filter-team-member"'); ?>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 col-sm-6">
                     <label class="form-label"><?php echo app_lang('pontorh_schedule_type'); ?></label>
-                    <?php echo form_dropdown('schedule_type', $schedule_type_dropdown, '', 'class="form-control select2" id="pontorh-filter-type"'); ?>
+                    <?php echo form_dropdown('schedule_type', $schedule_type_dropdown, '', 'class="form-control select2 w100p" id="pontorh-filter-type"'); ?>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 col-sm-6">
                     <label class="form-label"><?php echo app_lang('status'); ?></label>
-                    <?php echo form_dropdown('active', array('' => '-', '1' => app_lang('active'), '0' => app_lang('inactive')), '', 'class="form-control select2" id="pontorh-filter-status"'); ?>
+                    <?php echo form_dropdown('active', array('' => '-', '1' => app_lang('active'), '0' => app_lang('inactive')), '', 'class="form-control select2 w100p" id="pontorh-filter-status"'); ?>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 col-sm-6">
                     <button type="button" id="pontorh-filter-btn" class="btn btn-primary btn-sm me-2"><?php echo app_lang('filter'); ?></button>
                     <button type="button" id="pontorh-clear-btn" class="btn btn-default btn-sm"><?php echo app_lang('clear'); ?></button>
                 </div>
@@ -53,6 +53,8 @@
     }
 
     $(document).ready(function () {
+        $(".page-wrapper .select2").select2();
+
         $("#pontorh-shifts-table").appTable({
             source: "<?php echo_uri('pontorh/jornadas/list_data'); ?>",
             filterParams: $.extend({datatable: true}, pontorhShiftsFilters()),

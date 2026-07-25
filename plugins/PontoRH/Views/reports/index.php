@@ -10,6 +10,8 @@ $absences = get_array_value($charts, 'absences', array());
 $outside_area = get_array_value($charts, 'outside_area', array());
 ?>
 
+<?php echo get_reports_topbar(); ?>
+
 <div id="page-content" class="page-wrapper clearfix">
     <div class="card">
         <div class="page-title clearfix">
@@ -22,19 +24,19 @@ $outside_area = get_array_value($charts, 'outside_area', array());
         <div class="card-body border-bottom">
             <form method="get" action="<?php echo get_uri('pontorh/relatorios'); ?>" class="general-form">
                 <div class="row g-2 align-items-end">
-                    <div class="col-md-4">
+                    <div class="col-md-4 col-sm-6">
                         <label class="form-label"><?php echo app_lang('pontorh_employee'); ?></label>
-                        <?php echo form_dropdown('team_member_id', $team_members_dropdown, $filters['team_member_id'] ?? '', 'class="form-control select2"'); ?>
+                        <?php echo form_dropdown('team_member_id', $team_members_dropdown, $filters['team_member_id'] ?? '', 'class="form-control select2 w100p"'); ?>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2 col-sm-6">
                         <label class="form-label"><?php echo app_lang('month'); ?></label>
-                        <?php echo form_dropdown('month', $month_dropdown, $filters['month'] ?? get_my_local_time('n'), 'class="form-control select2"'); ?>
+                        <?php echo form_dropdown('month', $month_dropdown, $filters['month'] ?? get_my_local_time('n'), 'class="form-control select2 w100p"'); ?>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2 col-sm-6">
                         <label class="form-label"><?php echo app_lang('year'); ?></label>
-                        <?php echo form_dropdown('year', $year_dropdown, $filters['year'] ?? get_my_local_time('Y'), 'class="form-control select2"'); ?>
+                        <?php echo form_dropdown('year', $year_dropdown, $filters['year'] ?? get_my_local_time('Y'), 'class="form-control select2 w100p"'); ?>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-4 col-sm-6">
                         <button type="submit" class="btn btn-primary btn-sm"><?php echo app_lang('filter'); ?></button>
                         <a href="<?php echo get_uri('pontorh/relatorios'); ?>" class="btn btn-default btn-sm"><?php echo app_lang('clear'); ?></a>
                     </div>
@@ -45,29 +47,59 @@ $outside_area = get_array_value($charts, 'outside_area', array());
         <div class="card-body">
             <div class="row g-3 mb-4">
                 <div class="col-lg-2 col-md-4">
-                    <div class="card h-100"><div class="card-body"><div class="text-muted"><?php echo app_lang('pontorh_minutes_worked'); ?></div><div class="font-26 fw-bold"><?php echo pontorh_minutes_to_hours_label(get_array_value($summary, 'worked_minutes_total', 0)); ?></div></div></div>
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted"><?php echo app_lang('pontorh_minutes_worked'); ?></div>
+                            <div class="font-26 fw-bold"><?php echo pontorh_minutes_to_hours_label(get_array_value($summary, 'worked_minutes_total', 0)); ?></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-lg-2 col-md-4">
-                    <div class="card h-100"><div class="card-body"><div class="text-muted"><?php echo app_lang('pontorh_extra_hours'); ?></div><div class="font-26 fw-bold"><?php echo pontorh_minutes_to_hours_label(get_array_value($summary, 'extra_minutes_total', 0)); ?></div></div></div>
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted"><?php echo app_lang('pontorh_extra_hours'); ?></div>
+                            <div class="font-26 fw-bold"><?php echo pontorh_minutes_to_hours_label(get_array_value($summary, 'extra_minutes_total', 0)); ?></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-lg-2 col-md-4">
-                    <div class="card h-100"><div class="card-body"><div class="text-muted"><?php echo app_lang('pontorh_bank_hours'); ?></div><div class="font-26 fw-bold"><?php echo pontorh_minutes_to_hours_label(get_array_value($summary, 'bank_minutes_end', 0)); ?></div></div></div>
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted"><?php echo app_lang('pontorh_bank_hours'); ?></div>
+                            <div class="font-26 fw-bold"><?php echo pontorh_minutes_to_hours_label(get_array_value($summary, 'bank_minutes_end', 0)); ?></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-lg-2 col-md-4">
-                    <div class="card h-100"><div class="card-body"><div class="text-muted"><?php echo app_lang('pontorh_absences'); ?></div><div class="font-26 fw-bold"><?php echo (int) get_array_value($summary, 'absences_total', 0); ?></div></div></div>
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted"><?php echo app_lang('pontorh_absences'); ?></div>
+                            <div class="font-26 fw-bold"><?php echo (int) get_array_value($summary, 'absences_total', 0); ?></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-lg-2 col-md-4">
-                    <div class="card h-100"><div class="card-body"><div class="text-muted"><?php echo app_lang('pontorh_out_of_area'); ?></div><div class="font-26 fw-bold"><?php echo (int) get_array_value($summary, 'out_of_area_total', 0); ?></div></div></div>
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted"><?php echo app_lang('pontorh_out_of_area'); ?></div>
+                            <div class="font-26 fw-bold"><?php echo (int) get_array_value($summary, 'out_of_area_total', 0); ?></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-lg-2 col-md-4">
-                    <div class="card h-100"><div class="card-body"><div class="text-muted"><?php echo app_lang('pontorh_lateness'); ?></div><div class="font-26 fw-bold"><?php echo pontorh_minutes_to_hours_label(get_array_value($summary, 'late_total', 0)); ?></div></div></div>
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <div class="text-muted"><?php echo app_lang('pontorh_lateness'); ?></div>
+                            <div class="font-26 fw-bold"><?php echo pontorh_minutes_to_hours_label(get_array_value($summary, 'late_total', 0)); ?></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div class="row g-3 mb-4">
                 <div class="col-12">
-                    <div class="card h-100">
-                        <div class="card-header">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-white">
                             <h4 class="mb-0"><?php echo app_lang('pontorh_frequency_monthly'); ?></h4>
                         </div>
                         <div class="card-body">
@@ -78,8 +110,8 @@ $outside_area = get_array_value($charts, 'outside_area', array());
                     </div>
                 </div>
                 <div class="col-lg-6">
-                    <div class="card h-100">
-                        <div class="card-header"><h4 class="mb-0"><?php echo app_lang('pontorh_overtime_monthly'); ?></h4></div>
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-white"><h4 class="mb-0"><?php echo app_lang('pontorh_overtime_monthly'); ?></h4></div>
                         <div class="card-body">
                             <div style="position:relative; height:280px;">
                                 <canvas id="pontorh-report-extra-chart" style="width:100%; height:100%;"></canvas>
@@ -88,8 +120,8 @@ $outside_area = get_array_value($charts, 'outside_area', array());
                     </div>
                 </div>
                 <div class="col-lg-6">
-                    <div class="card h-100">
-                        <div class="card-header"><h4 class="mb-0"><?php echo app_lang('pontorh_bank_balance'); ?></h4></div>
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-white"><h4 class="mb-0"><?php echo app_lang('pontorh_bank_balance'); ?></h4></div>
                         <div class="card-body">
                             <div style="position:relative; height:280px;">
                                 <canvas id="pontorh-report-bank-chart" style="width:100%; height:100%;"></canvas>
@@ -98,8 +130,8 @@ $outside_area = get_array_value($charts, 'outside_area', array());
                     </div>
                 </div>
                 <div class="col-lg-6">
-                    <div class="card h-100">
-                        <div class="card-header"><h4 class="mb-0"><?php echo app_lang('pontorh_absences'); ?></h4></div>
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-white"><h4 class="mb-0"><?php echo app_lang('pontorh_absences'); ?></h4></div>
                         <div class="card-body">
                             <div style="position:relative; height:280px;">
                                 <canvas id="pontorh-report-absences-chart" style="width:100%; height:100%;"></canvas>
@@ -108,8 +140,8 @@ $outside_area = get_array_value($charts, 'outside_area', array());
                     </div>
                 </div>
                 <div class="col-lg-6">
-                    <div class="card h-100">
-                        <div class="card-header"><h4 class="mb-0"><?php echo app_lang('pontorh_out_of_area'); ?></h4></div>
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-white"><h4 class="mb-0"><?php echo app_lang('pontorh_out_of_area'); ?></h4></div>
                         <div class="card-body">
                             <div style="position:relative; height:280px;">
                                 <canvas id="pontorh-report-outside-chart" style="width:100%; height:100%;"></canvas>
@@ -120,7 +152,7 @@ $outside_area = get_array_value($charts, 'outside_area', array());
             </div>
 
             <div class="card">
-                <div class="card-header">
+                <div class="card-header bg-white">
                     <h4 class="mb-0"><?php echo app_lang('pontorh_summary'); ?></h4>
                 </div>
                 <div class="table-responsive">
@@ -156,6 +188,10 @@ $outside_area = get_array_value($charts, 'outside_area', array());
 
 <script type="text/javascript">
     (function () {
+        $(document).ready(function () {
+            $(".page-wrapper .select2").select2();
+        });
+
         const labels = <?php echo json_encode(array_values($labels)); ?>;
         const workedHours = <?php echo json_encode(array_values($worked_hours)); ?>;
         const extraHours = <?php echo json_encode(array_values($extra_hours)); ?>;

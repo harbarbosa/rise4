@@ -314,7 +314,7 @@ abstract class PontoRH_Base_Controller extends Security_Controller
             'entity_type' => $entity_type,
             'entity_id' => $entity_id,
             'action' => $action,
-            'description' => $description,
+            'description' => $this->translateAuditDescription((string) $description, (string) $entity_type, (string) $action),
             'payload_json' => pontorh_safe_json($payload),
             'ip_address' => $this->request->getIPAddress(),
             'source' => 'manual',
@@ -345,11 +345,12 @@ abstract class PontoRH_Base_Controller extends Security_Controller
             return;
         }
 
+        $section_label = $this->translateAuditSection($section);
         $this->logAudit(
             'pontorh_access',
             0,
             'invalid_attempt',
-            'Denied access attempt to ' . $section,
+            'Tentativa de acesso negada ao ' . $section_label,
             array(
                 'section' => $section,
                 'path' => $this->request->getUri()->getPath(),
@@ -357,5 +358,59 @@ abstract class PontoRH_Base_Controller extends Security_Controller
             ),
             (int) $this->login_user->id
         );
+    }
+
+    protected function translateAuditDescription(string $description, string $entity_type = '', string $action = ''): string
+    {
+        $description = trim($description);
+        if ($description === '') {
+            return $description;
+        }
+
+        $map = array(
+            'GPS coordinates are required.' => 'Coordenadas de GPS são obrigatórias.',
+            'Selfie is required.' => 'Selfie obrigatória.',
+            'No active schedule found.' => 'Nenhuma jornada ativa encontrada.',
+            'Could not save record.' => 'Não foi possível salvar o registro.',
+            'Punch recorded through mobile app.' => 'Marcação registrada pelo aplicativo mobile.',
+            'Could not save adjustment request.' => 'Não foi possível salvar a solicitação de ajuste.',
+            'Adjustment request created.' => 'Solicitação de ajuste criada.',
+            'Could not save device.' => 'Não foi possível salvar o dispositivo.',
+            'Device registered through mobile app.' => 'Dispositivo registrado pelo aplicativo mobile.',
+            'Updated module settings' => 'Configurações do módulo atualizadas.',
+            'Manual mark added in treatment' => 'Marca manual adicionada no tratamento.',
+            'Treatment action executed' => 'Ação de tratamento executada.',
+        );
+
+        if (isset($map[$description])) {
+            return $map[$description];
+        }
+
+        if (strpos($description, 'Denied access attempt to ') === 0) {
+            $section = trim(substr($description, strlen('Denied access attempt to ')));
+            return 'Tentativa de acesso negada ao ' . $this->translateAuditSection($section);
+        }
+
+        return $description;
+    }
+
+    protected function translateAuditSection(string $section): string
+    {
+        $section = trim(strtolower($section));
+
+        $map = array(
+            'module' => 'módulo',
+            'records' => 'módulo de registros',
+            'records_write' => 'módulo de registros',
+            'adjustments' => 'módulo de ajustes',
+            'adjustments_write' => 'módulo de ajustes',
+            'schedules' => 'módulo de jornadas',
+            'reports' => 'módulo de relatórios',
+            'settings' => 'módulo de configurações',
+            'treatment' => 'módulo de tratamento',
+            'treatment_write' => 'módulo de tratamento',
+        );
+
+        return $map[$section] ?? $section;
     }
 }

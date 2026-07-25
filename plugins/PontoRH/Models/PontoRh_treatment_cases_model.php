@@ -263,7 +263,7 @@ class PontoRh_treatment_cases_model extends PontoRhBaseModel
         foreach ($rows as $index => $row) {
             $save = $row;
             $id = (int) get_array_value($row, 'id', 0);
-            unset($save['has_issue'], $save['diagnostics'], $save['classification'], $save['final'], $save['project_name'], $save['record_count'], $save['status'], $save['pending_type']);
+            unset($save['has_issue'], $save['diagnostics'], $save['classification'], $save['final'], $save['project_name'], $save['record_count'], $save['status'], $save['pending_type'], $save['team_member_name']);
             $save['project_name'] = $row['project_name'] ?? null;
             $save['record_count'] = (int) ($row['record_count'] ?? 0);
             $save['status'] = (string) ($row['status'] ?? 'pending');

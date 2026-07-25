@@ -107,6 +107,10 @@ class PontoRH_treatment extends PontoRH_Base_Controller
         $view_data['diagnostics'] = $this->decodeJson($case->diagnostics_json ?? null);
         $view_data['classification'] = $this->decodeJson($case->classification_json ?? null);
         $view_data['final'] = $this->decodeJson($case->final_json ?? null);
+        $view_data['can_write'] = \PontoRH\Plugin::canApproveAdjustment($this->login_user)
+            || \PontoRH\Plugin::canViewReports($this->login_user)
+            || \PontoRH\Plugin::canManageSettings($this->login_user)
+            || \PontoRH\Plugin::canAdmin($this->login_user);
 
         return $this->renderPluginView('treatment/details', $view_data);
     }
@@ -117,7 +121,9 @@ class PontoRH_treatment extends PontoRH_Base_Controller
 
         $case_id = (int) ($case_id ?: $this->request->getPost('id'));
         $case = $case_id ? $this->treatment_cases_model->get_one_with_details($case_id) : null;
+        $scope = $this->currentDataScope();
         $view_data['case'] = $case;
+        $view_data['team_members_dropdown'] = $this->teamMembersDropdown(true, $scope);
         $view_data['punch_type_dropdown'] = array(
             '' => '-',
             'in' => app_lang('pontorh_punch_type_in'),
@@ -127,6 +133,43 @@ class PontoRH_treatment extends PontoRH_Base_Controller
         );
 
         return $this->renderPluginView('treatment/modal_form', $view_data);
+    }
+
+    public function record_modal($case_id = 0, $record_id = 0, $mode = 'edit')
+    {
+        $this->ensureTreatmentWriteAccess();
+
+        $case_id = (int) $case_id;
+        $record_id = (int) $record_id;
+        $mode = in_array($mode, array('edit', 'delete'), true) ? $mode : 'edit';
+
+        $case = $case_id ? $this->treatment_cases_model->get_one_with_details($case_id) : null;
+        $record = $record_id ? $this->getAccessibleTreatmentRecord($record_id) : null;
+
+        if (!$case || empty($case->id) || !$record || empty($record->id)) {
+            app_redirect('forbidden');
+        }
+
+        if ((int) $record->team_member_id !== (int) $case->team_member_id || (string) $record->date !== (string) $case->work_date) {
+            app_redirect('forbidden');
+        }
+
+        $scope = $this->currentDataScope();
+        $view_data['case'] = $case;
+        $view_data['record'] = $record;
+        $view_data['mode'] = $mode;
+        $view_data['team_members_dropdown'] = $this->teamMembersDropdown(true, $scope);
+        $view_data['locations_dropdown'] = $this->locationsDropdown();
+        $view_data['punch_type_dropdown'] = array(
+            '' => '-',
+            'in' => app_lang('pontorh_punch_type_in'),
+            'lunch_out' => app_lang('pontorh_punch_type_lunch_out'),
+            'lunch_return' => app_lang('pontorh_punch_type_lunch_return'),
+            'out' => app_lang('pontorh_punch_type_out'),
+        );
+        $view_data['status_dropdown'] = pontorh_status_options();
+
+        return $this->renderPluginView('treatment/record_modal', $view_data);
     }
 
     public function save_manual()
@@ -205,7 +248,7 @@ class PontoRH_treatment extends PontoRH_Base_Controller
                 'created_at' => get_current_utc_time(),
             ));
 
-            $this->logAudit('pontorh_treatment', (int) $case->id, 'manual_mark_added', 'Manual mark added in treatment', array('record' => $record), $team_member_id);
+            $this->logAudit('pontorh_treatment', (int) $case->id, 'manual_mark_added', 'Marca manual adicionada no tratamento', array('record' => $record), $team_member_id);
         }
 
         echo json_encode(array(
@@ -299,9 +342,140 @@ class PontoRH_treatment extends PontoRH_Base_Controller
             'created_at' => get_current_utc_time(),
         ));
 
-        $this->logAudit('pontorh_treatment', $case_id, $action, 'Treatment action executed', array('before' => $before, 'after' => $save, 'justification' => $justification), (int) $case->team_member_id);
+        $this->logAudit('pontorh_treatment', $case_id, $action, 'Ação de tratamento executada', array('before' => $before, 'after' => $save, 'justification' => $justification), (int) $case->team_member_id);
 
         echo json_encode(array('success' => true, 'message' => app_lang('saved')));
+    }
+
+    public function record_action()
+    {
+        $this->ensureTreatmentWriteAccess();
+
+        $this->validate_submitted_data(array(
+            'case_id' => 'required',
+            'record_id' => 'required',
+            'action_type' => 'required',
+            'justification' => 'required',
+        ));
+
+        $case_id = (int) $this->request->getPost('case_id');
+        $record_id = (int) $this->request->getPost('record_id');
+        $action_type = trim((string) $this->request->getPost('action_type'));
+        $justification = clean_data($this->request->getPost('justification'));
+
+        $case = $this->treatment_cases_model->get_one_with_details($case_id);
+        $record = $this->getAccessibleTreatmentRecord($record_id);
+        if (!$case || empty($case->id) || !$record || empty($record->id)) {
+            echo json_encode(array('success' => false, 'message' => app_lang('error_occurred')));
+            return;
+        }
+
+        if ((int) $record->team_member_id !== (int) $case->team_member_id || (string) $record->date !== (string) $case->work_date) {
+            echo json_encode(array('success' => false, 'message' => app_lang('error_occurred')));
+            return;
+        }
+
+        $before = $record;
+        $save_id = $record_id;
+        $message = app_lang('saved');
+
+        if ($action_type === 'delete') {
+            $save = array(
+                'deleted' => 1,
+                'updated_at' => get_current_utc_time(),
+            );
+            $save_id = $this->records_model->ci_save($save, $record_id);
+            $message = app_lang('pontorh_record_deleted');
+        } else {
+            $this->validate_submitted_data(array(
+                'team_member_id' => 'required',
+                'work_date' => 'required',
+                'punch_time' => 'required',
+                'punch_type' => 'required',
+            ));
+
+            $team_member_id = (int) $this->request->getPost('team_member_id');
+            $work_date = $this->service->normalizeDate($this->request->getPost('work_date')) ?: get_my_local_time('Y-m-d');
+            $punch_time_local = $this->combineDateTime($work_date, trim((string) $this->request->getPost('punch_time')));
+            $punch_time = function_exists('convert_date_local_to_utc') ? convert_date_local_to_utc($punch_time_local) : $punch_time_local;
+            $punch_type = clean_data($this->request->getPost('punch_type'));
+            $source = clean_data($this->request->getPost('source')) ?: 'manual';
+            $status = clean_data($this->request->getPost('status')) ?: 'pending';
+            $location_id = (int) $this->request->getPost('location_id');
+            $notes = clean_data($this->request->getPost('notes'));
+            $latitude = $this->request->getPost('latitude');
+            $longitude = $this->request->getPost('longitude');
+
+            $save = array(
+                'team_member_id' => $team_member_id,
+                'user_id' => (int) $this->login_user->id,
+                'work_schedule_id' => (int) ($record->work_schedule_id ?? 0) ?: null,
+                'device_id' => $record->device_id ?? null,
+                'location_id' => $location_id ?: null,
+                'date' => $work_date,
+                'punch_time' => $punch_time,
+                'punch_type' => in_array($punch_type, array('in', 'lunch_out', 'lunch_return', 'out'), true) ? $punch_type : 'in',
+                'latitude' => $latitude !== '' ? (float) $latitude : 0,
+                'longitude' => $longitude !== '' ? (float) $longitude : 0,
+                'ip_address' => $this->request->getIPAddress(),
+                'source' => $source,
+                'status' => $status,
+                'hash' => $record->hash ?? hash('sha256', implode('|', array($team_member_id, $work_date, $punch_time, microtime(true)))),
+                'work_date' => $work_date,
+                'check_in' => in_array($punch_type, array('in', 'lunch_return'), true) ? $punch_time : null,
+                'check_out' => in_array($punch_type, array('out', 'lunch_out'), true) ? $punch_time : null,
+                'break_minutes' => (int) ($record->break_minutes ?? 0),
+                'minutes_worked' => (int) ($record->minutes_worked ?? 0),
+                'notes' => $notes,
+                'updated_at' => get_current_utc_time(),
+            );
+            $save_id = $this->records_model->ci_save($save, $record_id);
+            $message = app_lang('pontorh_record_updated');
+        }
+
+        if (!$save_id) {
+            echo json_encode(array('success' => false, 'message' => app_lang('error_occurred')));
+            return;
+        }
+
+        $updated_record = $this->getAccessibleTreatmentRecord($record_id);
+        $this->treatment_history_model->log_action(array(
+            'treatment_case_id' => (int) $case->id,
+            'team_member_id' => (int) $case->team_member_id,
+            'user_id' => (int) $this->login_user->id,
+            'action' => $action_type,
+            'old_value_json' => pontorh_safe_json($before),
+            'new_value_json' => pontorh_safe_json($updated_record),
+            'justification' => $justification,
+            'ip_address' => $this->request->getIPAddress(),
+            'source' => 'manual',
+            'status' => 'logged',
+            'created_by' => (int) $this->login_user->id,
+            'created_at' => get_current_utc_time(),
+        ));
+
+        $this->logAudit(
+            'pontorh_treatment',
+            (int) $case->id,
+            $action_type,
+            $action_type === 'delete' ? app_lang('pontorh_record_deleted') : app_lang('pontorh_record_updated'),
+            array('before' => $before, 'after' => $updated_record, 'justification' => $justification),
+            (int) $case->team_member_id
+        );
+
+        $this->treatment_cases_model->sync_cases(array(
+            'scope' => $this->currentDataScope(),
+            'current_user_id' => (int) $this->login_user->id,
+            'team_member_ids' => array((int) $case->team_member_id),
+            'team_member_id' => (int) $case->team_member_id,
+            'date_from' => $case->work_date,
+            'date_to' => $case->work_date,
+        ));
+
+        echo json_encode(array(
+            'success' => true,
+            'message' => $message,
+        ));
     }
 
     private function makeRow(array $row)
@@ -341,6 +515,7 @@ class PontoRH_treatment extends PontoRH_Base_Controller
     private function getTreatmentFilters()
     {
         $now = new \DateTimeImmutable('now');
+        $today = $now->format('Y-m-d');
         $date_from = trim((string) ($this->request->getPost('date_from') ?: $this->request->getGet('date_from')));
         $date_to = trim((string) ($this->request->getPost('date_to') ?: $this->request->getGet('date_to')));
         $team_member_id = (int) ($this->request->getPost('team_member_id') ?: $this->request->getGet('team_member_id'));
@@ -354,11 +529,14 @@ class PontoRH_treatment extends PontoRH_Base_Controller
 
         $normalized_date_from = $this->service->normalizeDate($date_from);
         $normalized_date_to = $this->service->normalizeDate($date_to);
+        if ($normalized_date_to && $normalized_date_to > $today) {
+            $normalized_date_to = $today;
+        }
 
         return array(
             'team_member_id' => $team_member_id,
             'date_from' => $normalized_date_from ?: $now->format('Y-m-01'),
-            'date_to' => $normalized_date_to ?: $now->format('Y-m-t'),
+            'date_to' => $normalized_date_to ?: $today,
             'status' => $status,
             'pending_type' => $pending_type,
             'month' => (int) $now->format('n'),
@@ -389,5 +567,19 @@ class PontoRH_treatment extends PontoRH_Base_Controller
         }
         $decoded = json_decode((string) $json, true);
         return is_array($decoded) ? $decoded : array();
+    }
+
+    private function getAccessibleTreatmentRecord($id)
+    {
+        if (!$id) {
+            return null;
+        }
+
+        $scope = $this->currentDataScope();
+        return $this->records_model->get_one_with_details($id, array(
+            'scope' => $scope,
+            'current_user_id' => (int) $this->login_user->id,
+            'team_member_ids' => $this->accessibleTeamMemberIds($scope),
+        ));
     }
 }

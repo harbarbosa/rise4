@@ -62,7 +62,7 @@ class PontoRH_shifts extends PontoRH_Base_Controller
 
         return array(
             esc($shift->name),
-            esc($shift->team_members_name ?: $shift->team_member_name ?: '-'),
+            (int) (($shift->team_members_count ?? 0) ?: (!empty($shift->team_member_name) ? 1 : 0)),
             esc(pontorh_schedule_type_label($shift->schedule_type ?? '')),
             esc($shift->start_time ?: '-'),
             esc($shift->end_time ?: '-'),

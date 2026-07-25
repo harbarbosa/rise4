@@ -25,10 +25,14 @@ class PontoRh_shifts_model extends PontoRhBaseModel
                         FROM {$members_table} wsm
                         LEFT JOIN {$users_table} mu ON mu.id = wsm.team_member_id
                         WHERE wsm.deleted = 0 AND wsm.work_schedule_id = s.id) AS team_members_name";
+        $members_count_sql = "(SELECT COUNT(DISTINCT wsm.team_member_id)
+                        FROM {$members_table} wsm
+                        WHERE wsm.deleted = 0 AND wsm.work_schedule_id = s.id) AS team_members_count";
 
         $sql = "SELECT s.*,
                     CONCAT(TRIM(COALESCE(u.first_name, '')), ' ', TRIM(COALESCE(u.last_name, ''))) AS team_member_name,
-                    {$members_sql}
+                    {$members_sql},
+                    {$members_count_sql}
                 FROM {$shifts_table} s
                 LEFT JOIN {$users_table} u ON u.id = s.team_member_id
                 WHERE s.deleted = 0";

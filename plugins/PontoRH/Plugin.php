@@ -594,7 +594,7 @@ class Plugin
             return false;
         }
 
-        if (!empty($login_user->is_admin)) {
+        if (self::isAdminLikeUser($login_user)) {
             return true;
         }
 
@@ -606,5 +606,23 @@ class Plugin
         }
 
         return false;
+    }
+
+    private static function isAdminLikeUser($login_user): bool
+    {
+        if (!$login_user) {
+            return false;
+        }
+
+        if (!empty($login_user->is_admin)) {
+            return true;
+        }
+
+        $role_title = strtolower(trim((string) ($login_user->role_title ?? '')));
+        if ($role_title === '') {
+            return false;
+        }
+
+        return str_contains($role_title, 'admin') || str_contains($role_title, 'administr');
     }
 }

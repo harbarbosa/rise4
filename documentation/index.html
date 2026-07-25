@@ -1,15 +1,163 @@
-<!DOCTYPE html>  
-
-<html lang="en">
-
+<!DOCTYPE html>
+<html lang="pt-BR">
     <head>
-        <title>RISE Docs</title>
-        <script>
-            window.location.href = "https://risedocs.fairsketch.com";
-        </script>
-    </head>    
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Documentacao RISECRM</title>
+        <style>
+            :root {
+                --bg: #f5f7fb;
+                --card: #ffffff;
+                --text: #1f2937;
+                --muted: #6b7280;
+                --border: #dbe3ee;
+                --accent: #0f4c81;
+                --accent-soft: #e8f1fb;
+            }
 
+            body {
+                margin: 0;
+                font-family: Arial, Helvetica, sans-serif;
+                background: linear-gradient(180deg, #eef4fb 0%, var(--bg) 100%);
+                color: var(--text);
+            }
+
+            .wrap {
+                max-width: 980px;
+                margin: 0 auto;
+                padding: 40px 20px 56px;
+            }
+
+            .hero {
+                background: var(--card);
+                border: 1px solid var(--border);
+                border-radius: 16px;
+                padding: 28px;
+                box-shadow: 0 12px 30px rgba(15, 76, 129, 0.08);
+            }
+
+            .eyebrow {
+                display: inline-block;
+                padding: 6px 10px;
+                border-radius: 999px;
+                background: var(--accent-soft);
+                color: var(--accent);
+                font-size: 12px;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+            }
+
+            h1 {
+                margin: 14px 0 10px;
+                font-size: 34px;
+                line-height: 1.1;
+            }
+
+            p {
+                margin: 0 0 14px;
+                color: var(--muted);
+                line-height: 1.6;
+            }
+
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                gap: 18px;
+                margin-top: 18px;
+            }
+
+            .card {
+                background: var(--card);
+                border: 1px solid var(--border);
+                border-radius: 14px;
+                padding: 18px;
+            }
+
+            .card h2 {
+                margin: 0 0 10px;
+                font-size: 18px;
+            }
+
+            ul {
+                margin: 0;
+                padding-left: 20px;
+                color: var(--muted);
+                line-height: 1.7;
+            }
+
+            a {
+                color: var(--accent);
+                text-decoration: none;
+            }
+
+            a:hover {
+                text-decoration: underline;
+            }
+
+            code {
+                background: #edf3fa;
+                border: 1px solid var(--border);
+                border-radius: 6px;
+                padding: 2px 6px;
+                color: #0f172a;
+            }
+
+            .footer {
+                margin-top: 20px;
+                font-size: 13px;
+                color: var(--muted);
+            }
+        </style>
+    </head>
     <body>
-        This page will be redirected to <a href="https://risedocs.fairsketch.com">https://risedocs.fairsketch.com</a>.
+        <div class="wrap">
+            <div class="hero">
+                <span class="eyebrow">Documentacao local</span>
+                <h1>Padrao de layout para plugins</h1>
+                <p>
+                    Baseado na tela de clientes do RISECRM e nos componentes reais usados pelos plugins do projeto.
+                    O objetivo e padronizar tabelas, botoes, selects, modais e formularios.
+                </p>
+                <p>
+                    Documento principal: <a href="./modelo-layout-plugins.md">modelo-layout-plugins.md</a>
+                </p>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h2>O que cobre</h2>
+                    <ul>
+                        <li>Estrutura de pagina com <code>card</code> e <code>page-wrapper</code></li>
+                        <li>Tabelas com <code>appTable</code></li>
+                        <li>Botoes e ordem de prioridade visual</li>
+                        <li>Selects, filtros e modais</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h2>Referencias</h2>
+                    <ul>
+                        <li><a href="../app/Views/clients/index.php">app/Views/clients/index.php</a></li>
+                        <li><a href="../app/Views/clients/clients_list.php">app/Views/clients/clients_list.php</a></li>
+                        <li><a href="../plugins/Fotovoltaico/Views/products/index.php">plugins/Fotovoltaico/Views/products/index.php</a></li>
+                        <li><a href="../plugins/Organizador/Views/tasks/index.php">plugins/Organizador/Views/tasks/index.php</a></li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h2>Uso esperado</h2>
+                    <ul>
+                        <li>Guiar novas telas de plugin</li>
+                        <li>Evitar UI fora do padrao nativo</li>
+                        <li>Servir como checklist antes de subir uma tela</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer">
+                Se quiser, eu tambem posso transformar este guia em um template reutilizavel para novos plugins.
+            </div>
+        </div>
     </body>
 </html>

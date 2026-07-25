@@ -1,0 +1,7 @@
+{
+  "name": "LicitaIA",
+  "description": "Modulo para gestao de oportunidades de licitacoes publicas com analise por IA, checklist documental, palavras-chave, fontes e relatorios.",
+  "version": "0.1.0",
+  "requires_at_least": "3.9.0",
+  "author": "Internal"
+}

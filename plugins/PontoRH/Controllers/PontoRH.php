@@ -132,6 +132,14 @@ class PontoRH extends PontoRH_Base_Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Espelho');
 
+        $formatDate = function ($date) {
+            return ($date && is_date_exists($date)) ? format_to_date($date, false) : ($date ?: '-');
+        };
+
+        $selected_member_name = trim((string) ($selected_member->first_name ?? '') . ' ' . (string) ($selected_member->last_name ?? ''));
+        $schedule_name = trim((string) ($report['schedule']->name ?? ''));
+        $report_summary = get_array_value($report, 'summary', array());
+
         $row = 1;
         $writeRow = function (array $values) use (&$sheet, &$row) {
             $column = 1;
@@ -144,16 +152,32 @@ class PontoRH extends PontoRH_Base_Controller
 
         $writeRow(array(
             app_lang('pontorh_mirror'),
+        ));
+        $writeRow(array(
             $this->getMirrorPeriodLabel($filters['month'], $filters['year'])
         ));
         $writeRow(array(
             app_lang('pontorh_employee'),
-            $selected_member->first_name ?? '',
-            $selected_member->last_name ?? ''
+            $selected_member_name ?: app_lang('all'),
+            app_lang('pontorh_shift'),
+            $schedule_name ?: '-',
+        ));
+        $writeRow(array(
+            app_lang('pontorh_minutes_worked'),
+            pontorh_minutes_to_hours_label($report_summary['worked_minutes_total'] ?? 0),
+            app_lang('pontorh_extra_hours'),
+            pontorh_minutes_to_hours_label($report_summary['extra_minutes_total'] ?? 0),
+            app_lang('pontorh_bank_hours'),
+            pontorh_minutes_to_hours_label($report_summary['bank_minutes_end'] ?? 0),
+            app_lang('pontorh_absences'),
+            (int) ($report_summary['absences_total'] ?? 0),
+            app_lang('pontorh_lateness'),
+            pontorh_minutes_to_hours_label($report_summary['lateness_total'] ?? 0),
         ));
         $writeRow(array());
         $writeRow(array(
             app_lang('pontorh_work_date'),
+            'Dia da semana',
             app_lang('pontorh_check_in'),
             app_lang('pontorh_check_out'),
             app_lang('pontorh_break_minutes'),
@@ -166,7 +190,8 @@ class PontoRH extends PontoRH_Base_Controller
 
         foreach (get_array_value($report, 'rows', array()) as $day) {
             $writeRow(array(
-                $day['date'],
+                $formatDate($day['date'] ?? ''),
+                $day['weekday_label'] ?? ucfirst((string) ($day['weekday'] ?? '')),
                 $day['entries'],
                 $day['exits'],
                 pontorh_minutes_to_hours_label($day['intervals_minutes']),
@@ -179,6 +204,33 @@ class PontoRH extends PontoRH_Base_Controller
         }
 
         $filename = 'pontorh_mirror_' . $filters['year'] . '_' . str_pad((string) $filters['month'], 2, '0', STR_PAD_LEFT) . '.xlsx';
+
+        $lastDataRow = max(1, $row - 1);
+        $sheet->mergeCells('A1:J1');
+        $sheet->mergeCells('A2:J2');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
+        $sheet->getStyle('A2')->getFont()->setItalic(true)->getColor()->setARGB('FF6C757D');
+        $sheet->getStyle('A3:D3')->getFont()->setBold(true);
+        $sheet->getStyle('A4:J4')->getFont()->setBold(true);
+        $sheet->getStyle('A6:J6')->getFont()->setBold(true);
+        $sheet->getStyle('A6:J6')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFE9EEF5');
+        $sheet->getStyle('A6:J' . $lastDataRow)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->getColor()->setARGB('FFD9DEE5');
+        $sheet->getStyle('A1:J' . $lastDataRow)->getAlignment()->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $sheet->getStyle('A6:J' . $lastDataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A6:J' . $lastDataRow)->getAlignment()->setWrapText(true);
+        $sheet->getColumnDimension('A')->setWidth(14);
+        $sheet->getColumnDimension('B')->setWidth(11);
+        $sheet->getColumnDimension('C')->setWidth(12);
+        $sheet->getColumnDimension('D')->setWidth(12);
+        $sheet->getColumnDimension('E')->setWidth(14);
+        $sheet->getColumnDimension('F')->setWidth(15);
+        $sheet->getColumnDimension('G')->setWidth(15);
+        $sheet->getColumnDimension('H')->setWidth(11);
+        $sheet->getColumnDimension('I')->setWidth(14);
+        $sheet->getColumnDimension('J')->setWidth(14);
+        $sheet->setAutoFilter('A6:J' . $lastDataRow);
+        $sheet->freezePane('A7');
+
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
 
         ob_start();

@@ -78,7 +78,8 @@ $year_dropdown = $year_dropdown ?? array();
 <script type="text/javascript">
     $(document).ready(function () {
         $(".page-wrapper .select2").select2();
-        setDatePicker("#pontorh-treatment-date-from, #pontorh-treatment-date-to");
+        setDatePicker("#pontorh-treatment-date-from", {});
+        setDatePicker("#pontorh-treatment-date-to", {});
 
         $("#pontorh-treatment-table").appTable({
             source: "<?php echo_uri('pontorh/tratamento/list_data'); ?>",

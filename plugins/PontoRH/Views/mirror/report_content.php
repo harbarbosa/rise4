@@ -3,6 +3,10 @@ $summary = $summary ?? array();
 $rows = $rows ?? array();
 $selected_member = $selected_member ?? null;
 $schedule = $schedule ?? null;
+
+$format_mirror_date = function ($date) {
+    return ($date && is_date_exists($date)) ? format_to_date($date, false) : ($date ?: '-');
+};
 ?>
 
 <div class="row g-3 mb-4">
@@ -50,7 +54,7 @@ $schedule = $schedule ?? null;
         <div class="card h-100">
             <div class="card-body">
                 <div class="text-muted"><?php echo app_lang('pontorh_employee'); ?></div>
-                <div class="font-18 fw-bold"><?php echo esc($selected_member ? ($selected_member->first_name . ' ' . $selected_member->last_name) : app_lang('all')); ?></div>
+                <div class="font-18 fw-bold"><?php echo esc($selected_member ? trim(($selected_member->first_name ?? '') . ' ' . ($selected_member->last_name ?? '')) : app_lang('all')); ?></div>
             </div>
         </div>
     </div>
@@ -91,8 +95,8 @@ $schedule = $schedule ?? null;
             <?php foreach ($rows as $row) { ?>
                 <tr>
                     <td>
-                        <?php echo esc($row['date']); ?><br>
-                        <small class="text-muted"><?php echo esc(ucfirst($row['weekday'])); ?></small>
+                        <?php echo esc($format_mirror_date($row['date'] ?? '')); ?><br>
+                        <small class="text-muted"><?php echo esc($row['weekday_label'] ?? ucfirst($row['weekday'] ?? '')); ?></small>
                     </td>
                     <td><?php echo esc($row['entries'] ?: '-'); ?></td>
                     <td><?php echo esc($row['exits'] ?: '-'); ?></td>
