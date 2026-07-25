@@ -32,12 +32,12 @@ class Database extends Config
 	 */
 	public $default = [
 		'DSN'      => '',
-		'hostname' => env('database.default.hostname', 'localhost'),
-		'username' => env('database.default.username', 'root'),
-		'password' => env('database.default.password', ''),
-		'database' => env('database.default.database', 'rise4'),
-		'DBDriver' => env('database.default.DBDriver', 'MySQLi'),
-		'DBPrefix' => env('database.default.DBPrefix', 'rise_'),
+		'hostname' => 'localhost',
+		'username' => 'root',
+		'password' => '',
+		'database' => 'rise4',
+		'DBDriver' => 'MySQLi',
+		'DBPrefix' => 'rise_',
 		'pConnect' => false,
 		'DBDebug'  => (ENVIRONMENT !== 'production'),
 		'charset'  => 'utf8',
@@ -47,8 +47,33 @@ class Database extends Config
 		'compress' => false,
 		'strictOn' => false,
 		'failover' => [],
-		'port'     => env('database.default.port', 3306),
+		'port'     => 3306,
 	];
+
+	// Sobrescrever com .env se existir
+	public function __construct()
+	{
+		parent::__construct();
+		
+		$envFile = dirname(APPPATH, 2) . '/.env';
+		if (file_exists($envFile)) {
+			$lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+			foreach ($lines as $line) {
+				if (strpos($line, '#') === 0) continue;
+				if (strpos($line, 'database.default.') === 0) {
+					$parts = explode('=', $line, 2);
+					if (count($parts) === 2) {
+						$key = trim($parts[0]);
+						$value = trim($parts[1]);
+						$configKey = str_replace('database.default.', '', $key);
+						if (isset($this->default[$configKey])) {
+							$this->default[$configKey] = $value;
+						}
+					}
+				}
+			}
+		}
+	}
 
 	/**
 	 * This database connection is used when
