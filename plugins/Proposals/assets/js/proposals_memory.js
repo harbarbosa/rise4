@@ -129,6 +129,7 @@
         if (canManage) {
             $right.append("<button type='button' class='btn btn-default btn-sm add-subsection' title='" + config.labels.addSubSection + "'><i data-feather='plus' class='icon-16'></i></button>");
             $right.append("<button type='button' class='btn btn-default btn-sm add-item' title='" + config.labels.item + "'><i data-feather='plus-square' class='icon-16'></i></button>");
+            $right.append("<button type='button' class='btn btn-default btn-sm add-description' title='" + (config.labels.addDescription || "Adicionar descrição") + "'><i data-feather='file-text' class='icon-16'></i></button>");
             $right.append("<button type='button' class='btn btn-default btn-sm move-up' title='" + config.labels.moveUp + "'><i data-feather='arrow-up' class='icon-16'></i></button>");
             $right.append("<button type='button' class='btn btn-default btn-sm move-down' title='" + config.labels.moveDown + "'><i data-feather='arrow-down' class='icon-16'></i></button>");
             $right.append("<button type='button' class='btn btn-danger btn-sm delete-section' title='" + config.labels.remove + "'><i data-feather='x' class='icon-16'></i></button>");
@@ -137,9 +138,22 @@
         $header.append($left).append($right);
         $section.append($header);
 
+        var sectionDescription = section.description || "";
         var $body = $("<div class='card-body'></div>");
-        if (isCollapsed) {
-            $body.addClass("hide");
+// Seção de descrição dos serviços
+        if (sectionDescription || canManage) {
+            var $descriptionWrap = $("<div class='section-description-wrap mb10" + (sectionDescription ? '' : ' hide') + "'></div>");
+            var $descriptionHeader = $("<div class='d-flex justify-content-between align-items-center mb5'></div>");
+            $descriptionHeader.append("<strong class='text-muted'>" + (config.labels.serviceDescription || "Descrição dos Serviços") + "</strong>");
+            if (canManage) {
+                $descriptionHeader.append("<button type='button' class='btn btn-default btn-sm edit-description' title='" + (config.labels.edit || "Editar") + "'><i data-feather='edit-2' class='icon-16'></i></button>");
+            }
+            var $descriptionContent = $("<div class='section-description-content p10 bg-light rounded'></div>").html(escapeHtml(sectionDescription).replace(/\n/g, '<br>'));
+            var $descriptionEdit = $("<div class='section-description-edit hide'></div>");
+            $descriptionEdit.append("<textarea class='form-control section-description-input mb5' rows='3'>" + escapeHtml(sectionDescription) + "</textarea>");
+            $descriptionEdit.append("<div class='d-flex gap5 justify-content-end'><button type='button' class='btn btn-primary btn-sm save-description'>" + (config.labels.save || "Salvar") + "</button> <button type='button' class='btn btn-default btn-sm cancel-description'>" + (config.labels.cancel || "Cancelar") + "</button></div>");
+            $descriptionWrap.append($descriptionHeader).append($descriptionContent).append($descriptionEdit);
+            $body.append($descriptionWrap);
         }
         var items = getItemsBySection(sectionId);
         var children = getSectionsByParent(sectionId);
@@ -349,6 +363,59 @@
                     }
                 }
             });
+        });
+
+        // Eventos de descrição da seção
+        $(".add-description").off("click").on("click", function (e) {
+            e.preventDefault();
+            var $section = $(this).closest(".proposal-section");
+            $section.find(".section-description-wrap").removeClass("hide");
+            $section.find(".section-description-content").addClass("hide");
+            $section.find(".section-description-edit").removeClass("hide");
+            $section.find(".section-description-input").focus();
+        });
+
+        $(".edit-description").off("click").on("click", function (e) {
+            e.preventDefault();
+            var $section = $(this).closest(".proposal-section");
+            $section.find(".section-description-content").addClass("hide");
+            $section.find(".section-description-edit").removeClass("hide");
+            $section.find(".section-description-input").focus();
+        });
+
+        $(".save-description").off("click").on("click", function () {
+            var $section = $(this).closest(".proposal-section");
+            var id = $section.data("id");
+            var description = $section.find(".section-description-input").val() || "";
+            appAjaxRequest({
+                url: config.endpoints.updateSection,
+                type: "POST",
+                dataType: "json",
+                data: {id: id, title: $section.find(".section-title-text").data("base-title") || "", description: description},
+                success: function (result) {
+                    if (result && result.success) {
+                        $section.find(".section-description-content").html(escapeHtml(description).replace(/\n/g, '<br>') || '<span class="text-muted">-</span>');
+                        $section.find(".section-description-edit").addClass("hide");
+                        if (description) {
+                            $section.find(".section-description-content").removeClass("hide");
+                        } else {
+                            $section.find(".section-description-wrap").addClass("hide");
+                        }
+                    } else {
+                        appAlert.error(result.message || AppLanugage.somethingWentWrong);
+                    }
+                }
+            });
+        });
+
+        $(".cancel-description").off("click").on("click", function () {
+            var $section = $(this).closest(".proposal-section");
+            var currentDescription = $section.find(".section-description-content").text().trim();
+            if (!currentDescription || currentDescription === "-") {
+                $section.find(".section-description-wrap").addClass("hide");
+            }
+            $section.find(".section-description-edit").addClass("hide");
+            $section.find(".section-description-content").removeClass("hide");
         });
 
         $("#proposal-memory").find("[data-action='add-section']").off("click").on("click", function (e) {

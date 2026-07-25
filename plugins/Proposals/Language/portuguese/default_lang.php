@@ -56,6 +56,8 @@ return [
     'proposals_section' => 'Nome da etapa',
     'proposals_subsection' => 'Nome da subetapa',
     'proposals_add_subsection' => 'Adicionar subetapa',
+    'proposals_add_description' => 'Adicionar descrição',
+    'proposals_service_description' => 'Descrição dos Serviços',
     'proposals_products' => 'Produtos',
     'proposals_add_product' => 'Adicionar produto',
     'proposals_import_ca_items' => 'Importar/Atualizar Conta Azul',

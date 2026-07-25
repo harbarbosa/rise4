@@ -229,6 +229,14 @@ $columns_to_add[] = array(
 );
 
 $items_table = $dbprefix . "items";
+// Adicionar coluna description para seções (etapas da memória de cálculo)
+$sections_table = $dbprefix . "proposal_sections_custom";
+$columns_to_add[] = array(
+    "table" => $sections_table,
+    "column" => "description",
+    "sql" => "ALTER TABLE `" . $sections_table . "` ADD COLUMN `description` TEXT NULL AFTER `title`"
+);
+
 $columns_to_add[] = array(
     "table" => $items_table,
     "column" => "ca_code",

@@ -891,7 +891,9 @@ foreach ($items as $proposal_item) {
             costLabel: <?php echo json_encode(app_lang('proposals_cost_label')); ?>,
             saleLabel: <?php echo json_encode(app_lang('proposals_sale_label')); ?>,
             save: <?php echo json_encode(app_lang('save')); ?>,
-            cancel: <?php echo json_encode(app_lang('cancel')); ?>
+            cancel: <?php echo json_encode(app_lang('cancel')); ?>,
+            addDescription: <?php echo json_encode(app_lang('proposals_add_description') ?: 'Adicionar descrição'); ?>,
+            serviceDescription: <?php echo json_encode(app_lang('proposals_service_description') ?: 'Descrição dos Serviços'); ?>
         }
     };
 </script>
