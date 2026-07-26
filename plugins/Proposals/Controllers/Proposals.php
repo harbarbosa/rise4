@@ -1148,15 +1148,66 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
         }
 
+        // Buscar itens da memória de cálculo
         $memory_items_query = $this->Proposal_items_model->get_details(array(
             'proposal_id' => $proposal_id,
             'in_memory' => 1
         ));
         $memory_items = ($memory_items_query && method_exists($memory_items_query, 'getResult')) ? $memory_items_query->getResult() : array();
 
-        if ($memory_items) {
-            $next_sort = $this->_get_next_item_sort($proposal_id, null);
-            foreach ($memory_items as $item) {
+        // Buscar itens já adicionados na proposta (não-memória)
+        $existing_items_query = $this->Proposal_items_model->get_details(array(
+            'proposal_id' => $proposal_id,
+            'in_memory' => 0
+        ));
+        $existing_items = ($existing_items_query && method_exists($existing_items_query, 'getResult')) ? $existing_items_query->getResult() : array();
+
+        // Criar mapa de itens existentes (key = item_id)
+        $existing_map = array();
+        foreach ($existing_items as $existing) {
+            $key = (int)$existing->item_id;
+            if ($key > 0) {
+                $existing_map[$key] = $existing;
+            }
+        }
+
+        // Agrupar itens da memória por item_id e somar quantidades
+        $grouped_items = array();
+        foreach ($memory_items as $item) {
+            $key = (int)$item->item_id;
+            if ($key > 0) {
+                if (isset($grouped_items[$key])) {
+                    // Somar quantidade
+                    $grouped_items[$key]->qty += $item->qty;
+                    $grouped_items[$key]->total = $grouped_items[$key]->qty * $grouped_items[$key]->sale_unit;
+                } else {
+                    $grouped_items[$key] = $item;
+                }
+            }
+        }
+
+        $next_sort = $this->_get_next_item_sort($proposal_id, null);
+        $items_copied = 0;
+        $items_merged = 0;
+
+        foreach ($grouped_items as $item) {
+            $key = (int)$item->item_id;
+            
+            // Verificar se item já existe na proposta
+            if (isset($existing_map[$key])) {
+                // Atualizar quantidade (somar)
+                $existing_item = $existing_map[$key];
+                $new_qty = $existing_item->qty + $item->qty;
+                $new_total = $new_qty * $existing_item->sale_unit;
+                
+                $update_data = array(
+                    'qty' => $new_qty,
+                    'total' => $new_total
+                );
+                $this->Proposal_items_model->ci_save($update_data, $existing_item->id);
+                $items_merged++;
+            } else {
+                // Criar novo item
                 $data = array(
                     'proposal_id' => $proposal_id,
                     'section_id' => null,
@@ -1177,14 +1228,26 @@ class Proposals extends Security_Controller
                 );
                 $this->Proposal_items_model->ci_save($data, 0);
                 $next_sort++;
+                $items_copied++;
             }
         }
 
         $this->_log_activity('items_copied_to_proposal', $proposal_id);
 
+        $message = '';
+        if ($items_copied > 0 && $items_merged > 0) {
+            $message = "$items_copied itens copiados e $items_merged mergeados (quantidades somadas)";
+        } elseif ($items_copied > 0) {
+            $message = "$items_copied itens copiados";
+        } elseif ($items_merged > 0) {
+            $message = "$items_merged itens mergeados (quantidades somadas)";
+        } else {
+            $message = 'Nenhum item para copiar';
+        }
+
         return $this->response->setJSON(array(
             'success' => true,
-            'message' => app_lang('record_saved')
+            'message' => $message
         ));
     }
 
