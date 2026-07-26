@@ -1155,20 +1155,17 @@ class Proposals extends Security_Controller
         ));
         $memory_items = ($memory_items_query && method_exists($memory_items_query, 'getResult')) ? $memory_items_query->getResult() : array();
 
-        // Buscar itens já adicionados na proposta (não-memória)
+        // Primeiro: excluir todos os itens existentes da proposta (não-memória)
         $existing_items_query = $this->Proposal_items_model->get_details(array(
             'proposal_id' => $proposal_id,
             'in_memory' => 0
         ));
         $existing_items = ($existing_items_query && method_exists($existing_items_query, 'getResult')) ? $existing_items_query->getResult() : array();
 
-        // Criar mapa de itens existentes (key = item_id)
-        $existing_map = array();
+        $deleted_count = 0;
         foreach ($existing_items as $existing) {
-            $key = (int)$existing->item_id;
-            if ($key > 0) {
-                $existing_map[$key] = $existing;
-            }
+            $this->Proposal_items_model->delete($existing->id);
+            $deleted_count++;
         }
 
         // Agrupar itens da memória por item_id e somar quantidades
@@ -1186,64 +1183,37 @@ class Proposals extends Security_Controller
             }
         }
 
-        $next_sort = $this->_get_next_item_sort($proposal_id, null);
+        $next_sort = 0;
         $items_copied = 0;
-        $items_merged = 0;
 
+        // Agora copiar os itens da memória
         foreach ($grouped_items as $item) {
-            $key = (int)$item->item_id;
-            
-            // Verificar se item já existe na proposta
-            if (isset($existing_map[$key])) {
-                // Atualizar quantidade (somar)
-                $existing_item = $existing_map[$key];
-                $new_qty = $existing_item->qty + $item->qty;
-                $new_total = $new_qty * $existing_item->sale_unit;
-                
-                $update_data = array(
-                    'qty' => $new_qty,
-                    'total' => $new_total
-                );
-                $this->Proposal_items_model->ci_save($update_data, $existing_item->id);
-                $items_merged++;
-            } else {
-                // Criar novo item
-                $data = array(
-                    'proposal_id' => $proposal_id,
-                    'section_id' => null,
-                    'item_id' => $item->item_id,
-                    'item_type' => $item->item_type,
-                    'description_override' => $item->description_override,
-                    'cost_unit' => $item->cost_unit,
-                    'qty' => $item->qty,
-                    'markup_percent' => $item->markup_percent,
-                    'sale_unit' => $item->sale_unit,
-                    'total' => $item->total,
-                    'show_in_proposal' => 1,
-                    'show_values_in_proposal' => 1,
-                    'in_memory' => 0,
-                    'sort' => $next_sort,
-                    'created_by' => $this->login_user->id,
-                    'created_at' => get_my_local_time()
-                );
-                $this->Proposal_items_model->ci_save($data, 0);
-                $next_sort++;
-                $items_copied++;
-            }
+            $data = array(
+                'proposal_id' => $proposal_id,
+                'section_id' => null,
+                'item_id' => $item->item_id,
+                'item_type' => $item->item_type,
+                'description_override' => $item->description_override,
+                'cost_unit' => $item->cost_unit,
+                'qty' => $item->qty,
+                'markup_percent' => $item->markup_percent,
+                'sale_unit' => $item->sale_unit,
+                'total' => $item->total,
+                'show_in_proposal' => 1,
+                'show_values_in_proposal' => 1,
+                'in_memory' => 0,
+                'sort' => $next_sort,
+                'created_by' => $this->login_user->id,
+                'created_at' => get_my_local_time()
+            );
+            $this->Proposal_items_model->ci_save($data, 0);
+            $next_sort++;
+            $items_copied++;
         }
 
         $this->_log_activity('items_copied_to_proposal', $proposal_id);
 
-        $message = '';
-        if ($items_copied > 0 && $items_merged > 0) {
-            $message = "$items_copied itens copiados e $items_merged mergeados (quantidades somadas)";
-        } elseif ($items_copied > 0) {
-            $message = "$items_copied itens copiados";
-        } elseif ($items_merged > 0) {
-            $message = "$items_merged itens mergeados (quantidades somadas)";
-        } else {
-            $message = 'Nenhum item para copiar';
-        }
+        $message = "$items_copied itens copiados ($deleted_count excluídos anteriormente)";
 
         return $this->response->setJSON(array(
             'success' => true,
