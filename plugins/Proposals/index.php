@@ -10,9 +10,15 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
   Author: Internal
 */
 
+// Carregar helpers necessários
+helper(['url', 'text', 'function']);
+
 use App\Controllers\Security_Controller;
 
 app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
+    // Carregar helpers necessários
+    helper(['url', 'text', 'function']);
+    
     $ci = new Security_Controller(false);
     if (!isset($ci->login_user) || $ci->login_user->user_type !== "staff") {
         return $sidebar_menu;
@@ -72,6 +78,9 @@ app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
 });
 
 app_hooks()->add_filter('app_filter_admin_settings_menu', function ($settings_menu) {
+    // Carregar helpers necessários
+    helper(['url', 'text', 'function']);
+    
     $ci = new Security_Controller(false);
     $login_user = $ci->login_user ?? null;
     if (!$login_user) {
@@ -94,6 +103,9 @@ app_hooks()->add_filter('app_filter_admin_settings_menu', function ($settings_me
 
 app_hooks()->add_action('app_hook_role_permissions_extension', function ($hook_data = null) {
     try {
+        // Carregar helpers necessários
+        helper(['url', 'text', 'function']);
+        
         $request = \Config\Services::request();
         $role_id = (int)$request->getUri()->getSegment(3);
         $permissions = array();
@@ -131,6 +143,9 @@ app_hooks()->add_filter('app_filter_role_permissions_save_data', function ($perm
 
 app_hooks()->add_action('app_hook_data_insert', function ($hook_data) {
     try {
+        // Carregar helpers necessários
+        helper(['url', 'text', 'function']);
+        
         if (!$hook_data || !is_array($hook_data)) {
             return;
         }
@@ -213,6 +228,9 @@ app_hooks()->add_action('app_hook_data_insert', function ($hook_data) {
 
 app_hooks()->add_action('app_hook_data_delete', function ($hook_data) {
     try {
+        // Carregar helpers necessários
+        helper(['url', 'text', 'function']);
+        
         if (!$hook_data || !is_array($hook_data)) {
             return;
         }
