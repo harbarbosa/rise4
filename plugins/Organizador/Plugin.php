@@ -440,6 +440,9 @@ class Plugin
     private static function registerMenus()
     {
         app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
+            // Carregar helpers necessários
+            helper(['url', 'text', 'function']);
+            
             $ci = new Security_Controller(false);
             if (!isset($ci->login_user) || $ci->login_user->user_type !== 'staff') {
                 return $sidebar_menu;
@@ -471,6 +474,9 @@ class Plugin
         });
 
         app_hooks()->add_filter('app_filter_admin_settings_menu', function ($settings_menu) {
+            // Carregar helpers necessários
+            helper(['url', 'text', 'function']);
+            
             $ci = new Security_Controller(false);
             $login_user = $ci->login_user ?? null;
             if (!$login_user || !($login_user->is_admin || self::canManageSettings($login_user))) {
@@ -489,6 +495,9 @@ class Plugin
     private static function registerDashboardWidgets()
     {
         app_hooks()->add_filter('app_filter_dashboard_widgets', function ($widgets) {
+            // Carregar helpers necessários
+            helper(['url', 'text', 'function']);
+            
             $ci = new Security_Controller(false);
             $login_user = $ci->login_user ?? null;
 
@@ -583,6 +592,9 @@ class Plugin
     {
         app_hooks()->add_action('app_hook_role_permissions_extension', function () {
             try {
+                // Carregar helpers necessários
+                helper(['url', 'text', 'function']);
+                
                 $request = \Config\Services::request();
                 $role_id = (int) $request->getUri()->getSegment(3);
                 $permissions = array();
@@ -625,6 +637,9 @@ class Plugin
 
     private static function registerNotificationHooks()
     {
+        // Carregar helpers necessários
+        helper(['url', 'text', 'function']);
+        
         app_hooks()->add_filter('app_filter_notification_config', function ($events) {
             $task_link = function ($options) {
                 $task_id = 0;
@@ -657,6 +672,9 @@ class Plugin
         });
 
         app_hooks()->add_filter('app_filter_create_notification_where_query', function ($where_queries, $hook_data) {
+            // Carregar helpers necessários
+            helper(['url', 'text', 'function']);
+            
             $event = get_array_value($hook_data, 'event');
             if (strpos($event, 'organizador_task_') !== 0) {
                 return $where_queries;
@@ -679,6 +697,9 @@ class Plugin
         });
 
         app_hooks()->add_filter('app_filter_notification_description', function ($descriptions, $notification) {
+            // Carregar helpers necessários
+            helper(['url', 'text', 'function']);
+            
             if (!$notification || strpos($notification->event, 'organizador_task_') !== 0) {
                 return $descriptions;
             }
@@ -699,6 +720,9 @@ class Plugin
         });
 
         app_hooks()->add_filter('app_filter_send_email_notification', function ($email_info) {
+            // Carregar helpers necessários
+            helper(['url', 'text', 'function']);
+            
             $notification = get_array_value($email_info, 'notification');
             if (!$notification || strpos($notification->event, 'organizador_task_') !== 0) {
                 return $email_info;
@@ -746,6 +770,9 @@ class Plugin
 
     private static function registerEmailTemplates()
     {
+        // Carregar helpers necessários
+        helper(['url', 'text', 'function']);
+        
         app_hooks()->add_filter('app_filter_email_templates', function ($templates) {
             if (!isset($templates['organizador']) || !is_array($templates['organizador'])) {
                 $templates['organizador'] = array();
@@ -782,6 +809,9 @@ class Plugin
 
     private static function registerCronHooks()
     {
+        // Carregar helpers necessários
+        helper(['url', 'text', 'function']);
+        
         app_hooks()->add_action('app_hook_after_cron_run', function () {
             try {
                 self::runReminders();
