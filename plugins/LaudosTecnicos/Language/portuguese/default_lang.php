@@ -1,3 +1,8 @@
 <?php
-// Laudos Técnicos - Minimal Language File
-$lang['laudos_tecnicos'] = 'Laudos Técnicos';
+
+return [
+    'laudos_tecnicos' => 'Laudos Técnicos',
+    'laudos_dashboard' => 'Dashboard',
+    'laudos_list' => 'Laudos',
+    'laudos_settings' => 'Configurações'
+];
