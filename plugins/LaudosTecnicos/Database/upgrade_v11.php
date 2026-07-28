@@ -55,8 +55,9 @@ if (!$db->tableExists($prompts_table)) {
             'prompt_template' => 'Analise o laudo e identifique possíveis lacunas ou informações faltantes.\n\nLaudo: {{tipo_laudo}}\nChecklists respondidos: {{checklists}}\nMedições: {{medicoes}}\nFotografias: {{fotografas}}\n\nRetorne lista de lacunas identificadas.')
     );
     
-    foreach ($prompts as $p) {
-        $p['variables'] = json_encode($this->_extract_variables($p['prompt_template']));
+    foreach ($prompts as &$p) {
+        preg_match_all('/\{\{(\w+)\}\}/', $p['prompt_template'], $matches);
+        $p['variables'] = json_encode(array_unique($matches[1] ?? []));
         $p['created_at'] = get_my_local_time();
         $db->insert($prompts_table, $p);
     }
@@ -142,11 +143,6 @@ if (!$db->tableExists($automations_table)) {
         $db->insert($automations_table, $a);
     }
     $results[] = "Automações padrão inseridas";
-}
-
-function _extract_variables($template) {
-    preg_match_all('/\{\{(\w+)\}\}/', $template, $matches);
-    return array_unique($matches[1]);
 }
 
 return array('success' => true, 'results' => $results);
