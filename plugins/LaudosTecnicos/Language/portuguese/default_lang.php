@@ -396,3 +396,14 @@ $lang['laudos_next_calibration'] = 'Próxima Calibração';
 $lang['laudos_institution'] = 'Instituição';
 $lang['laudos_year'] = 'Ano';
 $lang['laudos_title'] = 'Título';
+
+// Inspeções
+$lang['laudos_inspections_menu'] = 'Inspeções';
+$lang['laudos_inspection_add'] = 'Nova Inspeção';
+$lang['laudos_inspection_type'] = 'Tipo de Inspeção';
+$lang['laudos_checkin'] = 'Check-in';
+$lang['laudos_checkout'] = 'Check-out';
+$lang['laudos_calendar'] = 'Agenda';
+$lang['laudos_duration'] = 'Duração';
+$lang['laudos_vehicle'] = 'Veículo';
+$lang['laudos_time'] = 'Horário';
