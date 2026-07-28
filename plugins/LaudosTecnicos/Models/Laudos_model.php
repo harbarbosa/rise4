@@ -130,7 +130,7 @@ class Laudos_model extends Crud_model
         return $this->db->query($sql);
     }
 
-    public function get_one($id)
+    public function get_one($id = 0)
     {
         $table = $this->db->prefixTable($this->table);
         $laudo_types_table = $this->db->prefixTable('laudo_types');

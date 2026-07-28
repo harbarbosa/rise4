@@ -60,7 +60,7 @@ class Laudo_templates_model extends Crud_model
         return $this->db->query($sql);
     }
 
-    public function get_one($id)
+    public function get_one($id = 0)
     {
         $table = $this->db->prefixTable($this->table);
         $sql = "SELECT * FROM $table WHERE id=$id AND deleted=0";

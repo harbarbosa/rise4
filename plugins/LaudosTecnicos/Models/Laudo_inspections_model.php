@@ -65,7 +65,7 @@ class Laudo_inspections_model extends Crud_model
         return $this->db->query($sql);
     }
 
-    public function get_one($id)
+    public function get_one($id = 0)
     {
         $table = $this->db->prefixTable($this->table);
         $laudos_table = $this->db->prefixTable('laudos_tecnicos');

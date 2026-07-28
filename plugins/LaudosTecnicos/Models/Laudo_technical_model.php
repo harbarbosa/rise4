@@ -122,7 +122,7 @@ class Laudo_measurement_types_model extends Crud_model
         return $dropdown;
     }
 
-    public function get_one($id)
+    public function get_one($id = 0)
     {
         $table = $this->db->prefixTable($this->table);
         $sql = "SELECT * FROM $table WHERE id=$id AND deleted=0";
@@ -188,7 +188,7 @@ class Laudo_equipment_model extends Crud_model
         return $this->db->query($sql);
     }
 
-    public function get_one($id)
+    public function get_one($id = 0)
     {
         $table = $this->db->prefixTable($this->table);
         $sql = "SELECT * FROM $table WHERE id=$id AND deleted=0";
@@ -298,7 +298,7 @@ class Laudo_standards_model extends Crud_model
         return $this->db->query($sql);
     }
 
-    public function get_one($id)
+    public function get_one($id = 0)
     {
         $table = $this->db->prefixTable($this->table);
         $sql = "SELECT * FROM $table WHERE id=$id AND deleted=0";

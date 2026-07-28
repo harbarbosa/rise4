@@ -63,7 +63,7 @@ class Laudo_non_conformities_model extends Crud_model
         return $this->db->query($sql);
     }
 
-    public function get_one($id)
+    public function get_one($id = 0)
     {
         $table = $this->db->prefixTable($this->table);
         $sql = "SELECT * FROM $table WHERE id=$id AND deleted=0";
@@ -193,7 +193,7 @@ class Laudo_action_plans_model extends Crud_model
         return $this->db->query($sql)->getResult();
     }
 
-    public function get_one($id)
+    public function get_one($id = 0)
     {
         $table = $this->db->prefixTable($this->table);
         $sql = "SELECT * FROM $table WHERE id=$id AND deleted=0";
