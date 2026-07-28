@@ -3,6 +3,7 @@
 namespace LaudosTecnicos;
 
 use App\Controllers\Security_Controller;
+use LaudosTecnicos\Models\Laudo_status_model;
 
 class Plugin
 {
@@ -41,14 +42,36 @@ class Plugin
                 );
             }
 
+            $permissions = $ci->login_user->permissions ?? array();
+            
             $submenu = array(
                 "laudos_dashboard" => array("name" => "laudos_dashboard", "url" => "laudos_tecnicos", "class" => "home"),
                 "laudos_list" => array("name" => "laudos_list", "url" => "laudos_tecnicos/laudos", "class" => "file-text"),
-                "laudos_types" => array("name" => "laudos_types", "url" => "laudos_tecnicos/tipos", "class" => "list"),
-                "laudos_templates" => array("name" => "laudos_templates", "url" => "laudos_tecnicos/templates", "class" => "layout"),
-                "laudos_inspections" => array("name" => "laudos_inspections", "url" => "laudos_tecnicos/inspecoes", "class" => "clipboard"),
-                "laudos_settings" => array("name" => "laudos_settings", "url" => "laudos_tecnicos/configuracoes", "class" => "settings"),
             );
+            
+            // Adicionar categorias se tiver permissão
+            if ($ci->login_user->is_admin || get_array_value($permissions, 'laudos_manage_categories') == '1') {
+                $submenu["laudos_categories"] = array("name" => "laudos_categories_title", "url" => "laudos_tecnicos/categorias", "class" => "tag");
+            }
+            
+            // Adicionar tipos
+            if ($ci->login_user->is_admin || get_array_value($permissions, 'laudos_manage_types') == '1') {
+                $submenu["laudos_types"] = array("name" => "laudos_types", "url" => "laudos_tecnicos/tipos", "class" => "list");
+            }
+            
+            // Adicionar status
+            if ($ci->login_user->is_admin || get_array_value($permissions, 'laudos_manage_status') == '1') {
+                $submenu["laudos_status"] = array("name" => "laudos_status_title", "url" => "laudos_tecnicos/status", "class" => "activity");
+            }
+            
+            // Adicionar transições
+            if ($ci->login_user->is_admin || get_array_value($permissions, 'laudos_manage_transitions') == '1') {
+                $submenu["laudos_transitions"] = array("name" => "laudos_transitions_title", "url" => "laudos_tecnicos/transicoes", "class" => "git-branch");
+            }
+            
+            $submenu["laudos_templates"] = array("name" => "laudos_templates", "url" => "laudos_tecnicos/templates", "class" => "layout");
+            $submenu["laudos_inspections"] = array("name" => "laudos_inspections", "url" => "laudos_tecnicos/inspecoes", "class" => "clipboard");
+            $submenu["laudos_settings"] = array("name" => "laudos_settings", "url" => "laudos_tecnicos/configuracoes", "class" => "settings");
 
             $sidebar_menu["laudos_tecnicos"] = array_merge($sidebar_menu["laudos_tecnicos"], $submenu);
 
@@ -98,6 +121,13 @@ class Plugin
             $permissions['laudos_manage_types'] = $request->getPost('laudos_manage_types') ? '1' : '';
             $permissions['laudos_manage_templates'] = $request->getPost('laudos_manage_templates') ? '1' : '';
             $permissions['laudos_settings'] = $request->getPost('laudos_settings') ? '1' : '';
+            
+            // Novas permissões
+            $permissions['laudos_manage_categories'] = $request->getPost('laudos_manage_categories') ? '1' : '';
+            $permissions['laudos_manage_status'] = $request->getPost('laudos_manage_status') ? '1' : '';
+            $permissions['laudos_manage_transitions'] = $request->getPost('laudos_manage_transitions') ? '1' : '';
+            $permissions['laudos_change_status'] = $request->getPost('laudos_change_status') ? '1' : '';
+            
             return $permissions;
         });
     }
@@ -146,7 +176,10 @@ class Plugin
             || get_array_value($permissions, 'laudos_edit') == '1'
             || get_array_value($permissions, 'laudos_manage_types') == '1'
             || get_array_value($permissions, 'laudos_manage_templates') == '1'
-            || get_array_value($permissions, 'laudos_settings') == '1';
+            || get_array_value($permissions, 'laudos_settings') == '1'
+            || get_array_value($permissions, 'laudos_manage_categories') == '1'
+            || get_array_value($permissions, 'laudos_manage_status') == '1'
+            || get_array_value($permissions, 'laudos_manage_transitions') == '1';
     }
 
     /**
@@ -183,19 +216,54 @@ class Plugin
     }
 
     /**
-     * Status dos laudos
+     * Status dos laudos - do banco de dados
      */
     public static function statusList()
     {
-        return array(
-            'draft' => app_lang('laudos_status_draft'),
-            'in_progress' => app_lang('laudos_status_in_progress'),
-            'pending_review' => app_lang('laudos_status_pending_review'),
-            'approved' => app_lang('laudos_status_approved'),
-            'issued' => app_lang('laudos_status_issued'),
-            'expired' => app_lang('laudos_status_expired'),
-            'canceled' => app_lang('laudos_status_canceled'),
-        );
+        try {
+            $model = model(Laudo_status_model::class);
+            $status = $model->get_dropdown();
+            return $status;
+        } catch (\Throwable $e) {
+            // Fallback se tabela não existir
+            return array(
+                'draft' => app_lang('laudos_status_draft'),
+                'requested' => app_lang('laudos_status_requested'),
+                'scheduled' => app_lang('laudos_status_scheduled'),
+                'inspecting' => app_lang('laudos_status_inspecting'),
+                'pending_review' => app_lang('laudos_status_pending_review'),
+                'approved' => app_lang('laudos_status_approved'),
+                'issued' => app_lang('laudos_status_issued'),
+                'expired' => app_lang('laudos_status_expired'),
+                'canceled' => app_lang('laudos_status_canceled'),
+            );
+        }
+    }
+
+    /**
+     * Verificar se transição é válida
+     */
+    public static function canTransition($from_status_code, $to_status_code)
+    {
+        try {
+            $model = model(Laudo_status_transitions_model::class);
+            return $model->can_transition($from_status_code, $to_status_code);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Obter transições disponíveis para um status
+     */
+    public static function getTransitions($from_status_code)
+    {
+        try {
+            $model = model(Laudo_status_transitions_model::class);
+            return $model->get_transitions_from($from_status_code);
+        } catch (\Throwable $e) {
+            return array();
+        }
     }
 
     /**

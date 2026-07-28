@@ -4,12 +4,29 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
 
 /**
  * Instalador do Plugin Laudos Técnicos
+ * 
+ * Executa:
+ * 1. Database/install.php - Cria/atualiza tabelas
+ * 2. Database/upgrade_v2.php - Adiciona recursos avançados
+ * 3. Database/seed.php - Insere dados iniciais
  */
 
+// 1. Instalação base das tabelas
 $install_file = __DIR__ . '/Database/install.php';
 if (file_exists($install_file)) {
-    require $install_file;
-    return;
+    include $install_file;
+}
+
+// 2. Upgrade v2 - Status, Transições, Histórico
+$upgrade_file = __DIR__ . '/Database/upgrade_v2.php';
+if (file_exists($upgrade_file)) {
+    include $upgrade_file;
+}
+
+// 3. Seed - Dados iniciais (categorias e tipos)
+$seed_file = __DIR__ . '/Database/seed.php';
+if (file_exists($seed_file)) {
+    include $seed_file;
 }
 
 return array(

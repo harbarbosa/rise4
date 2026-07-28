@@ -4,6 +4,7 @@
 $lang['laudos_tecnicos_menu'] = 'Laudos Técnicos';
 $lang['laudos_dashboard'] = 'Dashboard';
 $lang['laudos_list'] = 'Laudos';
+$lang['laudos_categories_title'] = 'Categorias';
 $lang['laudos_types'] = 'Tipos de Laudo';
 $lang['laudos_templates'] = 'Templates';
 $lang['laudos_inspections'] = 'Inspeções';
@@ -11,6 +12,9 @@ $lang['laudos_settings'] = 'Configurações';
 
 // Status
 $lang['laudos_status_draft'] = 'Rascunho';
+$lang['laudos_status_requested'] = 'Solicitação Recebida';
+$lang['laudos_status_scheduled'] = 'Agendado';
+$lang['laudos_status_inspecting'] = 'Em Inspeção';
 $lang['laudos_status_in_progress'] = 'Em Andamento';
 $lang['laudos_status_pending_review'] = 'Aguardando Revisão';
 $lang['laudos_status_approved'] = 'Aprovado';
@@ -89,9 +93,67 @@ $lang['laudos_type_require_approval'] = 'Exige Aprovação';
 $lang['laudos_type_validity_days'] = 'Validade (dias)';
 
 // Categorias
-$lang['laudos_category_name'] = 'Nome';
-$lang['laudos_category_color'] = 'Cor';
+$lang['laudos_categories_title'] = 'Categorias de Laudo';
 $lang['laudos_category_add'] = 'Nova Categoria';
+$lang['laudos_category_name'] = 'Nome';
+$lang['laudos_category_name_placeholder'] = 'Ex: Engenharia Elétrica';
+$lang['laudos_category_description_placeholder'] = 'Descrição opcional da categoria';
+$lang['laudos_category_color'] = 'Cor';
+$lang['laudos_category_icon'] = 'Ícone';
+
+// Status
+$lang['laudos_status_title'] = 'Status dos Laudos';
+$lang['laudos_status_add'] = 'Novo Status';
+$lang['laudos_status_initial'] = 'Inicial';
+$lang['laudos_status_final'] = 'Final';
+$lang['laudos_status_cancel'] = 'Cancelamento';
+$lang['laudos_status_code_help'] = 'Código único (sem espaços, minúsculas)';
+$lang['laudos_status_initial_help'] = 'Primeiro status do laudo';
+$lang['laudos_status_final_help'] = 'Último status possível';
+$lang['laudos_status_cancel_help'] = 'Indica cancelamento';
+
+// Transições
+$lang['laudos_transitions_title'] = 'Transições de Status';
+$lang['laudos_transition_add'] = 'Nova Transição';
+$lang['laudos_from_status'] = 'Status de Origem';
+$lang['laudos_to_status'] = 'Status de Destino';
+$lang['laudos_all_status'] = 'Todos os Status';
+$lang['laudos_select_status'] = 'Selecione...';
+$lang['laudos_same_status_error'] = 'O status de origem e destino devem ser diferentes';
+
+// Campos de Status e Transições
+$lang['laudos_sort_order'] = 'Ordem';
+$lang['laudos_initial'] = 'Inicial';
+$lang['laudos_final'] = 'Final';
+$lang['laudos_cancel'] = 'Cancelamento';
+$lang['laudos_allow_edit'] = 'Permite edição';
+$lang['laudos_allow_delete'] = 'Permite exclusão';
+$lang['laudos_allow_issue'] = 'Permite emissão';
+$lang['laudos_require_comment'] = 'Exige comentário';
+$lang['laudos_notify'] = 'Notificar';
+$lang['laudos_create_task'] = 'Criar tarefa';
+
+// Tipos de Laudo (atualizado)
+$lang['laudos_types_title'] = 'Tipos de Laudo';
+$lang['laudos_type_add'] = 'Novo Tipo';
+$lang['laudos_type_name'] = 'Nome';
+$lang['laudos_type_prefix'] = 'Prefixo';
+$lang['laudos_type_code'] = 'Código';
+$lang['laudos_type_require_inspection'] = 'Exige Inspeção';
+$lang['laudos_type_require_approval'] = 'Exige Aprovação';
+$lang['laudos_type_require_review'] = 'Exige Revisão';
+$lang['laudos_type_require_technician'] = 'Exige Técnico Responsável';
+$lang['laudos_type_require_signature'] = 'Exige Assinatura';
+$lang['laudos_type_require_equipment'] = 'Exige Equipamento Calibrado';
+$lang['laudos_type_allow_mobile'] = 'Acesso Mobile';
+$lang['laudos_type_validity_days'] = 'Validade (dias)';
+$lang['laudos_type_default_template'] = 'Template Padrão';
+
+// Mais permissões
+$lang['laudos_manage_categories_permission'] = 'Gerenciar categorias';
+$lang['laudos_manage_status_permission'] = 'Gerenciar status';
+$lang['laudos_manage_transitions_permission'] = 'Gerenciar transições';
+$lang['laudos_change_status_permission'] = 'Alterar status de laudos';
 
 // Templates
 $lang['laudos_templates_title'] = 'Templates de Laudo';
@@ -146,6 +208,7 @@ $lang['laudos_no_records'] = 'Nenhum registro encontrado';
 $lang['laudos_field_required'] = 'Este campo é obrigatório';
 $lang['laudos_title_required'] = 'O título é obrigatório';
 $lang['laudos_type_required'] = 'Selecione o tipo de laudo';
+$lang['laudos_requirements'] = 'Requisitos';
 
 // Auditoria
 $lang['laudos_audit_created'] = 'Laudo criado';

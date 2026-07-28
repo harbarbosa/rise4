@@ -10,6 +10,10 @@ $laudos_edit = get_array_value($permissions, 'laudos_edit');
 $laudos_delete_draft = get_array_value($permissions, 'laudos_delete_draft');
 $laudos_manage_types = get_array_value($permissions, 'laudos_manage_types');
 $laudos_manage_templates = get_array_value($permissions, 'laudos_manage_templates');
+$laudos_manage_categories = get_array_value($permissions, 'laudos_manage_categories');
+$laudos_manage_status = get_array_value($permissions, 'laudos_manage_status');
+$laudos_manage_transitions = get_array_value($permissions, 'laudos_manage_transitions');
+$laudos_change_status = get_array_value($permissions, 'laudos_change_status');
 $laudos_settings = get_array_value($permissions, 'laudos_settings');
 ?>
 
@@ -33,8 +37,25 @@ $laudos_settings = get_array_value($permissions, 'laudos_settings');
         <label for="laudos_delete_draft"><?php echo app_lang('laudos_delete_draft_permission'); ?></label>
     </div>
     <div>
+        <?php echo form_checkbox('laudos_change_status', '1', $laudos_change_status ? true : false, "id='laudos_change_status' class='form-check-input'"); ?>
+        <label for="laudos_change_status"><?php echo app_lang('laudos_change_status_permission'); ?></label>
+    </div>
+    <hr style="margin: 10px 0; opacity: 0.3;">
+    <div>
+        <?php echo form_checkbox('laudos_manage_categories', '1', $laudos_manage_categories ? true : false, "id='laudos_manage_categories' class='form-check-input'"); ?>
+        <label for="laudos_manage_categories"><?php echo app_lang('laudos_manage_categories_permission'); ?></label>
+    </div>
+    <div>
         <?php echo form_checkbox('laudos_manage_types', '1', $laudos_manage_types ? true : false, "id='laudos_manage_types' class='form-check-input'"); ?>
         <label for="laudos_manage_types"><?php echo app_lang('laudos_manage_types_permission'); ?></label>
+    </div>
+    <div>
+        <?php echo form_checkbox('laudos_manage_status', '1', $laudos_manage_status ? true : false, "id='laudos_manage_status' class='form-check-input'"); ?>
+        <label for="laudos_manage_status"><?php echo app_lang('laudos_manage_status_permission'); ?></label>
+    </div>
+    <div>
+        <?php echo form_checkbox('laudos_manage_transitions', '1', $laudos_manage_transitions ? true : false, "id='laudos_manage_transitions' class='form-check-input'"); ?>
+        <label for="laudos_manage_transitions"><?php echo app_lang('laudos_manage_transitions_permission'); ?></label>
     </div>
     <div>
         <?php echo form_checkbox('laudos_manage_templates', '1', $laudos_manage_templates ? true : false, "id='laudos_manage_templates' class='form-check-input'"); ?>
