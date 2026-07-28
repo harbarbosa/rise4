@@ -67,7 +67,13 @@ if (file_exists($upgrade_v9_file)) {
     include $upgrade_v9_file;
 }
 
-// 11. Seed - Dados iniciais (categorias e tipos)
+// 11. Upgrade v10 - API, Offline, IA e Segurança
+$upgrade_v10_file = __DIR__ . '/Database/upgrade_v10.php';
+if (file_exists($upgrade_v10_file)) {
+    include $upgrade_v10_file;
+}
+
+// 12. Seed - Dados iniciais (categorias e tipos)
 $seed_file = __DIR__ . '/Database/seed.php';
 if (file_exists($seed_file)) {
     include $seed_file;

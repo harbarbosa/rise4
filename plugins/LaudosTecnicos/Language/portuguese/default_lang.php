@@ -560,3 +560,49 @@ $lang['laudos_preference'] = 'Preferências';
 $lang['laudos_document_view'] = 'Visualização do Documento';
 $lang['laudos_generate'] = 'Gerar';
 $lang['laudos_render'] = 'Renderizar';
+
+// API e Mobile
+$lang['laudos_api'] = 'API';
+$lang['laudos_api_config'] = 'Configuração API';
+$lang['laudos_mobile_app'] = 'App Mobile';
+$lang['laudos_offline'] = 'Modo Offline';
+$lang['laudos_sync'] = 'Sincronização';
+$lang['laudos_last_sync'] = 'Última Sincronização';
+$lang['laudos_pending_sync'] = 'Pendente Sincronização';
+$lang['laudos_conflicts'] = 'Conflitos';
+$lang['laudos_resolve_conflict'] = 'Resolver Conflito';
+
+// Inteligência Artificial
+$lang['laudos_ai'] = 'Inteligência Artificial';
+$lang['laudos_ai_config'] = 'Configuração IA';
+$lang['laudos_ai_provider'] = 'Provedor';
+$lang['laudos_ai_model'] = 'Modelo';
+$lang['laudos_ai_temperature'] = 'Temperatura';
+$lang['laudos_ai_max_tokens'] = 'Máx. Tokens';
+$lang['laudos_ai_timeout'] = 'Timeout';
+$lang['laudos_ai_prompt'] = 'Prompt do Sistema';
+$lang['laudos_ai_monthly_limit'] = 'Limite Mensal';
+$lang['laudos_ai_current_usage'] = 'Uso Atual';
+$lang['laudos_ai_test'] = 'Testar Conexão';
+$lang['laudos_ai_generate'] = 'Gerar com IA';
+$lang['laudos_ai_features'] = 'Recursos IA';
+$lang['laudos_ai_organize'] = 'Organizar Anotações';
+$lang['laudos_ai_improve'] = 'Melhorar Texto';
+$lang['laudos_ai_objective'] = 'Criar Objetivo';
+$lang['laudos_ai_scope'] = 'Criar Escopo';
+$lang['laudos_ai_methodology'] = 'Criar Metodologia';
+$lang['laudos_ai_diagnosis'] = 'Elaborar Diagnóstico';
+$lang['laudos_ai_conclusion'] = 'Criar Conclusão';
+$lang['laudos_ai_recommendations'] = 'Criar Recomendações';
+$lang['laudos_ai_summary'] = 'Resumo Executivo';
+$lang['laudos_ai_photo_desc'] = 'Descrever Fotografia';
+$lang['laudos_ai_gaps'] = 'Verificar Lacunas';
+$lang['laudos_ai_inconsistencies'] = 'Verificar Inconsistências';
+$lang['laudos_ai_action_plan'] = 'Sugerir Plano de Ação';
+$lang['laudos_ai_not_configured'] = 'IA não configurada';
+$lang['laudos_ai_limit_exceeded'] = 'Limite excedido';
+
+// Documentação
+$lang['laudos_docs'] = 'Documentação';
+$lang['laudos_swagger'] = 'Swagger/OpenAPI';
+$lang['laudos_api_documentation'] = 'Documentação da API';
