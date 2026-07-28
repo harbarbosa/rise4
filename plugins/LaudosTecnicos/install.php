@@ -61,7 +61,13 @@ if (file_exists($upgrade_v8_file)) {
     include $upgrade_v8_file;
 }
 
-// 10. Seed - Dados iniciais (categorias e tipos)
+// 10. Upgrade v9 - HTML/PDF, Portal do Cliente e Validação
+$upgrade_v9_file = __DIR__ . '/Database/upgrade_v9.php';
+if (file_exists($upgrade_v9_file)) {
+    include $upgrade_v9_file;
+}
+
+// 11. Seed - Dados iniciais (categorias e tipos)
 $seed_file = __DIR__ . '/Database/seed.php';
 if (file_exists($seed_file)) {
     include $seed_file;
