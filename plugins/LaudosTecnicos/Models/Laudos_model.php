@@ -430,7 +430,7 @@ class Laudos_model extends Crud_model
         return parent::delete($id);
     }
 
-    public function delete($id, $undo = false)
+    public function delete($id = 0, $undo = false)
     {
         $laudo = $this->get_one($id);
         if (!$laudo) {

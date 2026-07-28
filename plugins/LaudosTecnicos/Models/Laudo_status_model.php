@@ -65,7 +65,7 @@ class Laudo_status_model extends Crud_model
         return $this->db->query($sql)->getRow();
     }
 
-    public function get_all()
+    public function get_all($include_deleted = false)
     {
         $table = $this->db->prefixTable($this->table);
         $sql = "SELECT * FROM $table WHERE deleted=0 ORDER BY sort_order ASC, name ASC";
