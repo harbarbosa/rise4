@@ -49,7 +49,13 @@ if (file_exists($upgrade_v6_file)) {
     include $upgrade_v6_file;
 }
 
-// 8. Seed - Dados iniciais (categorias e tipos)
+// 8. Upgrade v7 - Não Conformidades, Riscos e Planos de Ação
+$upgrade_v7_file = __DIR__ . '/Database/upgrade_v7.php';
+if (file_exists($upgrade_v7_file)) {
+    include $upgrade_v7_file;
+}
+
+// 9. Seed - Dados iniciais (categorias e tipos)
 $seed_file = __DIR__ . '/Database/seed.php';
 if (file_exists($seed_file)) {
     include $seed_file;

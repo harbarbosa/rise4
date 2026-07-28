@@ -72,6 +72,7 @@ class Plugin
             $submenu["laudos_templates"] = array("name" => "laudos_templates", "url" => "laudos_templates", "class" => "layout");
             $submenu["laudo_technical"] = array("name" => "laudos_technical", "url" => "laudo_technical", "class" => "check-square");
             $submenu["laudo_inspections"] = array("name" => "laudos_inspections", "url" => "laudo_inspections", "class" => "calendar");
+            $submenu["laudo_nonconformities"] = array("name" => "laudos_nonconformities", "url" => "laudo_nonconformities", "class" => "alert-triangle");
             $submenu["laudos_inspections"] = array("name" => "laudos_inspections", "url" => "laudos_tecnicos/inspecoes", "class" => "clipboard");
             $submenu["laudos_settings"] = array("name" => "laudos_settings", "url" => "laudos_tecnicos/configuracoes", "class" => "settings");
 
