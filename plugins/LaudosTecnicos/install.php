@@ -4,14 +4,13 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
 
 /**
  * Instalador do Plugin Laudos Técnicos
- * 
- * Executa:
- * 1. Database/install.php - Cria/atualiza tabelas
- * 2. Database/upgrade_v2.php - Status, Transições, Histórico
- * 3. Database/upgrade_v3.php - Campos avançados de laudos
- * 4. Database/upgrade_v4.php - Templates e campos dinâmicos
- * 5. Database/seed.php - Insere dados iniciais
  */
+
+// Incluir rotas
+$routes_file = __DIR__ . '/Config/Routes.php';
+if (file_exists($routes_file)) {
+    include $routes_file;
+}
 
 // 1. Instalação base das tabelas
 $install_file = __DIR__ . '/Database/install.php';
