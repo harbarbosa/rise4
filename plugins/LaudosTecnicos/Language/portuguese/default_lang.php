@@ -336,3 +336,53 @@ $lang['laudos_coming_soon'] = 'Em breve.';
 
 // Erros
 $lang['laudos_cannot_delete'] = 'Este laudo não pode ser excluído.';
+
+// Templates
+$lang['laudos_template_info'] = 'Informações do Template';
+$lang['laudos_template_sections'] = 'Seções';
+$lang['laudos_template_rules'] = 'Regras Condicionais';
+$lang['laudos_template_default'] = 'Template Padrão';
+$lang['laudos_template_add'] = 'Novo Template';
+$lang['laudos_add_section'] = 'Adicionar Seção';
+$lang['laudos_add_rule'] = 'Adicionar Regra';
+$lang['laudos_no_sections'] = 'Nenhuma seção adicionada';
+$lang['laudos_no_rules'] = 'Nenhuma regra condicional';
+$lang['laudos_section_page_break'] = 'Quebra de página';
+$lang['laudos_field_types'] = 'Tipos de Campo';
+$lang['laudos_publish'] = 'Publicar';
+$lang['laudos_unpublish'] = 'Despublicar';
+$lang['laudos_clone'] = 'Clonar';
+$lang['laudos_new_version'] = 'Nova Versão';
+$lang['laudos_apply_template'] = 'Aplicar Template';
+$lang['laudos_template_applied'] = 'Template aplicado com sucesso';
+$lang['laudos_version'] = 'Versão';
+$lang['laudos_default'] = 'Padrão';
+$lang['laudos_published'] = 'Publicado';
+$lang['laudos_draft'] = 'Rascunho';
+$lang['laudos_archived'] = 'Arquivado';
+
+// Tipos de Campo
+$lang['laudos_field_text'] = 'Texto Simples';
+$lang['laudos_field_textarea'] = 'Texto Longo';
+$lang['laudos_field_rich_text'] = 'Texto Rico';
+$lang['laudos_field_number'] = 'Número';
+$lang['laudos_field_decimal'] = 'Decimal';
+$lang['laudos_field_currency'] = 'Moeda';
+$lang['laudos_field_percentage'] = 'Percentual';
+$lang['laudos_field_date'] = 'Data';
+$lang['laudos_field_time'] = 'Hora';
+$lang['laudos_field_datetime'] = 'Data e Hora';
+$lang['laudos_field_yes_no'] = 'Sim ou Não';
+$lang['laudos_field_select'] = 'Seleção Única';
+$lang['laudos_field_multi_select'] = 'Seleção Múltipla';
+$lang['laudos_field_checkbox'] = 'Checkbox';
+$lang['laudos_field_dynamic_list'] = 'Lista Dinâmica';
+$lang['laudos_field_image'] = 'Imagem';
+$lang['laudos_field_file'] = 'Arquivo';
+$lang['laudos_field_signature'] = 'Assinatura';
+$lang['laudos_field_gps'] = 'Localização GPS';
+$lang['laudos_field_measurement'] = 'Medição';
+$lang['laudos_field_dynamic_table'] = 'Tabela Dinâmica';
+$lang['laudos_field_calculated'] = 'Campo Calculado';
+$lang['laudos_field_read_only'] = 'Somente Leitura';
+$lang['laudos_field_ai_text'] = 'Texto IA';

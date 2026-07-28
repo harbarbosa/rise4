@@ -9,7 +9,8 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
  * 1. Database/install.php - Cria/atualiza tabelas
  * 2. Database/upgrade_v2.php - Status, Transições, Histórico
  * 3. Database/upgrade_v3.php - Campos avançados de laudos
- * 4. Database/seed.php - Insere dados iniciais
+ * 4. Database/upgrade_v4.php - Templates e campos dinâmicos
+ * 5. Database/seed.php - Insere dados iniciais
  */
 
 // 1. Instalação base das tabelas
@@ -30,7 +31,13 @@ if (file_exists($upgrade_v3_file)) {
     include $upgrade_v3_file;
 }
 
-// 4. Seed - Dados iniciais (categorias e tipos)
+// 4. Upgrade v4 - Templates e campos dinâmicos
+$upgrade_v4_file = __DIR__ . '/Database/upgrade_v4.php';
+if (file_exists($upgrade_v4_file)) {
+    include $upgrade_v4_file;
+}
+
+// 5. Seed - Dados iniciais (categorias e tipos)
 $seed_file = __DIR__ . '/Database/seed.php';
 if (file_exists($seed_file)) {
     include $seed_file;

@@ -69,7 +69,7 @@ class Plugin
                 $submenu["laudos_transitions"] = array("name" => "laudos_transitions_title", "url" => "laudos_tecnicos/transicoes", "class" => "git-branch");
             }
             
-            $submenu["laudos_templates"] = array("name" => "laudos_templates", "url" => "laudos_tecnicos/templates", "class" => "layout");
+            $submenu["laudos_templates"] = array("name" => "laudos_templates", "url" => "laudos_templates", "class" => "layout");
             $submenu["laudos_inspections"] = array("name" => "laudos_inspections", "url" => "laudos_tecnicos/inspecoes", "class" => "clipboard");
             $submenu["laudos_settings"] = array("name" => "laudos_settings", "url" => "laudos_tecnicos/configuracoes", "class" => "settings");
 
