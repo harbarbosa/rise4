@@ -71,3 +71,29 @@ $routes->group('laudo_review', ['namespace' => 'LaudosTecnicos\Controllers'], fu
     $routes->post('professional_form', 'Laudo_review::professional_form');
     $routes->post('professional_save', 'Laudo_review::professional_save');
 });
+
+// Dashboard
+$routes->group('laudo_dashboard', ['namespace' => 'LaudosTecnicos\Controllers'], function($routes) {
+    $routes->get('/', 'Laudo_dashboard::index');
+});
+
+// Relatórios
+$routes->group('laudo_reports', ['namespace' => 'LaudosTecnicos\Controllers'], function($routes) {
+    $routes->get('/', 'Laudo_reports::index');
+    $routes->get('run/(:any)', 'Laudo_reports::run/$1');
+    $routes->get('export/(:any)/(:any)', 'Laudo_reports::export/$1/$2');
+});
+
+// Biblioteca de Prompts
+$routes->group('laudo_prompts_lib', ['namespace' => 'LaudosTecnicos\Controllers'], function($routes) {
+    $routes->get('/', 'Laudo_prompts_lib::index');
+    $routes->get('use_prompt/(:any)', 'Laudo_prompts_lib::use_prompt/$1');
+    $routes->post('execute', 'Laudo_prompts_lib::execute');
+});
+
+// Automações
+$routes->group('laudo_automations', ['namespace' => 'LaudosTecnicos\Controllers'], function($routes) {
+    $routes->get('/', 'Laudo_automations::index');
+    $routes->post('run/(:any)', 'Laudo_automations::run/$1');
+    $routes->post('toggle/(:num)', 'Laudo_automations::toggle/$1');
+});

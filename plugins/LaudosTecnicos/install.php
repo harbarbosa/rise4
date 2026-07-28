@@ -73,7 +73,13 @@ if (file_exists($upgrade_v10_file)) {
     include $upgrade_v10_file;
 }
 
-// 12. Seed - Dados iniciais (categorias e tipos)
+// 12. Upgrade v11 - Relatórios, Dashboard, Prompts e Automações
+$upgrade_v11_file = __DIR__ . '/Database/upgrade_v11.php';
+if (file_exists($upgrade_v11_file)) {
+    include $upgrade_v11_file;
+}
+
+// 13. Seed - Dados iniciais (categorias e tipos)
 $seed_file = __DIR__ . '/Database/seed.php';
 if (file_exists($seed_file)) {
     include $seed_file;

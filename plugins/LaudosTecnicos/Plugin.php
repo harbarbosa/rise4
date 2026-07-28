@@ -76,6 +76,10 @@ class Plugin
             $submenu["laudo_review"] = array("name" => "laudos_review", "url" => "laudo_review/professionals", "class" => "check-circle");
             $submenu["laudo_documents"] = array("name" => "laudos_documents", "url" => "laudos_tecnicos", "class" => "file-text");
             $submenu["laudo_ai"] = array("name" => "laudos_ai", "url" => "laudo_ai", "class" => "cpu");
+            $submenu["laudo_dashboard"] = array("name" => "laudos_dashboard", "url" => "laudo_dashboard", "class" => "grid");
+            $submenu["laudo_reports"] = array("name" => "laudos_reports", "url" => "laudo_reports", "class" => "bar-chart-2");
+            $submenu["laudo_prompts_lib"] = array("name" => "laudos_prompts", "url" => "laudo_prompts_lib", "class" => "message-square");
+            $submenu["laudo_automations"] = array("name" => "laudos_automations", "url" => "laudo_automations", "class" => "clock");
             $submenu["laudos_inspections"] = array("name" => "laudos_inspections", "url" => "laudos_tecnicos/inspecoes", "class" => "clipboard");
             $submenu["laudos_settings"] = array("name" => "laudos_settings", "url" => "laudos_tecnicos/configuracoes", "class" => "settings");
 

@@ -606,3 +606,40 @@ $lang['laudos_ai_limit_exceeded'] = 'Limite excedido';
 $lang['laudos_docs'] = 'Documentação';
 $lang['laudos_swagger'] = 'Swagger/OpenAPI';
 $lang['laudos_api_documentation'] = 'Documentação da API';
+
+// Relatórios e Dashboard
+$lang['laudos_reports'] = 'Relatórios';
+$lang['laudos_dashboard'] = 'Dashboard';
+$lang['laudos_run_report'] = 'Gerar Relatório';
+$lang['laudos_export_pdf'] = 'Exportar PDF';
+$lang['laudos_export_csv'] = 'Exportar CSV';
+$lang['laudos_report_period'] = 'Laudos por Período';
+$lang['laudos_report_client'] = 'Laudos por Cliente';
+$lang['laudos_report_status'] = 'Laudos por Status';
+$lang['laudos_report_type'] = 'Laudos por Tipo';
+$lang['laudos_report_overdue'] = 'Laudos Vencidos';
+$lang['laudos_report_nc'] = 'Não Conformidades';
+$lang['laudos_report_plans'] = 'Planos de Ação';
+$lang['laudos_report_productivity'] = 'Produtividade';
+$lang['laudos_report_equipment'] = 'Equipamentos';
+
+// Prompts
+$lang['laudos_prompts'] = 'Biblioteca de Prompts';
+$lang['laudos_prompts_library'] = 'Biblioteca de Prompts';
+$lang['laudos_execute_prompt'] = 'Executar Prompt';
+
+// Automações
+$lang['laudos_automations'] = 'Automações';
+$lang['laudos_cron_jobs'] = 'Tarefas Agendadas';
+$lang['laudos_automation_run'] = 'Executar';
+$lang['laudos_automation_toggle'] = 'Ativar/Desativar';
+$lang['laudos_last_run'] = 'Última Execução';
+
+// Dashboard
+$lang['laudos_total'] = 'Total';
+$lang['laudos_completed'] = 'Concluídos';
+$lang['laudos_expiring'] = 'Próximos Vencimento';
+$lang['laudos_critical'] = 'Críticos';
+$lang['laudos_today'] = 'Hoje';
+$lang['laudos_overdue'] = 'Atrasados';
+$lang['laudos_plans_overdue'] = 'Planos Vencidos';
