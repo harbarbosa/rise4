@@ -386,3 +386,13 @@ $lang['laudos_field_dynamic_table'] = 'Tabela Dinâmica';
 $lang['laudos_field_calculated'] = 'Campo Calculado';
 $lang['laudos_field_read_only'] = 'Somente Leitura';
 $lang['laudos_field_ai_text'] = 'Texto IA';
+
+// Módulos Técnicos
+$lang['laudos_technical'] = 'Mód. Técnicos';
+$lang['laudos_equipment_type'] = 'Tipo';
+$lang['laudos_serial_number'] = 'Nº Série';
+$lang['laudos_patrimony'] = 'Patrimônio';
+$lang['laudos_next_calibration'] = 'Próxima Calibração';
+$lang['laudos_institution'] = 'Instituição';
+$lang['laudos_year'] = 'Ano';
+$lang['laudos_title'] = 'Título';

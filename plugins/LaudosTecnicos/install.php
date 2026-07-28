@@ -37,7 +37,13 @@ if (file_exists($upgrade_v4_file)) {
     include $upgrade_v4_file;
 }
 
-// 5. Seed - Dados iniciais (categorias e tipos)
+// 5. Upgrade v5 - Checklists, Medições, Equipamentos, Normas
+$upgrade_v5_file = __DIR__ . '/Database/upgrade_v5.php';
+if (file_exists($upgrade_v5_file)) {
+    include $upgrade_v5_file;
+}
+
+// 6. Seed - Dados iniciais (categorias e tipos)
 $seed_file = __DIR__ . '/Database/seed.php';
 if (file_exists($seed_file)) {
     include $seed_file;
