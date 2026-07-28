@@ -37,6 +37,7 @@ class Laudos_tecnicos extends Security_Controller
         \LaudosTecnicos\Plugin::register();
     }
 
+    // ==================== DASHBOARD ====================
     public function index()
     {
         if (!$this->_has_view_permission()) {
@@ -45,16 +46,20 @@ class Laudos_tecnicos extends Security_Controller
 
         $company_id = $this->_get_company_id();
         $counts = $this->Laudos_model->get_counts_by_status($company_id);
+        $priority_counts = $this->Laudos_model->get_counts_by_priority($company_id);
 
         $view_data = array(
             'counts' => $counts,
+            'priority_counts' => $priority_counts,
             'can_create' => $this->_has_create_permission(),
-            'can_manage' => $this->_has_manage_permission()
+            'can_manage' => $this->_has_manage_permission(),
+            'status_list' => $this->Laudo_status_model->get_dropdown()
         );
 
         return $this->template->rander('LaudosTecnicos\Views\dashboard\index', $view_data);
     }
 
+    // ==================== LISTAGEM ====================
     public function laudos()
     {
         if (!$this->_has_view_permission()) {
@@ -62,9 +67,13 @@ class Laudos_tecnicos extends Security_Controller
         }
 
         $types_dropdown = $this->Laudo_types_model->get_dropdown();
+        $categories_dropdown = $this->Laudo_categories_model->get_dropdown();
+        $status_list = $this->Laudo_status_model->get_dropdown();
         
         $view_data = array(
             'types_dropdown' => $types_dropdown,
+            'categories_dropdown' => $categories_dropdown,
+            'status_list' => $status_list,
             'can_create' => $this->_has_create_permission(),
             'can_edit' => $this->_has_edit_permission()
         );
@@ -81,35 +90,76 @@ class Laudos_tecnicos extends Security_Controller
         $options = array(
             'search' => $this->request->getPost('search'),
             'status' => $this->request->getPost('status'),
-            'laudo_type_id' => $this->request->getPost('laudo_type_id')
+            'laudo_type_id' => $this->request->getPost('laudo_type_id'),
+            'category_id' => $this->request->getPost('category_id'),
+            'client_id' => $this->request->getPost('client_id'),
+            'project_id' => $this->request->getPost('project_id'),
+            'technician_id' => $this->request->getPost('technician_id'),
+            'priority' => $this->request->getPost('priority'),
+            'start_date' => $this->request->getPost('start_date'),
+            'end_date' => $this->request->getPost('end_date'),
+            'validity_status' => $this->request->getPost('validity_status')
         );
 
         $list_data = $this->Laudos_model->get_details($options)->getResult();
 
         $result = array();
         foreach ($list_data as $data) {
-            $result[] = $this->_make_row($data);
+            $result[] = $this->_make_laudo_row($data);
         }
 
         return $this->response->setJSON(array('data' => $result));
     }
 
-    private function _make_row($data)
+    private function _make_laudo_row($data)
     {
-        $status_class = '';
-        $status_list = \LaudosTecnicos\Plugin::statusList();
+        $priority_class = '';
+        $priority_labels = array('low' => 'secondary', 'normal' => 'info', 'high' => 'warning', 'urgent' => 'danger');
+        $priority_class = $priority_labels[$data->priority] ?? 'info';
         
         return array(
             $data->id,
+            $data->laudo_number ?? $data->id,
+            'v' . $data->version,
             $data->title,
+            $data->company_name ?? '-',
+            $data->project_title ?? '-',
             $data->type_name ?? '-',
             $data->category_name ?? '-',
-            $data->company_name ?? '-',
-            '<span class="badge bg-' . $this->_get_status_color($data->status) . '">' . ($status_list[$data->status] ?? $data->status) . '</span>',
-            $data->created_at,
-            modal_anchor(get_uri('laudos_tecnicos/modal_form/' . $data->id), '<i data-feather="edit-2" class="icon-16"></i>', array('class' => 'edit', 'title' => app_lang('edit'))) 
-                . js_anchor('<i data-feather="trash-2" class="icon-16"></i>', array('class' => 'delete', 'title' => app_lang('delete'), 'data-id' => $data->id))
+            $data->technician_name ?? '-',
+            $data->request_date ?? '-',
+            $data->inspection_date ?? '-',
+            $data->issue_date ?? '-',
+            $data->valid_until ?? '-',
+            '<span class="badge bg-' . $this->_get_status_color($data->status) . '">' . ($data->status) . '</span>',
+            '<span class="badge bg-' . $priority_class . '">' . ucfirst($data->priority ?? 'normal') . '</span>',
+            $this->_get_laudo_actions($data)
         );
+    }
+
+    private function _get_laudo_actions($data)
+    {
+        $actions = '';
+        
+        // Visualizar
+        $actions .= '<a href="' . get_uri('laudos_tecnicos/view/' . $data->id) . '" class="btn btn-default btn-sm" title="Visualizar"><i data-feather="eye" class="icon-16"></i></a> ';
+        
+        // Editar
+        if ($this->_has_edit_permission() || $data->status === 'draft') {
+            $actions .= modal_anchor(get_uri('laudos_tecnicos/modal_form/' . $data->id), '<i data-feather="edit-2" class="icon-16"></i>', array('class' => 'edit btn btn-default btn-sm', 'title' => app_lang('edit'))) . ' ';
+        }
+        
+        // Duplicar
+        if ($this->_has_create_permission()) {
+            $actions .= '<a href="' . get_uri('laudos_tecnicos/duplicate/' . $data->id) . '" class="btn btn-default btn-sm" title="Duplicar"><i data-feather="copy" class="icon-16"></i></a> ';
+        }
+        
+        // Excluir (apenas rascunho)
+        if (($this->_has_edit_permission() || $this->_has_delete_permission()) && in_array($data->status, ['draft', 'requested'])) {
+            $actions .= js_anchor('<i data-feather="trash-2" class="icon-16"></i>', array('class' => 'delete btn btn-danger btn-sm', 'title' => app_lang('delete'), 'data-id' => $data->id, 'data-action-url' => get_uri('laudos_tecnicos/delete/' . $data->id), 'data-action' => 'delete-confirmation'));
+        }
+        
+        return $actions;
     }
 
     private function _get_status_color($status)
@@ -136,6 +186,347 @@ class Laudos_tecnicos extends Security_Controller
             'canceled' => 'dark'
         );
         return $colors[$status] ?? 'secondary';
+    }
+
+    private function _get_priority_color($priority)
+    {
+        $colors = array(
+            'low' => 'secondary',
+            'normal' => 'info',
+            'high' => 'warning',
+            'urgent' => 'danger'
+        );
+        return $colors[$priority] ?? 'info';
+    }
+
+    // ==================== FORMULÁRIO ====================
+    public function modal_form($id = 0)
+    {
+        if (!$this->_has_view_permission()) {
+            app_redirect('forbidden');
+        }
+
+        $id = (int)$id;
+        $view_data = array();
+        
+        if ($id) {
+            $view_data['model_info'] = $this->Laudos_model->get_one($id);
+        }
+
+        // Dropdowns
+        $view_data['types_dropdown'] = $this->Laudo_types_model->get_dropdown();
+        $view_data['categories_dropdown'] = $this->Laudo_categories_model->get_dropdown();
+        $view_data['status_list'] = $this->Laudo_status_model->get_dropdown();
+        
+        // carregar modelos do RISE
+        $clients_model = model('App\Models\Clients_model');
+        $view_data['clients_dropdown'] = $clients_model->get_dropdown();
+        
+        $projects_model = model('App\Models\Projects_model');
+        $view_data['projects_dropdown'] = $projects_model->get_dropdown();
+        
+        $users_model = model('App\Models\Users_model');
+        $view_data['team_dropdown'] = $users_model->get_dropdown();
+
+        return $this->template->view('LaudosTecnicos\Views\laudos\modal_form', $view_data);
+    }
+
+    public function save()
+    {
+        if (!$this->_has_create_permission() && !$this->_has_edit_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $id = $this->request->getPost('id');
+        
+        // Identificação
+        $data = array(
+            'title' => $this->request->getPost('title'),
+            'laudo_type_id' => $this->request->getPost('laudo_type_id') ?: null,
+            'category_id' => $this->request->getPost('category_id') ?: null,
+            'client_id' => $this->request->getPost('client_id') ?: null,
+            'contact_id' => $this->request->getPost('contact_id') ?: null,
+            'project_id' => $this->request->getPost('project_id') ?: null,
+            'custom_code' => $this->request->getPost('custom_code'),
+            'priority' => $this->request->getPost('priority') ?: 'normal',
+            
+            // Endereço
+            'address' => $this->request->getPost('address'),
+            'city' => $this->request->getPost('city'),
+            'state' => $this->request->getPost('state'),
+            'location' => $this->request->getPost('location'),
+            
+            // Datas
+            'request_date' => $this->request->getPost('request_date') ?: date('Y-m-d'),
+            'scheduled_date' => $this->request->getPost('scheduled_date'),
+            'inspection_date' => $this->request->getPost('inspection_date'),
+            
+            // Responsáveis
+            'commercial_responsible_id' => $this->request->getPost('commercial_responsible_id') ?: null,
+            'technician_id' => $this->request->getPost('technician_id') ?: null,
+            'reviewer_id' => $this->request->getPost('reviewer_id') ?: null,
+            'approver_id' => $this->request->getPost('approver_id') ?: null,
+            
+            // Conteúdo técnico
+            'objective' => $this->request->getPost('objective'),
+            'scope' => $this->request->getPost('scope'),
+            'methodology' => $this->request->getPost('methodology'),
+            'assumptions' => $this->request->getPost('assumptions'),
+            'limitations' => $this->request->getPost('limitations'),
+            'installation_description' => $this->request->getPost('installation_description'),
+            'results' => $this->request->getPost('results'),
+            'diagnosis' => $this->request->getPost('diagnosis'),
+            'conclusion' => $this->request->getPost('conclusion'),
+            'recommendations' => $this->request->getPost('recommendations'),
+            
+            // Observações
+            'description' => $this->request->getPost('description'),
+            'observations' => $this->request->getPost('observations'),
+            'internal_notes' => $this->request->getPost('internal_notes'),
+            'client_observations' => $this->request->getPost('client_observations'),
+            
+            // Info complementares
+            'tags' => $this->request->getPost('tags'),
+            'cost_center' => $this->request->getPost('cost_center'),
+            'proposal_number' => $this->request->getPost('proposal_number'),
+            'contract_number' => $this->request->getPost('contract_number'),
+            'external_reference' => $this->request->getPost('external_reference'),
+            'confidentiality' => $this->request->getPost('confidentiality') ? 1 : 0,
+            
+            'created_by' => $this->login_user->id
+        );
+
+        // Se novo laudo, definir status inicial
+        if (!$id) {
+            $data['status'] = 'draft';
+        }
+
+        $save_id = $this->Laudos_model->save($data, $id);
+
+        if ($save_id) {
+            // Registrar na timeline se vinculado a projeto
+            if (!empty($data['project_id']) && $id) {
+                log_notification('laudo_updated', array('laudo_id' => $save_id), $this->login_user->id);
+            } elseif (!empty($data['project_id']) && !$id) {
+                log_notification('laudo_created', array('laudo_id' => $save_id), $this->login_user->id);
+            }
+            
+            return $this->response->setJSON(array('success' => true, 'data' => $save_id, 'message' => app_lang('record_saved')));
+        }
+
+        return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+    }
+
+    // ==================== VISUALIZAÇÃO ====================
+    public function view($id)
+    {
+        if (!$this->_has_view_permission()) {
+            app_redirect('forbidden');
+        }
+
+        $id = (int)$id;
+        $laudo = $this->Laudos_model->get_one($id);
+        
+        if (!$laudo) {
+            app_redirect('laudos_tecnicos/laudos');
+        }
+
+        // Histórico de status
+        $status_history = $this->Laudo_status_history_model->get_details(array('laudo_id' => $id))->getResult();
+        
+        // Transições disponíveis
+        $available_transitions = $this->Laudo_status_transitions_model->get_transitions_from($laudo->status);
+
+        $view_data = array(
+            'laudo' => $laudo,
+            'status_history' => $status_history,
+            'available_transitions' => $available_transitions,
+            'status_list' => $this->Laudo_status_model->get_dropdown(),
+            'can_edit' => $this->_has_edit_permission(),
+            'can_change_status' => $this->_has_permission('laudos_change_status'),
+            'is_admin' => $this->login_user->is_admin
+        );
+
+        return $this->template->rander('LaudosTecnicos\Views\laudos\view', $view_data);
+    }
+
+    public function change_status($id)
+    {
+        if (!$this->_has_permission('laudos_change_status')) {
+            return $this->_json_permission_denied();
+        }
+
+        $id = (int)$id;
+        $new_status = $this->request->getPost('status');
+        $comment = $this->request->getPost('comment');
+
+        if (!$new_status) {
+            return $this->response->setJSON(array('success' => false, 'message' => 'Status inválido'));
+        }
+
+        $result = $this->Laudos_model->change_status($id, $new_status, $this->login_user->id, $comment);
+
+        return $this->response->setJSON($result);
+    }
+
+    // ==================== DUPLICAÇÃO ====================
+    public function duplicate($id)
+    {
+        if (!$this->_has_create_permission()) {
+            app_redirect('forbidden');
+        }
+
+        $id = (int)$id;
+        $new_id = $this->Laudos_model->duplicate($id);
+
+        if ($new_id) {
+            app_redirect('laudos_tecnicos/view/' . $new_id);
+        } else {
+            app_redirect('laudos_tecnicos/laudos');
+        }
+    }
+
+    // ==================== EXCLUSÃO ====================
+    public function delete($id)
+    {
+        if (!$this->_has_edit_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $id = (int)$id;
+
+        if ($this->Laudos_model->delete($id)) {
+            return $this->response->setJSON(array('success' => true, 'message' => app_lang('record_deleted')));
+        }
+
+        return $this->response->setJSON(array('success' => false, 'message' => app_lang('laudos_cannot_delete')));
+    }
+
+    public function delete_data($id)
+    {
+        return $this->delete($id);
+    }
+
+    // ==================== BUSCA ====================
+    public function search()
+    {
+        $term = $this->request->getGet('term');
+        $limit = (int)$this->request->getGet('limit') ?: 20;
+        
+        $results = $this->Laudos_model->search($term, $limit);
+        
+        return $this->response->setJSON($results);
+    }
+
+    // ==================== RELATÓRIO ====================
+    public function export()
+    {
+        if (!$this->_has_view_permission()) {
+            app_redirect('forbidden');
+        }
+
+        $options = array(
+            'status' => $this->request->getGet('status'),
+            'laudo_type_id' => $this->request->getGet('laudo_type_id'),
+            'category_id' => $this->request->getGet('category_id'),
+            'client_id' => $this->request->getGet('client_id'),
+            'start_date' => $this->request->getGet('start_date'),
+            'end_date' => $this->request->getGet('end_date')
+        );
+
+        $laudos = $this->Laudos_model->get_details($options)->getResult();
+
+        // Gerar CSV simples
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename=laudos_export_' . date('Ymd') . '.csv');
+        
+        $output = fopen('php://output', 'w');
+        fputcsv($output, array('Número', 'Título', 'Cliente', 'Tipo', 'Status', 'Data Solicitação', 'Data Emissão', 'Validade'));
+        
+        foreach ($laudos as $laudo) {
+            fputcsv($output, array(
+                $laudo->laudo_number ?? $laudo->id,
+                $laudo->title,
+                $laudo->company_name ?? '-',
+                $laudo->type_name ?? '-',
+                $laudo->status,
+                $laudo->request_date ?? '-',
+                $laudo->issue_date ?? '-',
+                $laudo->valid_until ?? '-'
+            ));
+        }
+        
+        fclose($output);
+        exit;
+    }
+
+    // ==================== API LAUDOS POR CLIENTE/PROJETO ====================
+    public function client_laudos($client_id)
+    {
+        if (!$this->_has_view_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $laudos = $this->Laudos_model->get_laudos_for_client($client_id);
+        return $this->response->setJSON($laudos);
+    }
+
+    public function project_laudos($project_id)
+    {
+        if (!$this->_has_view_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $laudos = $this->Laudos_model->get_laudos_for_project($project_id);
+        return $this->response->setJSON($laudos);
+    }
+
+    // ==================== PERMISSÕES ====================
+    private function _has_view_permission()
+    {
+        if ($this->login_user->is_admin) return true;
+        return get_array_value($this->login_user->permissions ?? array(), 'laudos_view') == '1';
+    }
+
+    private function _has_create_permission()
+    {
+        if ($this->login_user->is_admin) return true;
+        return get_array_value($this->login_user->permissions ?? array(), 'laudos_create') == '1';
+    }
+
+    private function _has_edit_permission()
+    {
+        if ($this->login_user->is_admin) return true;
+        return get_array_value($this->login_user->permissions ?? array(), 'laudos_edit') == '1';
+    }
+
+    private function _has_delete_permission()
+    {
+        if ($this->login_user->is_admin) return true;
+        return get_array_value($this->login_user->permissions ?? array(), 'laudos_delete_draft') == '1';
+    }
+
+    private function _has_manage_permission()
+    {
+        if ($this->login_user->is_admin) return true;
+        return get_array_value($this->login_user->permissions ?? array(), 'laudos_edit') == '1';
+    }
+
+    private function _has_settings_permission()
+    {
+        if ($this->login_user->is_admin) return true;
+        return get_array_value($this->login_user->permissions ?? array(), 'laudos_settings') == '1';
+    }
+
+    private function _has_permission($permission)
+    {
+        if ($this->login_user->is_admin) return true;
+        return get_array_value($this->login_user->permissions ?? array(), $permission) == '1';
+    }
+
+    private function _json_permission_denied()
+    {
+        return $this->response->setStatusCode(403)->setJSON(array('success' => false, 'message' => app_lang('access_denied')));
     }
 
     // ==================== CATEGORIAS ====================
@@ -278,24 +669,6 @@ class Laudos_tecnicos extends Security_Controller
         return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
     }
 
-    public function reorder_categorias()
-    {
-        if (!$this->_has_permission('laudos_manage_categories')) {
-            return $this->_json_permission_denied();
-        }
-
-        $order = $this->request->getPost('order');
-        if (!$order || !is_array($order)) {
-            return $this->response->setJSON(array('success' => false));
-        }
-
-        foreach ($order as $index => $id) {
-            $this->Laudo_categories_model->save(array('sort_order' => $index + 1), $id);
-        }
-
-        return $this->response->setJSON(array('success' => true));
-    }
-
     // ==================== TIPOS ====================
     public function tipos()
     {
@@ -330,13 +703,11 @@ class Laudos_tecnicos extends Security_Controller
 
     private function _make_tipo_row($data)
     {
-        $has_category = !empty($data->category_id);
-        
         return array(
             $data->id,
             $data->name,
             $data->code ?? '-',
-            $has_category ? $data->category_name : '-',
+            $data->category_name ?? '-',
             $data->prefix ?? '-',
             ($data->validity_days ?? '-') . ' dias',
             '<span class="badge bg-' . ($data->status ? 'success' : 'secondary') . '">' . ($data->status ? 'Ativo' : 'Inativo') . '</span>',
@@ -395,7 +766,7 @@ class Laudos_tecnicos extends Security_Controller
             return $this->response->setJSON(array('success' => true, 'message' => app_lang('record_saved')));
         }
 
-        return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+        return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_comeu')));
     }
 
     // ==================== STATUS ====================
@@ -658,47 +1029,5 @@ class Laudos_tecnicos extends Security_Controller
     public function inspecoes()
     {
         return $this->template->rander('LaudosTecnicos\Views\inspecoes\index');
-    }
-
-    // ==================== PERMISSÕES ====================
-    private function _has_view_permission()
-    {
-        if ($this->login_user->is_admin) return true;
-        return get_array_value($this->login_user->permissions ?? array(), 'laudos_view') == '1';
-    }
-
-    private function _has_create_permission()
-    {
-        if ($this->login_user->is_admin) return true;
-        return get_array_value($this->login_user->permissions ?? array(), 'laudos_create') == '1';
-    }
-
-    private function _has_edit_permission()
-    {
-        if ($this->login_user->is_admin) return true;
-        return get_array_value($this->login_user->permissions ?? array(), 'laudos_edit') == '1';
-    }
-
-    private function _has_manage_permission()
-    {
-        if ($this->login_user->is_admin) return true;
-        return get_array_value($this->login_user->permissions ?? array(), 'laudos_edit') == '1';
-    }
-
-    private function _has_settings_permission()
-    {
-        if ($this->login_user->is_admin) return true;
-        return get_array_value($this->login_user->permissions ?? array(), 'laudos_settings') == '1';
-    }
-
-    private function _has_permission($permission)
-    {
-        if ($this->login_user->is_admin) return true;
-        return get_array_value($this->login_user->permissions ?? array(), $permission) == '1';
-    }
-
-    private function _json_permission_denied()
-    {
-        return $this->response->setStatusCode(403)->setJSON(array('success' => false, 'message' => app_lang('access_denied')));
     }
 }

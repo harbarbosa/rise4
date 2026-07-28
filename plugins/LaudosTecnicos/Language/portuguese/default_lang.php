@@ -250,3 +250,89 @@ $lang['send'] = 'Enviar';
 $lang['refresh'] = 'Atualizar';
 $lang['select_all'] = 'Selecionar Todos';
 $lang['deselect_all'] = 'Desmarcar Todos';
+
+// Laudos - Listagem e Detalhes
+$lang['laudos_number'] = 'Número';
+$lang['laudos_revision'] = 'Rev.';
+$lang['laudos_auto_generate'] = '(Automático)';
+$lang['laudos_custom_code'] = 'Código Personalizado';
+$lang['laudos_tab_identification'] = 'Identificação';
+$lang['laudos_tab_dates'] = 'Datas';
+$lang['laudos_tab_team'] = 'Equipe';
+$lang['laudos_tab_technical'] = 'Técnico';
+$lang['laudos_tab_observations'] = 'Observações';
+$lang['laudos_tab_summary'] = 'Resumo';
+$lang['laudos_tab_history'] = 'Histórico';
+$lang['laudos_tab_files'] = 'Arquivos';
+$lang['laudos_tab_checklists'] = 'Checklists';
+$lang['laudos_tab_photos'] = 'Fotos';
+$lang['laudos_tab_signatures'] = 'Assinaturas';
+$lang['laudos_identification'] = 'Identificação';
+$lang['laudos_dates'] = 'Datas';
+$lang['laudos_team'] = 'Equipe';
+
+// Campos de Data
+$lang['laudos_request_date'] = 'Data Solicitação';
+$lang['laudos_scheduled_date'] = 'Data Agendamento';
+$lang['laudos_inspection_date'] = 'Data Inspeção';
+$lang['laudos_issue_date'] = 'Data Emissão';
+$lang['laudos_valid_until'] = 'Validade';
+$lang['start_date'] = 'Data Início';
+$lang['end_date'] = 'Data Fim';
+
+// Responsáveis
+$lang['laudos_commercial_responsible'] = 'Responsável Comercial';
+$lang['laudos_technician'] = 'Inspetor/Técnico';
+$lang['laudos_reviewer'] = 'Revisor';
+$lang['laudos_approver'] = 'Aprovador';
+
+// Endereço
+$lang['laudos_address'] = 'Endereço';
+$lang['laudos_city'] = 'Cidade';
+$lang['laudos_state'] = 'Estado';
+$lang['laudos_location'] = 'Local da Inspeção';
+
+// Conteúdo Técnico
+$lang['laudos_objective'] = 'Objetivo';
+$lang['laudos_scope'] = 'Escopo';
+$lang['laudos_methodology'] = 'Metodologia';
+$lang['laudos_assumptions'] = 'Premissas';
+$lang['laudos_limitations'] = 'Limitações';
+$lang['laudos_installation_description'] = 'Descrição da Instalação';
+$lang['laudos_results'] = 'Resultados';
+$lang['laudos_diagnosis'] = 'Diagnóstico';
+$lang['laudos_conclusion'] = 'Conclusão';
+$lang['laudos_recommendations'] = 'Recomendações';
+
+// Observações
+$lang['laudos_observations'] = 'Observações';
+$lang['laudos_internal_notes'] = 'Notas Internas';
+$lang['laudos_client_observations'] = 'Observações para o Cliente';
+$lang['laudos_no_technical_content'] = 'Nenhum conteúdo técnico adicionado ainda.';
+
+// Info Complementar
+$lang['laudos_tags'] = 'Tags';
+$lang['laudos_cost_center'] = 'Centro de Custo';
+$lang['laudos_proposal_number'] = 'Nº Proposta';
+$lang['laudos_contract_number'] = 'Nº Contrato';
+$lang['laudos_external_reference'] = 'Referência Externa';
+$lang['laudos_confidential'] = 'Confidencial';
+
+// Prioridade
+$lang['laudos_priority_low'] = 'Baixa';
+$lang['laudos_priority_normal'] = 'Normal';
+$lang['laudos_priority_high'] = 'Alta';
+$lang['laudos_priority_urgent'] = 'Urgente';
+$lang['laudos_all'] = 'Todos';
+
+// Status
+$lang['laudos_change_status'] = 'Alterar Status';
+$lang['laudos_comment'] = 'Comentário';
+$lang['laudos_no_history'] = 'Nenhum histórico disponível.';
+
+// Arquivos
+$lang['laudos_files_coming_soon'] = 'Funcionalidade de arquivos em breve.';
+$lang['laudos_coming_soon'] = 'Em breve.';
+
+// Erros
+$lang['laudos_cannot_delete'] = 'Este laudo não pode ser excluído.';
