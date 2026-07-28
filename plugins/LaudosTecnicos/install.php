@@ -55,7 +55,13 @@ if (file_exists($upgrade_v7_file)) {
     include $upgrade_v7_file;
 }
 
-// 9. Seed - Dados iniciais (categorias e tipos)
+// 9. Upgrade v8 - Revisão, Aprovação, Assinaturas e Versionamento
+$upgrade_v8_file = __DIR__ . '/Database/upgrade_v8.php';
+if (file_exists($upgrade_v8_file)) {
+    include $upgrade_v8_file;
+}
+
+// 10. Seed - Dados iniciais (categorias e tipos)
 $seed_file = __DIR__ . '/Database/seed.php';
 if (file_exists($seed_file)) {
     include $seed_file;
