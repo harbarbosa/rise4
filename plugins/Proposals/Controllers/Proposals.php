@@ -1566,7 +1566,105 @@ class Proposals extends Security_Controller
             $this->Proposals_model->ci_save($proposal_project_data, (int)$proposal->id);
         }
 
+        // Criar centro de custo no Conta Azul
+        $this->_create_contaazul_cost_center($project_id);
+
         return $project_id;
+    }
+
+    private function _create_contaazul_cost_center($project_id)
+    {
+        $project_id = (int) $project_id;
+        if (!$project_id) {
+            return;
+        }
+
+        if (!class_exists('\\ContaAzul\\Libraries\\ContaAzulClient')) {
+            return;
+        }
+
+        $Projects_model = model('App\\Models\\Projects_model');
+        $project = $Projects_model->get_one($project_id);
+        if (!$project || empty($project->id)) {
+            return;
+        }
+
+        $db = db_connect('default');
+        $projects_table = $db->prefixTable('projects');
+        $cost_centers_table = $db->prefixTable('contaazul_cost_centers');
+
+        if (!$db->fieldExists('cost_center_id', $projects_table) || !$db->tableExists($cost_centers_table)) {
+            return;
+        }
+
+        $title = trim((string) ($project->title ?? ''));
+        if ($title === '') {
+            return;
+        }
+
+        $costCenterTitle = 'PROJETO - ' . $title;
+
+        $clientId = get_setting("contaazul_client_id");
+        $clientSecret = get_setting("contaazul_client_secret");
+        $redirectUri = get_setting("contaazul_redirect_uri") ?: get_uri("contaazul/callback");
+        $scope = get_setting("contaazul_scope") ?: "openid profile aws.cognito.signin.user.admin";
+
+        if (!$clientId || !$clientSecret) {
+            return;
+        }
+
+        $client = new \ContaAzul\Libraries\ContaAzulClient(
+            $clientId,
+            $clientSecret,
+            $redirectUri,
+            $scope,
+            get_setting("contaazul_access_token"),
+            get_setting("contaazul_refresh_token"),
+            get_setting("contaazul_token_expires_at")
+        );
+
+        if ($client->isExpired() && get_setting("contaazul_refresh_token")) {
+            $refresh = $client->refreshAccessToken(get_setting("contaazul_refresh_token"));
+            if ($refresh["ok"]) {
+                $tokens = $client->getTokens();
+                $settingsModel = model('App\\Models\\Settings_model');
+                $settingsModel->save_setting("contaazul_access_token", $tokens["access_token"] ?? "");
+                $settingsModel->save_setting("contaazul_refresh_token", $tokens["refresh_token"] ?? "");
+                $settingsModel->save_setting("contaazul_token_expires_at", $tokens["expires_at"] ?? "");
+            } else {
+                log_message('error', 'ContaAzul cost center create: token refresh failed for project ' . $project_id . ' - ' . ($refresh['body'] ?? ''));
+                return;
+            }
+        }
+
+        $response = $client->createCostCenter($costCenterTitle);
+        if (!$response["ok"]) {
+            log_message('error', 'ContaAzul cost center create failed for project ' . $project_id . ' - HTTP ' . ($response['status'] ?? 0) . ' - ' . ($response['body'] ?? ''));
+            return;
+        }
+
+        $payload = is_array($response["data"]) ? $response["data"] : array();
+        $caId = $payload["id"] ?? ($payload["uuid"] ?? null);
+        $code = $payload["codigo"] ?? ($payload["code"] ?? null);
+        $isActive = isset($payload["ativo"]) ? (int) !!$payload["ativo"] : (isset($payload["active"]) ? (int) !!$payload["active"] : 1);
+        $savedTitle = trim((string) ($payload["descricao"] ?? ($payload["description"] ?? ($payload["nome"] ?? ($payload["name"] ?? $costCenterTitle)))));
+
+        $insert_data = array(
+            'project_id' => $project_id,
+            'contaazul_id' => $caId,
+            'code' => $code,
+            'name' => $savedTitle,
+            'is_active' => $isActive,
+            'created_at' => get_current_utc_time()
+        );
+
+        $db->table($cost_centers_table)->insert($insert_data);
+        $cc_id = $db->insertID();
+
+        if ($cc_id) {
+            $db->table($projects_table)->where('id', $project_id)->update(['cost_center_id' => $cc_id]);
+            log_message('info', 'Centro de custo criado no Conta Azul para o projeto ' . $project_id);
+        }
     }
 
     private function _create_purchase_request_from_proposal($proposal, $project_id, $rows)
