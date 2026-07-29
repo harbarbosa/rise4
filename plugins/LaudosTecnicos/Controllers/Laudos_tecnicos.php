@@ -33,8 +33,6 @@ class Laudos_tecnicos extends Security_Controller
         $this->Laudo_status_transitions_model = model('LaudosTecnicos\Models\Laudo_status_transitions_model');
         $this->Laudo_status_history_model = model('LaudosTecnicos\Models\Laudo_status_history_model');
         $this->Laudos_settings_model = model('LaudosTecnicos\Models\Laudos_settings_model');
-        
-        \LaudosTecnicos\Plugin::register();
     }
 
     // ==================== DASHBOARD ====================
