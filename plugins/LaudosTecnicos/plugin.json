@@ -1,8 +1,0 @@
-{
-    "name": "Laudos Técnicos",
-    "description": "Gestão completa de laudos técnicos - solicitação, inspeção, elaboração, revisão, aprovação, emissão e controle de versões.",
-    "version": "1.0.0",
-    "author": "RISE CRM",
-    "auto_install": true,
-    "requires": []
-}
