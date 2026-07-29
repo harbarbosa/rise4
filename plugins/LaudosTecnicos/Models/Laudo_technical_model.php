@@ -27,9 +27,16 @@ class Laudo_measurements_model extends Crud_model
         return $this->db->query($sql)->getResult();
     }
 
-    public function save($data, $id = 0)
+    public function save($row): bool
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         
         // Classificar automaticamente se enabled
         if (!isset($data['result']) || empty($data['result'])) {
@@ -42,7 +49,7 @@ class Laudo_measurements_model extends Crud_model
             $data['created_at'] = get_my_local_time();
         }
         
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     private function _classifyMeasurement($data)
@@ -136,15 +143,22 @@ class Laudo_measurement_types_model extends Crud_model
         return $this->db->query($sql)->getResult();
     }
 
-    public function save($data, $id = 0)
+    public function save($row): bool
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         if ($id) {
             $data['updated_at'] = get_my_local_time();
         } else {
             $data['created_at'] = get_my_local_time();
         }
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function get_magnitudes()
@@ -246,15 +260,22 @@ class Laudo_equipment_model extends Crud_model
         return true;
     }
 
-    public function save($data, $id = 0)
+    public function save($row): bool
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         if ($id) {
             $data['updated_at'] = get_my_local_time();
         } else {
             $data['created_at'] = get_my_local_time();
         }
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function get_types()
@@ -352,15 +373,22 @@ class Laudo_standards_model extends Crud_model
         ));
     }
 
-    public function save($data, $id = 0)
+    public function save($row): bool
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         if ($id) {
             $data['updated_at'] = get_my_local_time();
         } else {
             $data['created_at'] = get_my_local_time();
         }
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function get_institutions()

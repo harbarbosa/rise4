@@ -274,9 +274,16 @@ class Laudos_model extends Crud_model
         return $number;
     }
 
-    public function save($data, $id = 0)
+    public function save($row): bool
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         
         // Gerar número se for novo
         if (!$id && empty($data['laudo_number'])) {
@@ -302,7 +309,7 @@ class Laudos_model extends Crud_model
             $data['updated_at'] = get_my_local_time();
         }
 
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function change_status($id, $new_status, $user_id, $comment = '')

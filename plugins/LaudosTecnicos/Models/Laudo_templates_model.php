@@ -137,21 +137,35 @@ class Laudo_templates_model extends Crud_model
         return $this->db->query($sql)->getResult();
     }
 
-    public function save($data, $id = 0)
+    public function save($row): bool
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         if ($id) {
             $data['updated_at'] = get_my_local_time();
         } else {
             $data['created_at'] = get_my_local_time();
         }
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function save_section($data, $id = 0)
     {
         $table = $this->db->prefixTable('laudo_template_sections');
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         
         if ($id) {
             $data['updated_at'] = get_my_local_time();
@@ -168,7 +182,14 @@ class Laudo_templates_model extends Crud_model
     public function save_field($data, $id = 0)
     {
         $table = $this->db->prefixTable('laudo_template_fields');
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         
         if ($id) {
             $data['updated_at'] = get_my_local_time();
@@ -185,7 +206,14 @@ class Laudo_templates_model extends Crud_model
     public function save_rule($data, $id = 0)
     {
         $table = $this->db->prefixTable('laudo_template_rules');
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         
         if ($id) {
             $this->db->where('id', $id);

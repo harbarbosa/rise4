@@ -77,7 +77,7 @@ class Laudo_devices_model extends Crud_model
             'refresh_token' => $refresh_token,
             'refresh_expires_at' => date('Y-m-d H:i:s', strtotime('+30 days'))
         ];
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function update_last_access($id)

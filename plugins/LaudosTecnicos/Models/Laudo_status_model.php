@@ -80,9 +80,16 @@ class Laudo_status_model extends Crud_model
         return $result && $result->max_sort ? $result->max_sort + 1 : 1;
     }
 
-    public function save($data, $id = 0)
+    public function save($row): bool
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         if ($id) {
             $data['updated_at'] = get_my_local_time();
         } else {
@@ -91,6 +98,6 @@ class Laudo_status_model extends Crud_model
                 $data['sort_order'] = $this->get_next_sort();
             }
         }
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 }

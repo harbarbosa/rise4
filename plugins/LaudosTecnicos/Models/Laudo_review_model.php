@@ -72,7 +72,7 @@ class Laudo_versions_model extends Crud_model
             'status' => 'published',
             'published_at' => get_my_local_time()
         );
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function compare($laudo_id, $v1, $v2)
@@ -142,7 +142,14 @@ class Laudo_approvals_model extends Crud_model
 
     public function save($data, $id = 0)
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         
         if (!$id) {
             $data['created_at'] = get_my_local_time();
@@ -151,7 +158,7 @@ class Laudo_approvals_model extends Crud_model
             $data['version_hash'] = hash('sha256', microtime() . json_encode($data));
         }
         
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function approve($laudo_id, $version, $approver_id, $comment = '')
@@ -209,7 +216,14 @@ class Laudo_signatures_model extends Crud_model
 
     public function save($data, $id = 0)
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         
         if (!$id) {
             $data['created_at'] = get_my_local_time();
@@ -218,7 +232,7 @@ class Laudo_signatures_model extends Crud_model
             $data['user_agent'] = $_SERVER['HTTP_USER_AGENT'] ?? '';
         }
         
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function add_signature($laudo_id, $version, $signer_name, $signer_document, $signer_role, $signature_data, $user_id = null)
@@ -310,13 +324,20 @@ class Laudo_review_comments_model extends Crud_model
 
     public function save($data, $id = 0)
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         
         if (!$id) {
             $data['created_at'] = get_my_local_time();
         }
         
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function resolve($id, $user_id, $response = '')
@@ -328,7 +349,7 @@ class Laudo_review_comments_model extends Crud_model
             'response' => $response
         );
         
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 }
 
@@ -362,18 +383,25 @@ class Laudo_pendencies_model extends Crud_model
             'resolved_at' => get_my_local_time()
         );
         
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function save($data, $id = 0)
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         
         if (!$id) {
             $data['created_at'] = get_my_local_time();
         }
         
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 }
 

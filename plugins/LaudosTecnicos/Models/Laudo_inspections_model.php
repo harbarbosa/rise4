@@ -140,9 +140,16 @@ class Laudo_inspections_model extends Crud_model
         return $this->db->query($sql)->getResult();
     }
 
-    public function save($data, $id = 0)
+    public function save($row): bool
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         if ($id) {
             $data['updated_at'] = get_my_local_time();
         } else {
@@ -152,7 +159,7 @@ class Laudo_inspections_model extends Crud_model
                 $data['code'] = 'INS-' . date('Ymd') . '-' . str_pad($this->get_next_number(), 4, '0', STR_PAD_LEFT);
             }
         }
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     private function get_next_number()
@@ -231,9 +238,16 @@ class Laudo_photos_model extends Crud_model
         return ($result && $result->max_num) ? $result->max_num + 1 : 1;
     }
 
-    public function save($data, $id = 0)
+    public function save($row): bool
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         if ($id) {
             $data['updated_at'] = get_my_local_time();
         } else {
@@ -242,7 +256,7 @@ class Laudo_photos_model extends Crud_model
                 $data['photo_number'] = $this->get_next_number($data['laudo_id']);
             }
         }
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function generate_hash($file_path)

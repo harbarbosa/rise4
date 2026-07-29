@@ -21,9 +21,16 @@ class Laudo_document_model extends Crud_model
         return $this->db->query($sql)->getRow();
     }
 
-    public function save($data, $id = 0)
+    public function save($row): bool
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         
         if ($id) {
             $data['updated_at'] = get_my_local_time();
@@ -31,7 +38,7 @@ class Laudo_document_model extends Crud_model
             $data['created_at'] = get_my_local_time();
         }
         
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function get_default_config()
@@ -79,16 +86,23 @@ class Laudo_shares_model extends Crud_model
         return $this->db->query($sql)->getRow();
     }
 
-    public function save($data, $id = 0)
+    public function save($row): bool
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         
         if (!$id) {
             $data['created_at'] = get_my_local_time();
             $data['token'] = bin2hex(random_bytes(32));
         }
         
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function increment_access($id)
@@ -155,15 +169,22 @@ class Laudo_client_responses_model extends Crud_model
         return $this->db->query($sql)->getResult();
     }
 
-    public function save($data, $id = 0)
+    public function save($row): bool
     {
-        $id = (int)$id;
+        $id = 0;
+        if (is_object($row) && isset($row->id)) {
+            $id = (int)$row->id;
+        } elseif (is_array($row) && isset($row["id"])) {
+            $id = (int)$row["id"];
+        }
+        
+        $data = is_object($row) ? (array) $row : $row;
         
         if (!$id) {
             $data['created_at'] = get_my_local_time();
         }
         
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 
     public function respond($id, $status, $comment)
@@ -174,7 +195,7 @@ class Laudo_client_responses_model extends Crud_model
             'responded_at' => get_my_local_time()
         );
         
-        return parent::ci_save($data, $id);
+        return parent::ci_save($data, $id) ? true : false;
     }
 }
 
