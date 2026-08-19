@@ -7,6 +7,11 @@ use Config\Services;
 $routes = Services::routes();
 
 $routes->get('propostas', 'Proposals::index', ['namespace' => 'Proposals\\Controllers']);
+$routes->get('propostas/kanban_data', 'Proposals::kanban_data', ['namespace' => 'Proposals\\Controllers']);
+$routes->post('propostas/update_status', 'Proposals::update_status', ['namespace' => 'Proposals\\Controllers']);
+$routes->post('propostas/save_notes', 'Proposals::save_notes', ['namespace' => 'Proposals\\Controllers']);
+$routes->post('propostas/upload_file/(:num)', 'Proposals::upload_file/$1', ['namespace' => 'Proposals\\Controllers']);
+$routes->get('propostas/get_files/(:num)', 'Proposals::get_files/$1', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/list_data', 'Proposals::list_data', ['namespace' => 'Proposals\\Controllers']);
 $routes->get('propostas/form', 'Proposals::form', ['namespace' => 'Proposals\\Controllers']);
 $routes->get('propostas/form/(:num)', 'Proposals::form/$1', ['namespace' => 'Proposals\\Controllers']);

@@ -35,10 +35,229 @@ class Proposals extends Security_Controller
 
         $view_data = array(
             "statuses_dropdown" => json_encode($this->_get_statuses_dropdown()),
+            "statuses_kanban" => $this->_get_statuses(),
             "can_manage" => $this->_has_manage_permission()
         );
 
         return $this->template->rander('Proposals\\Views\\proposals\\index', $view_data);
+    }
+
+    public function kanban_data()
+    {
+        if (!$this->_has_view_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $options = array(
+            "company_id" => $this->_get_company_id()
+        );
+
+        $query = $this->Proposals_model->get_details($options);
+        $proposals = ($query && method_exists($query, 'getResult')) ? $query->getResult() : array();
+
+        $proposals_by_status = array();
+        $counts = array();
+
+        // Inicializar contadores para todos os statuses
+        $statuses = $this->_get_statuses();
+        foreach ($statuses as $status) {
+            $status_id = $status->id ?? 0;
+            $proposals_by_status[$status_id] = array();
+            $counts[$status_id] = 0;
+        }
+
+        foreach ($proposals as $proposal) {
+            $status_id = $proposal->status_id ?? 0;
+            if (!isset($proposals_by_status[$status_id])) {
+                $status_id = 0;
+            }
+            if (!isset($proposals_by_status[$status_id])) {
+                $proposals_by_status[$status_id] = array();
+            }
+            $proposals_by_status[$status_id][] = array(
+                'id' => $proposal->id,
+                'title' => $proposal->title,
+                'client_name' => $proposal->client_name ?? '',
+                'total_sale_formatted' => $proposal->total_sale_formatted ?? 'R$ 0,00'
+            );
+            $counts[$status_id] = ($counts[$status_id] ?? 0) + 1;
+        }
+
+        return $this->response->setJSON([
+            'success' => true,
+            'data' => [
+                'proposals' => $proposals_by_status,
+                'counts' => $counts
+            ]
+        ]);
+    }
+
+    public function update_status()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $id = $this->request->getPost('id');
+        $status = $this->request->getPost('status');
+
+        if (!$id || !$status) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Invalid parameters']);
+        }
+
+        $data = array('status' => $status);
+        $result = $this->Proposals_model->ci_save($data, $id);
+
+        if ($result) {
+            return $this->response->setJSON(['success' => true]);
+        }
+
+        return $this->response->setJSON(['success' => false, 'message' => 'Error saving']);
+    }
+
+    public function save_notes()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $id = $this->request->getPost('id');
+        $notes = $this->request->getPost('notes');
+
+        if (!$id) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Invalid parameters']);
+        }
+
+        $data = array('notes' => $notes);
+        $result = $this->Proposals_model->ci_save($data, $id);
+
+        if ($result) {
+            return $this->response->setJSON(['success' => true, 'message' => 'Notes saved']);
+        }
+
+        return $this->response->setJSON(['success' => false, 'message' => 'Error saving']);
+    }
+
+    public function upload_file($proposal_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+        if (!$proposal_id) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Invalid proposal']);
+        }
+
+        // Processar upload
+        $upload_file = get_array_value($_FILES, 'file');
+        if (!$upload_file || $upload_file['error'] !== UPLOAD_ERR_OK) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Upload failed']);
+        }
+
+        $file_name = $upload_file['name'];
+        $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+        
+        // Validar extensão
+        $allowed_ext = array('pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip');
+        if (!in_array($file_ext, $allowed_ext)) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Invalid file type']);
+        }
+
+        // Criar pasta de uploads
+        $upload_path = 'proposals/' . $proposal_id . '/';
+        $dir = getcwd() . '/private/uploads/' . $upload_path;
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        // Mover arquivo
+        $new_name = uniqid() . '_' . $file_name;
+        $target = $dir . $new_name;
+        
+        if (move_uploaded_file($upload_file['tmp_name'], $target)) {
+            // Salvar no banco
+            $db = db_connect('default');
+            $files_table = $db->prefixTable('proposal_files');
+            
+            // Verificar se tabela existe
+            if (!$db->tableExists($files_table)) {
+                $sql = "CREATE TABLE IF NOT EXISTS `{$files_table}` (
+                    `id` INT(11) NOT NULL AUTO_INCREMENT,
+                    `proposal_id` INT(11) NOT NULL,
+                    `file_name` VARCHAR(255) NOT NULL,
+                    `file_path` VARCHAR(500) NOT NULL,
+                    `file_size` INT(11) DEFAULT 0,
+                    ` uploaded_by` INT(11) DEFAULT NULL,
+                    `created_at` DATETIME DEFAULT NULL,
+                    PRIMARY KEY (`id`),
+                    KEY `proposal_id` (`proposal_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+                $db->query($sql);
+            }
+            
+            $insert_data = array(
+                'proposal_id' => $proposal_id,
+                'file_name' => $file_name,
+                'file_path' => $upload_path . $new_name,
+                'file_size' => $upload_file['size'],
+                'uploaded_by' => $this->login_user->id,
+                'created_at' => get_current_utc_time()
+            );
+            
+            $db->table($files_table)->insert($insert_data);
+            
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => array(
+                    'id' => $db->insertID(),
+                    'name' => $file_name,
+                    'url' => get_uri('private/uploads/' . $upload_path . $new_name)
+                )
+            ]);
+        }
+
+        return $this->response->setJSON(['success' => false, 'message' => 'Error moving file']);
+    }
+
+    public function get_files($proposal_id = 0)
+    {
+        if (!$this->_has_view_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+        $db = db_connect('default');
+        $files_table = $db->prefixTable('proposal_files');
+        
+        $files = array();
+        if ($db->tableExists($files_table)) {
+            $files = $db->query("SELECT * FROM $files_table WHERE proposal_id = $proposal_id ORDER BY created_at DESC")->getResult();
+        }
+        
+        return $this->response->setJSON(['success' => true, 'data' => $files]);
+    }
+
+    private function _get_statuses()
+    {
+        $statuses = array();
+        $table = $this->db->prefixTable('proposal_status');
+        if ($this->db->tableExists($table)) {
+            $statuses = $this->db->query("SELECT * FROM $table WHERE deleted = 0 ORDER BY sort_order")->getResult();
+        }
+        
+        // Se não houver tabela de status, retornar status padrão
+        if (empty($statuses)) {
+            $statuses = array(
+                (object) array('id' => 'draft', 'name' => 'Rascunho', 'color' => '#6c757d'),
+                (object) array('id' => 'sent', 'name' => 'Enviada', 'color' => '#17a2b8'),
+                (object) array('id' => 'accepted', 'name' => 'Aceita', 'color' => '#28a745'),
+                (object) array('id' => 'rejected', 'name' => 'Rejeitada', 'color' => '#dc3545'),
+                (object) array('id' => 'expired', 'name' => 'Expirada', 'color' => '#ffc107')
+            );
+        }
+        
+        return $statuses;
     }
 
     public function list_data()
