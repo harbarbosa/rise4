@@ -362,7 +362,7 @@ foreach ($items as $proposal_item) {
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" data-bs-toggle="tab" href="#proposal-followup" role="tab">
+                    <a class="nav-link" data-bs-toggle="tab" href="#proposal-followup" role="tab" data-proposal-id="<?php echo $proposal_info->id; ?>">
                         <?php echo app_lang('proposals_tab_followup'); ?>
                     </a>
                 </li>
@@ -693,20 +693,24 @@ foreach ($items as $proposal_item) {
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Aba Follow-up -->
                 <div class="tab-pane fade" id="proposal-followup" role="tabpanel">
                     <div class="p15">
                         <h4><?php echo app_lang('proposals_followup'); ?></h4>
                         <div class="mb-3">
-                            <?php echo modal_anchor(get_uri("events/modal_form"), "<i class='fa fa-plus'></i> " . app_lang('proposals_add_followup'), array("class" => "btn btn-default", "data-post-context" => "proposal", "data-post-proposal_id" => $proposal_info->id)); ?>
+                            <?php echo modal_anchor(get_uri("events/modal_form"), "<i class='fa fa-plus'></i> " . app_lang('proposals_add_followup'), array(
+                                "class" => "btn btn-default",
+                                "data-post-title" => "[Proposta: " . ($proposal_info->id ?? 0) . "] Follow-up - " . ($proposal_info->title ?? 'Nova Proposta'),
+                                "data-post-description" => " followup_proposta_" . ($proposal_info->id ?? 0)
+                            )); ?>
                         </div>
-                        <div id="followup-events-list">
+                        <div id="followup-events-list" data-proposal-id="<?php echo $proposal_info->id ?? 0; ?>">
                             <p class="text-muted"><?php echo app_lang('proposals_no_followup'); ?></p>
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Aba Anotações -->
                 <div class="tab-pane fade" id="proposal-notes" role="tabpanel">
                     <div class="p15">
@@ -719,7 +723,7 @@ foreach ($items as $proposal_item) {
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Aba Arquivos -->
                 <div class="tab-pane fade" id="proposal-files" role="tabpanel">
                     <div class="p15">
@@ -732,7 +736,7 @@ foreach ($items as $proposal_item) {
                         </div>
                     </div>
                 </div>
-                
+
             </div>
         </div>
     </div>
@@ -1160,7 +1164,39 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
                 }
             });
         });
+
+        // Carregar eventos de follow-up quando a aba for clicada
+        $('a[href="#proposal-followup"]').on('shown.bs.tab', function() {
+            var proposalId = $(this).data('proposal-id');
+            if (proposalId) {
+                $.ajax({
+                    url: '<?php echo_uri("propostas/get_followup_events/"); ?>' + proposalId,
+                    type: 'GET',
+                    success: function(response) {
+                        if (response.success) {
+                            $('#followup-events-list').html(response.html);
+                        }
+                    }
+                });
+            }
+        });
         
+        // Atualizar lista de follow-up após criar evento
+        $(document).on('ajax-form-success', '#events-modal-form', function() {
+            var proposalId = $('#followup-events-list').data('proposal-id');
+            if (proposalId) {
+                $.ajax({
+                    url: '<?php echo_uri("propostas/get_followup_events/"); ?>' + proposalId,
+                    type: 'GET',
+                    success: function(response) {
+                        if (response.success) {
+                            $('#followup-events-list').html(response.html);
+                        }
+                    }
+                });
+            }
+        });
+
         // Salvar anotações
         $('#save-notes-btn').click(function() {
             var notes = $('#proposal-notes').val();

@@ -115,6 +115,48 @@ class Proposals extends Security_Controller
         return $this->response->setJSON(['success' => false, 'message' => 'Error saving']);
     }
 
+    public function get_followup_events($proposal_id = 0)
+    {
+        if (!$this->_has_view_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+        $db = db_connect('default');
+        
+        // Buscar eventos que contenham o ID da proposta no título ou descrição
+        $events_table = $db->prefixTable('events');
+        $proposal = $this->Proposals_model->get_details(['id' => $proposal_id])->getRow();
+        $proposal_title = $proposal->title ?? '';
+        
+        // Buscar eventos relacionados
+        $events = $db->query("
+            SELECT * FROM $events_table 
+            WHERE (title LIKE '%[Proposta: $proposal_id]%' OR description LIKE '%proposta_$proposal_id%')
+            AND deleted = 0 
+            ORDER BY start_date DESC
+        ")->getResult();
+
+        $html = '';
+        if (empty($events)) {
+            $html = '<p class="text-muted">' . app_lang('proposals_no_followup') . '</p>';
+        } else {
+            $html .= '<div class="table-responsive"><table class="table table-bordered">';
+            $html .= '<thead><tr><th>' . app_lang('proposals_followup') . '</th><th>' . app_lang('date') . '</th><th>' . app_lang('status') . '</th></tr></thead>';
+            $html .= '<tbody>';
+            foreach ($events as $event) {
+                $html .= '<tr>';
+                $html .= '<td>' . esc($event->title) . '</td>';
+                $html .= '<td>' . format_date($event->start_date) . '</td>';
+                $html .= '<td>' . ($event->checked_at ? '<span class="badge bg-success">' . app_lang('done') . '</span>' : '<span class="badge bg-warning">' . app_lang('pending') . '</span>') . '</td>';
+                $html .= '</tr>';
+            }
+            $html .= '</tbody></table></div>';
+        }
+
+        return $this->response->setJSON(['success' => true, 'html' => $html]);
+    }
+
     public function upload_file($proposal_id = 0)
     {
         if (!$this->_has_manage_permission()) {
