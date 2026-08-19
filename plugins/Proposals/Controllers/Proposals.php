@@ -132,33 +132,34 @@ class Proposals extends Security_Controller
         }
 
         $proposal_id = (int) $proposal_id;
-        $db = db_connect('default');
-        $followup_table = $db->prefixTable('proposal_followups');
         
-        // Criar tabela se não existir
-        if (!$db->tableExists($followup_table)) {
-            $sql = "CREATE TABLE IF NOT EXISTS `{$followup_table}` (
-                `id` INT(11) NOT NULL AUTO_INCREMENT,
-                `proposal_id` INT(11) NOT NULL,
-                `title` VARCHAR(255) NOT NULL,
-                `description` TEXT,
-                `event_date` DATETIME NOT NULL,
-                `event_id` INT(11) DEFAULT NULL,
-                `status` VARCHAR(20) DEFAULT 'pending',
-                `created_by` INT(11) DEFAULT NULL,
-                `created_at` DATETIME DEFAULT NULL,
-                `deleted` TINYINT(1) DEFAULT 0,
-                PRIMARY KEY (`id`),
-                KEY `proposal_id` (`proposal_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-            $db->query($sql);
-        }
+        try {
+            $db = db_connect('default');
+            $followup_table = $db->prefixTable('proposal_followups');
+            
+            // Criar tabela se não existir
+            if (!$db->tableExists($followup_table)) {
+                $sql = "CREATE TABLE IF NOT EXISTS `$followup_table` (
+                    `id` INT(11) NOT NULL AUTO_INCREMENT,
+                    `proposal_id` INT(11) NOT NULL,
+                    `title` VARCHAR(255) NOT NULL,
+                    `description` TEXT,
+                    `event_date` DATETIME NOT NULL,
+                    `status` VARCHAR(20) DEFAULT 'pending',
+                    `created_by` INT(11) DEFAULT NULL,
+                    `created_at` DATETIME DEFAULT NULL,
+                    `deleted` TINYINT(1) DEFAULT 0,
+                    PRIMARY KEY (`id`),
+                    KEY `proposal_id` (`proposal_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+                $db->query($sql);
+            }
 
-        $followups = $db->query("
-            SELECT * FROM $followup_table 
-            WHERE proposal_id = $proposal_id AND deleted = 0 
-            ORDER BY event_date DESC
-        ")->getResult();
+            $followups = $db->query("
+                SELECT * FROM $followup_table 
+                WHERE proposal_id = ? AND deleted = 0 
+                ORDER BY event_date DESC
+            ", [$proposal_id])->getResult();
 
         $html = '';
         if (empty($followups)) {
