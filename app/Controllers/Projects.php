@@ -2667,25 +2667,17 @@ class Projects extends Security_Controller {
     /* save project file data and move temp file to parmanent file directory */
 
     function save_file() {
-        // Verificar e criar coluna proposal_id se não existir
-        $db = db_connect('default');
-        $files_table = $db->prefixTable('project_files');
-        if (!$db->fieldExists('proposal_id', $files_table)) {
-            $db->query("ALTER TABLE `{$files_table}` ADD `proposal_id` INT(11) DEFAULT NULL");
-        }
 
         $this->validate_submitted_data(array(
             "project_id" => "numeric|required",
             "folder_id" => "numeric",
             "id" => "numeric",
-            "proposal_id" => "numeric",
         ));
 
         $id = $this->request->getPost('id');
         $project_id = $this->request->getPost('project_id');
         $category_id = $this->request->getPost('category_id');
         $folder_id = $this->request->getPost('folder_id');
-        $proposal_id = $this->request->getPost('proposal_id') ? $this->request->getPost('proposal_id') : 0;
 
         $this->_check_project_file_add_edit_permission($id, $project_id);
 
@@ -2694,8 +2686,7 @@ class Projects extends Security_Controller {
         if ($id) {
             $data = array(
                 "description" => $this->request->getPost('description'),
-                "category_id" => $category_id ? $category_id : 0,
-                "proposal_id" => $proposal_id
+                "category_id" => $category_id ? $category_id : 0
             );
 
             $success = $this->Project_files_model->ci_save($data, $id);
@@ -2722,7 +2713,6 @@ class Projects extends Security_Controller {
                             "uploaded_by" => $this->login_user->id,
                             "category_id" => $category_id ? $category_id : 0,
                             "folder_id" => $folder_id ? $folder_id : 0,
-                            "proposal_id" => $proposal_id,
                         );
 
                         $data = clean_data($data);
@@ -2870,23 +2860,18 @@ class Projects extends Security_Controller {
 
     /* list of files, prepared for datatable  */
 
-    function files_list_data($project_id = 0, $proposal_id = 0) {
+    function files_list_data($project_id = 0) {
         validate_numeric_value($project_id);
-        validate_numeric_value($proposal_id);
-        
-        // Verificar permissão baseada em project ou proposal
-        if ($project_id) {
-            $this->init_project_permission_checker($project_id);
-            if (!$this->can_view_files()) {
-                app_redirect("forbidden");
-            }
+        $this->init_project_permission_checker($project_id);
+
+        if (!$this->can_view_files()) {
+            app_redirect("forbidden");
         }
 
         $custom_fields = $this->Custom_fields_model->get_available_fields_for_table("project_files", $this->login_user->is_admin, $this->login_user->user_type);
 
         $options = array(
             "project_id" => $project_id,
-            "proposal_id" => $proposal_id,
             "category_id" => $this->request->getPost("category_id"),
             "custom_fields" => $custom_fields,
             "custom_field_filter" => $this->prepare_custom_field_filter_values("project_files", $this->login_user->is_admin, $this->login_user->user_type)

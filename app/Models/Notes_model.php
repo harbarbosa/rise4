@@ -46,6 +46,7 @@ class Notes_model extends Crud_model {
             $where .= " AND $notes_table.user_id=$user_id";
         }
 
+
         $created_by = $this->_get_clean_value($options, "created_by");
         if ($created_by) {
             $where .= " AND $notes_table.created_by=$created_by";
