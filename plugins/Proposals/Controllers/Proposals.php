@@ -58,19 +58,29 @@ class Proposals extends Security_Controller
         $proposals_by_status = array();
         $counts = array();
 
-        // Inicializar contadores para todos os statuses
-        $statuses = $this->_get_statuses();
-        foreach ($statuses as $status) {
-            $status_id = $status->id ?? 'draft';
-            $proposals_by_status[$status_id] = array();
-            $counts[$status_id] = 0;
+        // Inicializar contadores para todos os statuses conhecidos
+        $known_statuses = array('draft', 'sent', 'approved', 'accepted', 'rejected', 'archived', 'expired');
+        foreach ($known_statuses as $s) {
+            $proposals_by_status[$s] = array();
+            $counts[$s] = 0;
         }
 
         foreach ($proposals as $proposal) {
-            $status_id = $proposal->status ?? 'draft';
-            if (!isset($proposals_by_status[$status_id])) {
+            // Buscar o status da proposal - pode ser 'status' ou 'status_id'
+            $status_id = null;
+            if (isset($proposal->status) && !empty($proposal->status)) {
+                $status_id = $proposal->status;
+            } elseif (isset($proposal->status_id) && !empty($proposal->status_id)) {
+                $status_id = $proposal->status_id;
+            } else {
                 $status_id = 'draft';
             }
+            
+            // Normalizar status para string
+            if (is_numeric($status_id)) {
+                $status_id = 'draft';
+            }
+            
             if (!isset($proposals_by_status[$status_id])) {
                 $proposals_by_status[$status_id] = array();
             }
