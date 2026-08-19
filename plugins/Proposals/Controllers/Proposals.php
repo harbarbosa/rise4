@@ -160,6 +160,10 @@ class Proposals extends Security_Controller
                 WHERE proposal_id = ? AND deleted = 0 
                 ORDER BY event_date DESC
             ", [$proposal_id])->getResult();
+        } catch (Exception $e) {
+            log_message('error', 'Error in get_followup_events: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'message' => 'Error loading follow-ups']);
+        }
 
         $html = '';
         if (empty($followups)) {
