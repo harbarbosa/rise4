@@ -717,7 +717,7 @@ foreach ($items as $proposal_item) {
                         <div class="tab-title clearfix">
                             <h4><?php echo app_lang('notes'); ?></h4>
                             <div class="title-button-group">
-                                <?php echo modal_anchor(get_uri("notes/modal_form"), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add_note'), array("class" => "btn btn-default", "title" => app_lang('add_note'), "data-post-proposal_id" => $proposal_info->id)); ?>           
+                                <?php echo modal_anchor(get_uri("propostas/note_modal_form/" . ($proposal_info->id ?? 0)), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add_note'), array("class" => "btn btn-default", "title" => app_lang('add_note'))); ?>           
                             </div>
                         </div>
                         <div class="table-responsive">

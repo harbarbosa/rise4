@@ -175,11 +175,24 @@ class Proposals extends Security_Controller
 
         $proposal_id = (int) $proposal_id;
         $db = db_connect('default');
-        $notes_table = $db->prefixTable('notes');
+        $notes_table = $db->prefixTable('proposal_notes');
         
-        // Verificar se tabela existe
+        // Criar tabela se não existir
         if (!$db->tableExists($notes_table)) {
-            return $this->response->setJSON(['data' => []]);
+            $sql = "CREATE TABLE IF NOT EXISTS `{$notes_table}` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `proposal_id` INT(11) NOT NULL,
+                `title` VARCHAR(255) NOT NULL,
+                `content` TEXT,
+                `is_public` TINYINT(1) DEFAULT 0,
+                `created_by` INT(11) DEFAULT NULL,
+                `created_at` DATETIME DEFAULT NULL,
+                `updated_at` DATETIME DEFAULT NULL,
+                `deleted` TINYINT(1) DEFAULT 0,
+                PRIMARY KEY (`id`),
+                KEY `proposal_id` (`proposal_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+            $db->query($sql);
         }
 
         $notes = $db->query("
@@ -200,6 +213,97 @@ class Proposals extends Security_Controller
         }
 
         return $this->response->setJSON(['data' => $result]);
+    }
+
+    public function note_modal_form($proposal_id = 0, $note_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+        $note_id = (int) $note_id;
+        
+        $db = db_connect('default');
+        $notes_table = $db->prefixTable('proposal_notes');
+        
+        $note_info = null;
+        if ($note_id) {
+            $note_info = $db->query("SELECT * FROM $notes_table WHERE id = $note_id")->getRow();
+        }
+        
+        $view_data['proposal_id'] = $proposal_id;
+        $view_data['note_id'] = $note_id;
+        $view_data['note_info'] = $note_info;
+        
+        return $this->template->view('Proposals\\Views\\proposals\\note_modal_form', $view_data);
+    }
+
+    public function save_note()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $this->request->getPost('proposal_id');
+        $note_id = (int) $this->request->getPost('note_id');
+        $title = $this->request->getPost('title');
+        $content = $this->request->getPost('content');
+        $is_public = $this->request->getPost('is_public') ? 1 : 0;
+
+        $db = db_connect('default');
+        $notes_table = $db->prefixTable('proposal_notes');
+        
+        // Criar tabela se não existir
+        if (!$db->tableExists($notes_table)) {
+            $sql = "CREATE TABLE IF NOT EXISTS `{$notes_table}` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `proposal_id` INT(11) NOT NULL,
+                `title` VARCHAR(255) NOT NULL,
+                `content` TEXT,
+                `is_public` TINYINT(1) DEFAULT 0,
+                `created_by` INT(11) DEFAULT NULL,
+                `created_at` DATETIME DEFAULT NULL,
+                `updated_at` DATETIME DEFAULT NULL,
+                `deleted` TINYINT(1) DEFAULT 0,
+                PRIMARY KEY (`id`),
+                KEY `proposal_id` (`proposal_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+            $db->query($sql);
+        }
+        
+        $data = array(
+            'proposal_id' => $proposal_id,
+            'title' => $title,
+            'content' => $content,
+            'is_public' => $is_public,
+            'updated_at' => get_current_utc_time()
+        );
+        
+        if ($note_id) {
+            $db->table($notes_table)->where('id', $note_id)->update($data);
+        } else {
+            $data['created_by'] = $this->login_user->id;
+            $data['created_at'] = get_current_utc_time();
+            $db->table($notes_table)->insert($data);
+        }
+        
+        return $this->response->setJSON(['success' => true, 'message' => 'Note saved']);
+    }
+
+    public function delete_note($note_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $note_id = (int) $note_id;
+        $db = db_connect('default');
+        $notes_table = $db->prefixTable('proposal_notes');
+        
+        $db->table($notes_table)->where('id', $note_id)->update(['deleted' => 1]);
+        
+        return $this->response->setJSON(['success' => true, 'message' => 'Note deleted']);
     }
 
     public function files_list_data($proposal_id = 0)
