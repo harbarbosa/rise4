@@ -133,31 +133,159 @@ class Proposals extends Security_Controller
 
         $proposal_id = (int) $proposal_id;
         $db = db_connect('default');
+        $followup_table = $db->prefixTable('proposal_followups');
         
-        // Buscar eventos que contenham o ID da proposta no título ou descrição
-        $events_table = $db->prefixTable('events');
-        $proposal = $this->Proposals_model->get_details(['id' => $proposal_id])->getRow();
-        $proposal_title = $proposal->title ?? '';
-        
-        // Buscar eventos relacionados
-        $events = $db->query("
-            SELECT * FROM $events_table 
-            WHERE (title LIKE '%[Proposta: $proposal_id]%' OR description LIKE '%proposta_$proposal_id%')
-            AND deleted = 0 
-            ORDER BY start_date DESC
+        // Criar tabela se não existir
+        if (!$db->tableExists($followup_table)) {
+            $sql = "CREATE TABLE IF NOT EXISTS `{$followup_table}` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `proposal_id` INT(11) NOT NULL,
+                `title` VARCHAR(255) NOT NULL,
+                `description` TEXT,
+                `event_date` DATETIME NOT NULL,
+                `event_id` INT(11) DEFAULT NULL,
+                `status` VARCHAR(20) DEFAULT 'pending',
+                `created_by` INT(11) DEFAULT NULL,
+                `created_at` DATETIME DEFAULT NULL,
+                `deleted` TINYINT(1) DEFAULT 0,
+                PRIMARY KEY (`id`),
+                KEY `proposal_id` (`proposal_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+            $db->query($sql);
+        }
+
+        $followups = $db->query("
+            SELECT * FROM $followup_table 
+            WHERE proposal_id = $proposal_id AND deleted = 0 
+            ORDER BY event_date DESC
         ")->getResult();
 
         $html = '';
-        if (empty($events)) {
+        if (empty($followups)) {
             $html = '<p class="text-muted">' . app_lang('proposals_no_followup') . '</p>';
         } else {
             $html .= '<div class="table-responsive"><table class="table table-bordered">';
-            $html .= '<thead><tr><th>' . app_lang('proposals_followup') . '</th><th>' . app_lang('date') . '</th><th>' . app_lang('status') . '</th></tr></thead>';
+            $html .= '<thead><tr><th>' . app_lang('proposals_followup') . '</th><th>' . app_lang('date') . '</th><th>' . app_lang('status') . '</th><th></th></tr></thead>';
             $html .= '<tbody>';
-            foreach ($events as $event) {
+            foreach ($followups as $followup) {
+                $status_class = $followup->status === 'completed' ? 'bg-success' : 'bg-warning';
+                $status_label = $followup->status === 'completed' ? app_lang('done') : app_lang('pending');
+                
                 $html .= '<tr>';
-                $html .= '<td>' . esc($event->title) . '</td>';
-                $html .= '<td>' . format_date($event->start_date) . '</td>';
+                $html .= '<td>' . esc($followup->title) . '</td>';
+                $html .= '<td>' . format_date($followup->event_date) . '</td>';
+                $html .= '<td><span class="badge ' . $status_class . '">' . $status_label . '</span></td>';
+                $html .= '<td class="text-center">';
+                if ($followup->status === 'pending') {
+                    $html .= js_anchor('<i data-feather="check-circle" class="icon-16"></i>', array(
+                        'title' => app_lang('mark_as_done'),
+                        'data-action-url' => get_uri('propostas/complete_followup/' . $followup->id)
+                    ));
+                }
+                $html .= js_anchor('<i data-feather="trash-2" class="icon-16"></i>', array(
+                    'title' => app_lang('delete'),
+                    'data-action-url' => get_uri('propostas/delete_followup/' . $followup->id),
+                    'data-action' => 'delete-confirmation'
+                ));
+                $html .= '</td>';
+                $html .= '</tr>';
+            }
+            $html .= '</tbody></table></div>';
+        }
+
+        return $this->response->setJSON(['success' => true, 'html' => $html]);
+    }
+
+    public function followup_modal_form($proposal_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+        
+        $view_data['proposal_id'] = $proposal_id;
+        
+        return $this->template->view('Proposals\\Views\\proposals\\followup_modal_form', $view_data);
+    }
+
+    public function save_followup()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $this->request->getPost('proposal_id');
+        $title = $this->request->getPost('title');
+        $description = $this->request->getPost('description');
+        $event_date = $this->request->getPost('event_date');
+
+        $db = db_connect('default');
+        $followup_table = $db->prefixTable('proposal_followups');
+        
+        // Criar tabela se não existir
+        if (!$db->tableExists($followup_table)) {
+            $sql = "CREATE TABLE IF NOT EXISTS `{$followup_table}` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `proposal_id` INT(11) NOT NULL,
+                `title` VARCHAR(255) NOT NULL,
+                `description` TEXT,
+                `event_date` DATETIME NOT NULL,
+                `event_id` INT(11) DEFAULT NULL,
+                `status` VARCHAR(20) DEFAULT 'pending',
+                `created_by` INT(11) DEFAULT NULL,
+                `created_at` DATETIME DEFAULT NULL,
+                `deleted` TINYINT(1) DEFAULT 0,
+                PRIMARY KEY (`id`),
+                KEY `proposal_id` (`proposal_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+            $db->query($sql);
+        }
+        
+        $data = array(
+            'proposal_id' => $proposal_id,
+            'title' => $title,
+            'description' => $description,
+            'event_date' => $event_date,
+            'status' => 'pending',
+            'created_by' => $this->login_user->id,
+            'created_at' => get_current_utc_time()
+        );
+        
+        $db->table($followup_table)->insert($data);
+        
+        return $this->response->setJSON(['success' => true, 'message' => 'Follow-up agendado']);
+    }
+
+    public function complete_followup($followup_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $followup_id = (int) $followup_id;
+        $db = db_connect('default');
+        $followup_table = $db->prefixTable('proposal_followups');
+        
+        $db->table($followup_table)->where('id', $followup_id)->update(['status' => 'completed']);
+        
+        return $this->response->setJSON(['success' => true, 'message' => 'Follow-up concluído']);
+    }
+
+    public function delete_followup($followup_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $followup_id = (int) $followup_id;
+        $db = db_connect('default');
+        $followup_table = $db->prefixTable('proposal_followups');
+        
+        $db->table($followup_table)->where('id', $followup_id)->update(['deleted' => 1]);
+        
+        return $this->response->setJSON(['success' => true, 'message' => 'Follow-up excluído']);
+    }
                 $html .= '<td>' . ($event->checked_at ? '<span class="badge bg-success">' . app_lang('done') . '</span>' : '<span class="badge bg-warning">' . app_lang('pending') . '</span>') . '</td>';
                 $html .= '</tr>';
             }

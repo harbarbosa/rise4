@@ -696,14 +696,12 @@ foreach ($items as $proposal_item) {
 
                 <!-- Aba Follow-up -->
                 <div class="tab-pane fade" id="proposal-followup" role="tabpanel">
-                    <div class="p15">
-                        <h4><?php echo app_lang('proposals_followup'); ?></h4>
-                        <div class="mb-3">
-                            <?php echo modal_anchor(get_uri("events/modal_form"), "<i class='fa fa-plus'></i> " . app_lang('proposals_add_followup'), array(
-                                "class" => "btn btn-default",
-                                "data-post-title" => "[Proposta: " . ($proposal_info->id ?? 0) . "] Follow-up - " . ($proposal_info->title ?? 'Nova Proposta'),
-                                "data-post-description" => " followup_proposta_" . ($proposal_info->id ?? 0)
-                            )); ?>
+                    <div class="card">
+                        <div class="tab-title clearfix">
+                            <h4><?php echo app_lang('proposals_followup'); ?></h4>
+                            <div class="title-button-group">
+                                <?php echo modal_anchor(get_uri("propostas/followup_modal_form/" . ($proposal_info->id ?? 0)), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('proposals_add_followup'), array("class" => "btn btn-default", "title" => app_lang('proposals_add_followup'))); ?>
+                            </div>
                         </div>
                         <div id="followup-events-list" data-proposal-id="<?php echo $proposal_info->id ?? 0; ?>">
                             <p class="text-muted"><?php echo app_lang('proposals_no_followup'); ?></p>
