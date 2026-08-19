@@ -61,15 +61,15 @@ class Proposals extends Security_Controller
         // Inicializar contadores para todos os statuses
         $statuses = $this->_get_statuses();
         foreach ($statuses as $status) {
-            $status_id = $status->id ?? 0;
+            $status_id = $status->id ?? 'draft';
             $proposals_by_status[$status_id] = array();
             $counts[$status_id] = 0;
         }
 
         foreach ($proposals as $proposal) {
-            $status_id = $proposal->status_id ?? 0;
+            $status_id = $proposal->status ?? 'draft';
             if (!isset($proposals_by_status[$status_id])) {
-                $status_id = 0;
+                $status_id = 'draft';
             }
             if (!isset($proposals_by_status[$status_id])) {
                 $proposals_by_status[$status_id] = array();
