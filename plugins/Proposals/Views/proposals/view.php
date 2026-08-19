@@ -1175,7 +1175,7 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
 
         // Tabela de arquivos
         $("#proposal-file-table").appTable({
-            source: '<?php echo_uri("projects/files_list_data/"); ?>' + proposalId,
+            source: '<?php echo_uri("projects/files_list_data/0/"); ?>' + proposalId,
             order: [[0, 'desc']],
             columns: [
                 {title: '<?php echo app_lang("created_date"); ?>'},

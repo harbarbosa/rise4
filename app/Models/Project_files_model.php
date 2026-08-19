@@ -69,6 +69,11 @@ class Project_files_model extends Crud_model {
             $where .= " AND $project_files_table.project_id=$project_id";
         }
 
+        $proposal_id = $this->_get_clean_value($options, "proposal_id");
+        if ($proposal_id) {
+            $where .= " AND $project_files_table.proposal_id=$proposal_id";
+        }
+
         $category_id = $this->_get_clean_value($options, "category_id");
         if ($category_id) {
             $where .= " AND $project_files_table.category_id=$category_id";
