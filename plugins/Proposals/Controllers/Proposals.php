@@ -286,14 +286,6 @@ class Proposals extends Security_Controller
         
         return $this->response->setJSON(['success' => true, 'message' => 'Follow-up excluído']);
     }
-                $html .= '<td>' . ($event->checked_at ? '<span class="badge bg-success">' . app_lang('done') . '</span>' : '<span class="badge bg-warning">' . app_lang('pending') . '</span>') . '</td>';
-                $html .= '</tr>';
-            }
-            $html .= '</tbody></table></div>';
-        }
-
-        return $this->response->setJSON(['success' => true, 'html' => $html]);
-    }
 
     public function notes_list_data($proposal_id = 0)
     {
