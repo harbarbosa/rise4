@@ -92,29 +92,6 @@ class Proposals extends Security_Controller
         ]);
     }
 
-    public function update_status()
-    {
-        if (!$this->_has_manage_permission()) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
-        }
-
-        $id = $this->request->getPost('id');
-        $status = $this->request->getPost('status');
-
-        if (!$id || !$status) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Invalid parameters']);
-        }
-
-        $data = array('status' => $status);
-        $result = $this->Proposals_model->ci_save($data, $id);
-
-        if ($result) {
-            return $this->response->setJSON(['success' => true]);
-        }
-
-        return $this->response->setJSON(['success' => false, 'message' => 'Error saving']);
-    }
-
     public function save_notes()
     {
         if (!$this->_has_manage_permission()) {
