@@ -117,12 +117,20 @@ class Notes extends Security_Controller {
     function save() {
         $this->can_access_notes();
 
+        // Verificar e criar coluna proposal_id se não existir
+        $db = db_connect('default');
+        $notes_table = $db->prefixTable('notes');
+        if (!$db->fieldExists('proposal_id', $notes_table)) {
+            $db->query("ALTER TABLE `{$notes_table}` ADD `proposal_id` INT(11) DEFAULT NULL");
+        }
+
         $this->validate_submitted_data(array(
             "id" => "numeric",
             "title" => "required",
             "project_id" => "numeric",
             "client_id" => "numeric",
             "user_id" => "numeric",
+            "proposal_id" => "numeric",
             "is_public" => "numeric",
             "category_id" => "numeric"
         ));
@@ -145,6 +153,7 @@ class Notes extends Security_Controller {
             "project_id" => $this->request->getPost('project_id') ? $this->request->getPost('project_id') : 0,
             "client_id" => $this->request->getPost('client_id') ? $this->request->getPost('client_id') : 0,
             "user_id" => $this->request->getPost('user_id') ? $this->request->getPost('user_id') : 0,
+            "proposal_id" => $this->request->getPost('proposal_id') ? $this->request->getPost('proposal_id') : 0,
             "is_public" => $this->request->getPost('is_public') ? $this->request->getPost('is_public') : 0,
             "category_id" => $this->request->getPost('category_id') ? $this->request->getPost('category_id') : 0
         );
