@@ -1,49 +1,64 @@
-<div class="modal-dialog">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h5 class="modal-title"><?php echo app_lang('add_files'); ?></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <?php echo form_open_multipart('propostas/save_file', array('id' => 'proposal-file-form', 'class' => 'dialog-form')); ?>
-        <div class="modal-body">
-            <input type="hidden" name="proposal_id" value="<?php echo $proposal_id; ?>">
-            <div class="form-group">
-                <label for="file"><?php echo app_lang('file'); ?></label>
-                <input type="file" name="file" id="file" class="form-control" required>
+<?php echo form_open_multipart(get_uri("propostas/save_file"), array("id" => "file-form", "class" => "general-form", "role" => "form")); ?>
+<div class="modal-body clearfix">
+    <div class="container-fluid">
+        <input type="hidden" name="proposal_id" value="<?php echo $proposal_id; ?>" />
+
+        <div class="form-group">
+            <div class="row">
+                <label for="category_id" class="col-md-3"><?php echo app_lang('category'); ?></label>
+                <div class="col-md-9">
+                    <?php
+                    echo form_dropdown("category_id", $file_categories_dropdown ?? array(), array(), "class='select2' id='category_id'");
+                    ?>
+                </div>
             </div>
         </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-default" data-bs-dismiss="modal"><?php echo app_lang('close'); ?></button>
-            <button type="submit" class="btn btn-primary"><?php echo app_lang('save'); ?></button>
+
+        <div class="form-group">
+            <div class="row">
+                <label for="file" class="col-md-3"><?php echo app_lang('file'); ?></label>
+                <div class="col-md-9">
+                    <input type="file" name="file" id="file" class="form-control" required>
+                </div>
+            </div>
         </div>
-        <?php echo form_close(); ?>
+
+        <div class="form-group">
+            <div class="row">
+                <label for="description" class="col-md-3"><?php echo app_lang('description'); ?></label>
+                <div class="col-md-9">
+                    <?php
+                    echo form_textarea(array(
+                        "id" => "description",
+                        "name" => "description",
+                        "value" => "",
+                        "class" => "form-control",
+                        "placeholder" => app_lang('description'),
+                        "rows" => 3
+                    ));
+                    ?>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-<script>
+<div class="modal-footer">
+    <button type="button" class="btn btn-default" data-bs-dismiss="modal"><span data-feather="x" class="icon-16"></span> <?php echo app_lang('close'); ?></button>
+    <button type="submit" class="btn btn-primary" id="file-save-button"><span data-feather="check-circle" class="icon-16"></span> <?php echo app_lang('save'); ?></button>
+</div>
+<?php echo form_close(); ?>
+
+<script type="text/javascript">
     $(document).ready(function() {
-        $('#proposal-file-form').on('submit', function(e) {
-            e.preventDefault();
-            var form = $(this);
-            var url = form.attr('action');
-            var formData = new FormData(this);
-            
-            $.ajax({
-                url: url,
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function(response) {
-                    if (response.success) {
-                        $('#app-modal').modal('hide');
-                        $("#proposal-file-table").appTable({reload: true});
-                        appAlert.success(response.message);
-                    } else {
-                        appAlert.error(response.message);
-                    }
-                }
-            });
+        $("#file-form").appForm({
+            onSuccess: function(result) {
+                $("#proposal-file-table").appTable({
+                    reload: true
+                });
+            }
         });
+
+        $("#file-form .select2").select2();
     });
 </script>

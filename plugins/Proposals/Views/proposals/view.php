@@ -713,9 +713,9 @@ foreach ($items as $proposal_item) {
                 <div class="tab-pane fade" id="proposal-notes" role="tabpanel">
                     <div class="card">
                         <div class="tab-title clearfix">
-                            <h4><?php echo app_lang('notes'); ?></h4>
+                            <h4><?php echo app_lang('notes') . " (" . app_lang('private') . ")"; ?></h4>
                             <div class="title-button-group">
-                                <?php echo modal_anchor(get_uri("propostas/note_modal_form/" . ($proposal_info->id ?? 0)), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add_note'), array("class" => "btn btn-default", "title" => app_lang('add_note'))); ?>           
+                                <?php echo modal_anchor(get_uri("notes/modal_form"), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add_note'), array("class" => "btn btn-default", "title" => app_lang('add_note'), "data-post-proposal_id" => $proposal_info->id)); ?>           
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -728,7 +728,7 @@ foreach ($items as $proposal_item) {
                 <!-- Aba Arquivos (padrão RISE CRM) -->
                 <div class="tab-pane fade" id="proposal-files" role="tabpanel">
                     <div>
-                        <ul id="proposal-files-tabs" class="nav nav-tabs bg-white title" role="tablist">
+                        <ul class="nav nav-tabs bg-white title" role="tablist">
                             <li class="nav-item title-tab">
                                 <h4 class="pl15 pt10 pr15"><?php echo app_lang("files"); ?></h4>
                             </li>
@@ -1222,7 +1222,7 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
                 });
             }
         });
-        
+
         // Atualizar lista de follow-up após criar evento
         $(document).on('ajax-form-success', '#events-modal-form', function() {
             var proposalId = $('#followup-events-list').data('proposal-id');
