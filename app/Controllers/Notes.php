@@ -230,12 +230,13 @@ class Notes extends Security_Controller {
         );
 
         if ($type == "project" && $id) {
-            $options["created_by"] = $this->login_user->id;
             $options["project_id"] = $id;
         } else if ($type == "client" && $id) {
             $options["client_id"] = $id;
         } else if ($type == "user" && $id) {
             $options["user_id"] = $id;
+        } else if ($type == "proposal" && $id) {
+            $options["proposal_id"] = $id;
         } else {
             $options["created_by"] = $this->login_user->id;
             $options["my_notes"] = true;

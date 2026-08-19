@@ -1161,19 +1161,21 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
         // Tabela de notas
         var proposalId = <?php echo (int)($proposal_info->id ?? 0); ?>;
         $("#proposal-note-table").appTable({
-            source: '<?php echo_uri("propostas/notes_list_data/"); ?>' + proposalId,
+            source: '<?php echo_uri("notes/list_data/proposal/"); ?>' + proposalId,
             order: [[0, 'desc']],
             columns: [
+                {targets: [1], visible: false},
                 {title: '<?php echo app_lang("created_date"); ?>', "class": "w200"},
                 {title: '<?php echo app_lang("title"); ?>', "class": "all"},
-                {title: '<?php echo app_lang("public"); ?>', "class": "w100"},
+                {visible: false, searchable: false},
+                {title: '<?php echo app_lang("files"); ?>', "class": "w250"},
                 {title: '<i data-feather="menu" class="icon-16"></i>', "class": "text-center option w100"}
             ]
         });
 
         // Tabela de arquivos
         $("#proposal-file-table").appTable({
-            source: '<?php echo_uri("propostas/files_list_data/"); ?>' + proposalId,
+            source: '<?php echo_uri("projects/files_list_data/"); ?>' + proposalId,
             order: [[0, 'desc']],
             columns: [
                 {title: '<?php echo app_lang("created_date"); ?>'},
