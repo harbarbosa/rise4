@@ -1,0 +1,3 @@
+<?php
+namespace Engenharia\Models;
+class Report_versions_model extends EngenhariaBaseModel { protected $table='eng_report_versions'; public function __construct(){parent::__construct($this->table);} public function nextVersion(int $laudo_id):int{$row=$this->db->table($this->db->prefixTable($this->table))->where('laudo_id',$laudo_id)->selectMax('version')->get()->getRow();return((int)($row->version??0))+1;} public function add(array $data):int{$data['created_at']=$this->now();$this->db->table($this->db->prefixTable($this->table))->insert($data);return(int)$this->db->insertID();} public function forLaudo(int $id){return$this->db->table($this->db->prefixTable($this->table))->where('laudo_id',$id)->orderBy('version','DESC')->get();} }

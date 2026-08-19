@@ -1,0 +1,7 @@
+{
+  "name": "LaudosTecnicos",
+  "description": "Modulo base para gestao de laudos tecnicos no RiseCRM.",
+  "version": "0.1.0",
+  "requires_at_least": "3.9.0",
+  "author": "Internal"
+}

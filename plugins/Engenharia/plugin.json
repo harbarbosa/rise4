@@ -1,0 +1,7 @@
+{
+  "name": "Engenharia",
+  "description": "Estrutura inicial para gestao de laudos de engenharia no RiseCRM.",
+  "version": "0.1.0",
+  "requires_at_least": "3.9.0",
+  "author": "Internal"
+}

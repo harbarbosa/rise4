@@ -1,0 +1,3 @@
+<?php
+namespace Engenharia\Models;
+class Measurements_model extends EngenhariaBaseModel { protected $table = 'eng_measurements'; public function __construct(){ parent::__construct($this->table); } public function forLaudo(int $id){return $this->db->table($this->db->prefixTable($this->table))->where('laudo_id',$id)->where('deleted',0)->orderBy('measured_at','DESC')->get();} public function saveRecord(array $data,int $id=0):int{$t=$this->db->prefixTable($this->table);$data['updated_at']=date('Y-m-d H:i:s');if($id){$this->db->table($t)->where('id',$id)->update($data);return$id;}$data+=array('deleted'=>0,'created_at'=>date('Y-m-d H:i:s'));$this->db->table($t)->insert($data);return(int)$this->db->insertID();} }

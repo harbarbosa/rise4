@@ -1,0 +1,3 @@
+<?php
+namespace Engenharia\Models;
+class Laudo_areas_model extends EngenhariaBaseModel { protected $table = 'eng_laudo_areas'; public function __construct(){ parent::__construct($this->table); } public function forLaudo(int $laudo_id){return $this->db->table($this->db->prefixTable($this->table))->where('laudo_id',$laudo_id)->where('deleted',0)->orderBy('sort','ASC')->get();} public function saveArea(array $data,int $id=0):int{$t=$this->db->prefixTable($this->table);if($id){$this->db->table($t)->where('id',$id)->update($data);return $id;}$data+=array('deleted'=>0,'created_at'=>date('Y-m-d H:i:s'),'updated_at'=>date('Y-m-d H:i:s'));$this->db->table($t)->insert($data);return(int)$this->db->insertID();} }

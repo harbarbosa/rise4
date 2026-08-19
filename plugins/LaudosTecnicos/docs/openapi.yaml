@@ -1,0 +1,46 @@
+openapi: 3.0.3
+info:
+  title: Laudos Tecnicos API
+  version: "1.0"
+servers:
+  - url: /api/laudos/v1
+paths:
+  /auth/login:
+    post:
+      summary: Login and issue tokens
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+  /auth/profile:
+    get:
+      summary: Current API user profile
+  /laudos:
+    get:
+      summary: List laudos
+    post:
+      summary: Create or update laudo
+  /laudos/{id}:
+    get:
+      summary: Get laudo details
+  /inspections:
+    get:
+      summary: List inspections
+  /checklists/responses:
+    post:
+      summary: Save checklist responses
+  /measurements:
+    get:
+      summary: List measurements
+    post:
+      summary: Create measurement
+  /nonconformities:
+    get:
+      summary: List nonconformities
+    post:
+      summary: Create nonconformity
+  /sync/pull:
+    get:
+      summary: Pull offline sync data
+  /sync/push:
+    post:
+      summary: Push offline sync data
