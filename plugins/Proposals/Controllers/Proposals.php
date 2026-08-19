@@ -303,24 +303,11 @@ class Proposals extends Security_Controller
 
         $proposal_id = (int) $proposal_id;
         $db = db_connect('default');
-        $notes_table = $db->prefixTable('proposal_notes');
+        $notes_table = $db->prefixTable('notes');
         
-        // Criar tabela se não existir
-        if (!$db->tableExists($notes_table)) {
-            $sql = "CREATE TABLE IF NOT EXISTS `{$notes_table}` (
-                `id` INT(11) NOT NULL AUTO_INCREMENT,
-                `proposal_id` INT(11) NOT NULL,
-                `title` VARCHAR(255) NOT NULL,
-                `content` TEXT,
-                `is_public` TINYINT(1) DEFAULT 0,
-                `created_by` INT(11) DEFAULT NULL,
-                `created_at` DATETIME DEFAULT NULL,
-                `updated_at` DATETIME DEFAULT NULL,
-                `deleted` TINYINT(1) DEFAULT 0,
-                PRIMARY KEY (`id`),
-                KEY `proposal_id` (`proposal_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-            $db->query($sql);
+        // Adicionar coluna proposal_id se não existir
+        if (!$db->fieldExists('proposal_id', $notes_table)) {
+            $db->query("ALTER TABLE `{$notes_table}` ADD `proposal_id` INT(11) DEFAULT NULL AFTER `client_id`");
         }
 
         $notes = $db->query("
@@ -332,7 +319,7 @@ class Proposals extends Security_Controller
         $result = [];
         foreach ($notes as $note) {
             $result[] = array(
-                $note->created_at,
+                format_to_datetime($note->created_at),
                 $note->id,
                 $note->title,
                 $note->is_public ? app_lang('yes') : app_lang('no'),
@@ -353,7 +340,7 @@ class Proposals extends Security_Controller
         $note_id = (int) $note_id;
         
         $db = db_connect('default');
-        $notes_table = $db->prefixTable('proposal_notes');
+        $notes_table = $db->prefixTable('notes');
         
         $note_info = null;
         if ($note_id) {
@@ -380,7 +367,7 @@ class Proposals extends Security_Controller
         $is_public = $this->request->getPost('is_public') ? 1 : 0;
 
         $db = db_connect('default');
-        $notes_table = $db->prefixTable('proposal_notes');
+        $notes_table = $db->prefixTable('notes');
         
         // Criar tabela se não existir
         if (!$db->tableExists($notes_table)) {
@@ -427,7 +414,7 @@ class Proposals extends Security_Controller
 
         $note_id = (int) $note_id;
         $db = db_connect('default');
-        $notes_table = $db->prefixTable('proposal_notes');
+        $notes_table = $db->prefixTable('notes');
         
         $db->table($notes_table)->where('id', $note_id)->update(['deleted' => 1]);
         
@@ -442,11 +429,16 @@ class Proposals extends Security_Controller
 
         $proposal_id = (int) $proposal_id;
         $db = db_connect('default');
-        $files_table = $db->prefixTable('proposal_files');
+        $files_table = $db->prefixTable('project_files');
         
         // Verificar se tabela existe
         if (!$db->tableExists($files_table)) {
             return $this->response->setJSON(['data' => []]);
+        }
+        
+        // Adicionar coluna proposal_id se não existir
+        if (!$db->fieldExists('proposal_id', $files_table)) {
+            $db->query("ALTER TABLE `{$files_table}` ADD `proposal_id` INT(11) DEFAULT NULL");
         }
 
         $files = $db->query("
@@ -516,7 +508,7 @@ class Proposals extends Security_Controller
         
         if (move_uploaded_file($upload_file['tmp_name'], $target)) {
             $db = db_connect('default');
-            $files_table = $db->prefixTable('proposal_files');
+            $files_table = $db->prefixTable('project_files');
             
             if (!$db->tableExists($files_table)) {
                 $sql = "CREATE TABLE IF NOT EXISTS `{$files_table}` (
@@ -558,7 +550,7 @@ class Proposals extends Security_Controller
 
         $file_id = (int) $file_id;
         $db = db_connect('default');
-        $files_table = $db->prefixTable('proposal_files');
+        $files_table = $db->prefixTable('project_files');
         
         $file = $db->query("SELECT * FROM $files_table WHERE id = $file_id")->getRow();
         
@@ -617,7 +609,7 @@ class Proposals extends Security_Controller
         if (move_uploaded_file($upload_file['tmp_name'], $target)) {
             // Salvar no banco
             $db = db_connect('default');
-            $files_table = $db->prefixTable('proposal_files');
+            $files_table = $db->prefixTable('project_files');
             
             // Verificar se tabela existe
             if (!$db->tableExists($files_table)) {
@@ -667,7 +659,7 @@ class Proposals extends Security_Controller
 
         $proposal_id = (int) $proposal_id;
         $db = db_connect('default');
-        $files_table = $db->prefixTable('proposal_files');
+        $files_table = $db->prefixTable('project_files');
         
         $files = array();
         if ($db->tableExists($files_table)) {
