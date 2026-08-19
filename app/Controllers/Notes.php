@@ -117,10 +117,6 @@ class Notes extends Security_Controller {
     function save() {
         $this->can_access_notes();
 
-        $db = db_connect('default');
-        $notes_table = $db->prefixTable('notes');
-        }
-
         $this->validate_submitted_data(array(
             "id" => "numeric",
             "title" => "required",
