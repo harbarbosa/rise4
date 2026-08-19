@@ -157,6 +157,184 @@ class Proposals extends Security_Controller
         return $this->response->setJSON(['success' => true, 'html' => $html]);
     }
 
+    public function notes_list_data($proposal_id = 0)
+    {
+        if (!$this->_has_view_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+        $db = db_connect('default');
+        $notes_table = $db->prefixTable('notes');
+        
+        // Verificar se tabela existe
+        if (!$db->tableExists($notes_table)) {
+            return $this->response->setJSON(['data' => []]);
+        }
+
+        $notes = $db->query("
+            SELECT * FROM $notes_table 
+            WHERE proposal_id = $proposal_id AND deleted = 0 
+            ORDER BY created_at DESC
+        ")->getResult();
+
+        $result = [];
+        foreach ($notes as $note) {
+            $result[] = array(
+                $note->created_at,
+                $note->id,
+                $note->title,
+                $note->is_public ? app_lang('yes') : app_lang('no'),
+                $note->created_by
+            );
+        }
+
+        return $this->response->setJSON(['data' => $result]);
+    }
+
+    public function files_list_data($proposal_id = 0)
+    {
+        if (!$this->_has_view_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+        $db = db_connect('default');
+        $files_table = $db->prefixTable('proposal_files');
+        
+        // Verificar se tabela existe
+        if (!$db->tableExists($files_table)) {
+            return $this->response->setJSON(['data' => []]);
+        }
+
+        $files = $db->query("
+            SELECT * FROM $files_table 
+            WHERE proposal_id = $proposal_id 
+            ORDER BY created_at DESC
+        ")->getResult();
+
+        $result = [];
+        foreach ($files as $file) {
+            $file_url = get_uri('private/uploads/' . $file->file_path);
+            $result[] = array(
+                $file->created_at,
+                $file->id,
+                anchor($file_url, $file->file_name, ['target' => '_blank']),
+                $file->file_size ? to_decimal($file->file_size / 1024) . ' KB' : '-',
+                $file->uploaded_by,
+                '<div class="text-center">' . 
+                js_anchor('<i data-feather="download" class="icon-16"></i>', array('title' => app_lang('download'), 'href' => $file_url)) .
+                js_anchor('<i data-feather="trash-2" class="icon-16"></i>', array('title' => app_lang('delete'), 'data-action-url' => get_uri('propostas/delete_file/' . $file->id), 'data-action' => 'delete-confirmation')) .
+                '</div>'
+            );
+        }
+
+        return $this->response->setJSON(['data' => $result]);
+    }
+
+    public function file_modal_form($proposal_id = 0, $file_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+        $file_id = (int) $file_id;
+        
+        $view_data['proposal_id'] = $proposal_id;
+        $view_data['file_id'] = $file_id;
+        
+        return $this->template->view('Proposals\\Views\\proposals\\file_modal_form', $view_data);
+    }
+
+    public function save_file()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $this->request->getPost('proposal_id');
+        
+        // Processar upload
+        $upload_file = get_array_value($_FILES, 'file');
+        if (!$upload_file || $upload_file['error'] !== UPLOAD_ERR_OK) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Upload failed']);
+        }
+
+        $file_name = $upload_file['name'];
+        $upload_path = 'proposals/' . $proposal_id . '/';
+        $dir = getcwd() . '/private/uploads/' . $upload_path;
+        
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $new_name = uniqid() . '_' . $file_name;
+        $target = $dir . $new_name;
+        
+        if (move_uploaded_file($upload_file['tmp_name'], $target)) {
+            $db = db_connect('default');
+            $files_table = $db->prefixTable('proposal_files');
+            
+            if (!$db->tableExists($files_table)) {
+                $sql = "CREATE TABLE IF NOT EXISTS `{$files_table}` (
+                    `id` INT(11) NOT NULL AUTO_INCREMENT,
+                    `proposal_id` INT(11) NOT NULL,
+                    `file_name` VARCHAR(255) NOT NULL,
+                    `file_path` VARCHAR(500) NOT NULL,
+                    `file_size` INT(11) DEFAULT 0,
+                    `uploaded_by` INT(11) DEFAULT NULL,
+                    `created_at` DATETIME DEFAULT NULL,
+                    PRIMARY KEY (`id`),
+                    KEY `proposal_id` (`proposal_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+                $db->query($sql);
+            }
+            
+            $insert_data = array(
+                'proposal_id' => $proposal_id,
+                'file_name' => $file_name,
+                'file_path' => $upload_path . $new_name,
+                'file_size' => $upload_file['size'],
+                'uploaded_by' => $this->login_user->id,
+                'created_at' => get_current_utc_time()
+            );
+            
+            $db->table($files_table)->insert($insert_data);
+            
+            return $this->response->setJSON(['success' => true, 'message' => 'File uploaded']);
+        }
+
+        return $this->response->setJSON(['success' => false, 'message' => 'Error saving file']);
+    }
+
+    public function delete_file($file_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $file_id = (int) $file_id;
+        $db = db_connect('default');
+        $files_table = $db->prefixTable('proposal_files');
+        
+        $file = $db->query("SELECT * FROM $files_table WHERE id = $file_id")->getRow();
+        
+        if ($file) {
+            // Deletar arquivo físico
+            $file_path = getcwd() . '/private/uploads/' . $file->file_path;
+            if (file_exists($file_path)) {
+                unlink($file_path);
+            }
+            
+            $db->table($files_table)->where('id', $file_id)->delete();
+            
+            return $this->response->setJSON(['success' => true, 'message' => 'File deleted']);
+        }
+
+        return $this->response->setJSON(['success' => false, 'message' => 'File not found']);
+    }
+
     public function upload_file($proposal_id = 0)
     {
         if (!$this->_has_manage_permission()) {

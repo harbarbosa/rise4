@@ -711,28 +711,45 @@ foreach ($items as $proposal_item) {
                     </div>
                 </div>
 
-                <!-- Aba Anotações -->
+                <!-- Aba Notas (padrão RISE CRM) -->
                 <div class="tab-pane fade" id="proposal-notes" role="tabpanel">
-                    <div class="p15">
-                        <h4><?php echo app_lang('proposals_notes'); ?></h4>
-                        <div class="form-group">
-                            <textarea id="proposal-notes" class="form-control" rows="10" placeholder="<?php echo app_lang('proposals_notes_placeholder'); ?>"><?php echo isset($proposal_info->notes) ? esc($proposal_info->notes) : ''; ?></textarea>
+                    <div class="card">
+                        <div class="tab-title clearfix">
+                            <h4><?php echo app_lang('notes'); ?></h4>
+                            <div class="title-button-group">
+                                <?php echo modal_anchor(get_uri("notes/modal_form"), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add_note'), array("class" => "btn btn-default", "title" => app_lang('add_note'), "data-post-proposal_id" => $proposal_info->id)); ?>           
+                            </div>
                         </div>
-                        <div class="mt-2">
-                            <button type="button" class="btn btn-primary" id="save-notes-btn"><?php echo app_lang('save'); ?></button>
+                        <div class="table-responsive">
+                            <table id="proposal-note-table" class="display" cellspacing="0" width="100%">            
+                            </table>
                         </div>
                     </div>
                 </div>
 
-                <!-- Aba Arquivos -->
+                <!-- Aba Arquivos (padrão RISE CRM) -->
                 <div class="tab-pane fade" id="proposal-files" role="tabpanel">
-                    <div class="p15">
-                        <h4><?php echo app_lang('proposals_files'); ?></h4>
-                        <div class="mb-3">
-                            <?php echo modal_anchor(get_uri("propostas/upload_file_modal/" . ($proposal_info->id ?? 0)), "<i class='fa fa-upload'></i> " . app_lang('upload'), array("class" => "btn btn-default")); ?>
-                        </div>
-                        <div id="proposal-files-list">
-                            <p class="text-muted"><?php echo app_lang('proposals_no_files'); ?></p>
+                    <div>
+                        <ul id="proposal-files-tabs" class="nav nav-tabs bg-white title" role="tablist">
+                            <li class="nav-item title-tab">
+                                <h4 class="pl15 pt10 pr15"><?php echo app_lang("files"); ?></h4>
+                            </li>
+                            <li class="nav-item"><a class="nav-link active" role="presentation" href="javascript:;" data-bs-target="#proposal-files-list"><?php echo app_lang("files_list"); ?></a></li>
+                            <div class="tab-title clearfix no-border">
+                                <div class="title-button-group">
+                                    <?php echo modal_anchor(get_uri("propostas/file_modal_form"), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add_files'), array("class" => "btn btn-default", "title" => app_lang('add_files'), "data-post-proposal_id" => $proposal_info->id)); ?>
+                                </div>
+                            </div>
+                        </ul>
+                        <div class="tab-content">
+                            <div role="tabpanel" class="tab-pane fade show active" id="proposal-files-list">
+                                <div class="card border-top-0 rounded-top-0">
+                                    <div class="table-responsive">
+                                        <table id="proposal-file-table" class="display" width="100%">
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1141,6 +1158,33 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
                     }
                 }
             });
+        });
+
+        // Tabela de notas
+        var proposalId = <?php echo (int)($proposal_info->id ?? 0); ?>;
+        $("#proposal-note-table").appTable({
+            source: '<?php echo_uri("propostas/notes_list_data/"); ?>' + proposalId,
+            order: [[0, 'desc']],
+            columns: [
+                {title: '<?php echo app_lang("created_date"); ?>', "class": "w200"},
+                {title: '<?php echo app_lang("title"); ?>', "class": "all"},
+                {title: '<?php echo app_lang("public"); ?>', "class": "w100"},
+                {title: '<i data-feather="menu" class="icon-16"></i>', "class": "text-center option w100"}
+            ]
+        });
+
+        // Tabela de arquivos
+        $("#proposal-file-table").appTable({
+            source: '<?php echo_uri("propostas/files_list_data/"); ?>' + proposalId,
+            order: [[0, 'desc']],
+            columns: [
+                {title: '<?php echo app_lang("created_date"); ?>'},
+                {title: '<?php echo app_lang("id") ?>'},
+                {title: '<?php echo app_lang("file"); ?>', "class": "all"},
+                {title: '<?php echo app_lang("size"); ?>'},
+                {title: '<?php echo app_lang("uploaded_by"); ?>'},
+                {title: '<i data-feather="menu" class="icon-16"></i>', "class": "text-center option w150"}
+            ]
         });
 
         $("#proposal-duplicate-button").on("click", function () {
