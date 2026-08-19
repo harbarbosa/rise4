@@ -715,7 +715,7 @@ foreach ($items as $proposal_item) {
                         <div class="tab-title clearfix">
                             <h4><?php echo app_lang('notes') . " (" . app_lang('private') . ")"; ?></h4>
                             <div class="title-button-group">
-                                <?php echo modal_anchor(get_uri("notes/modal_form"), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add_note'), array("class" => "btn btn-default", "title" => app_lang('add_note'), "data-post-proposal_id" => $proposal_info->id)); ?>           
+                                <?php echo modal_anchor(get_uri("propostas/note_modal_form"), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add_note'), array("class" => "btn btn-default", "title" => app_lang('add_note'), "data-post-proposal_id" => $proposal_info->id)); ?>           
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -1161,7 +1161,7 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
         // Tabela de notas
         var proposalId = <?php echo (int)($proposal_info->id ?? 0); ?>;
         $("#proposal-note-table").appTable({
-            source: '<?php echo_uri("notes/list_data/proposal/"); ?>' + proposalId,
+            source: '<?php echo_uri("propostas/notes_list_data/"); ?>' + proposalId,
             order: [[0, 'desc']],
             columns: [
                 {targets: [1], visible: false},
@@ -1175,7 +1175,7 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
 
         // Tabela de arquivos
         $("#proposal-file-table").appTable({
-            source: '<?php echo_uri("projects/files_list_data/0/"); ?>' + proposalId,
+            source: '<?php echo_uri("propostas/files_list_data/"); ?>' + proposalId,
             order: [[0, 'desc']],
             columns: [
                 {title: '<?php echo app_lang("created_date"); ?>'},
