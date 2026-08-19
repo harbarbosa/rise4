@@ -218,9 +218,10 @@ class Proposals extends Security_Controller
     private function _get_statuses()
     {
         $statuses = array();
-        $table = $this->db->prefixTable('proposal_status');
-        if ($this->db->tableExists($table)) {
-            $statuses = $this->db->query("SELECT * FROM $table WHERE deleted = 0 ORDER BY sort_order")->getResult();
+        $db = db_connect('default');
+        $table = $db->prefixTable('proposal_status');
+        if ($db->tableExists($table)) {
+            $statuses = $db->query("SELECT * FROM $table WHERE deleted = 0 ORDER BY sort_order")->getResult();
         }
         
         // Se não houver tabela de status, retornar status padrão
