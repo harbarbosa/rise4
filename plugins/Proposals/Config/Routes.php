@@ -16,7 +16,9 @@ $routes->post('propostas/complete_followup/(:num)', 'Proposals::complete_followu
 $routes->post('propostas/delete_followup/(:num)', 'Proposals::delete_followup/$1', ['namespace' => 'Proposals\\Controllers']);
 $routes->get('propostas/notes_list_data/(:num)', 'Proposals::notes_list_data/$1', ['namespace' => 'Proposals\\Controllers']);
 $routes->get('propostas/files_list_data/(:num)', 'Proposals::files_list_data/$1', ['namespace' => 'Proposals\\Controllers']);
+$routes->post('propostas/files_list_data/(:num)', 'Proposals::files_list_data/$1', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/note_modal_form', 'Proposals::note_modal_form', ['namespace' => 'Proposals\\Controllers']);
+$routes->post('propostas/note_modal_form/(:num)', 'Proposals::note_modal_form/$1', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/note_modal_form/(:num)/(:num)', 'Proposals::note_modal_form/$1/$2', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/save_note', 'Proposals::save_note', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/delete_note/(:num)', 'Proposals::delete_note/$1', ['namespace' => 'Proposals\\Controllers']);
@@ -24,6 +26,7 @@ $routes->post('propostas/file_modal_form', 'Proposals::file_modal_form', ['names
 $routes->post('propostas/file_modal_form/(:num)', 'Proposals::file_modal_form/$1', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/save_file', 'Proposals::save_file', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/delete_file/(:num)', 'Proposals::delete_file/$1', ['namespace' => 'Proposals\\Controllers']);
+$routes->get('propostas/download_file/(:num)', 'Proposals::download_file/$1', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/save_notes', 'Proposals::save_notes', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/upload_file/(:num)', 'Proposals::upload_file/$1', ['namespace' => 'Proposals\\Controllers']);
 $routes->get('propostas/get_files/(:num)', 'Proposals::get_files/$1', ['namespace' => 'Proposals\\Controllers']);
@@ -65,6 +68,7 @@ $routes->post('propostas/document/save', 'Proposals::save_document', ['namespace
 $routes->get('propostas/download_pdf/(:num)', 'Proposals::download_pdf/$1', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/items/visibility', 'Proposals::update_item_visibility', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/items/copy_from_memory', 'Proposals::copy_items_from_memory', ['namespace' => 'Proposals\\Controllers']);
+$routes->post('propostas/send_memory_to_quotation', 'Proposals::send_memory_to_quotation', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/dashboard_data', 'Proposals::dashboard_data', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/approve', 'Proposals::approve', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/duplicate', 'Proposals::duplicate', ['namespace' => 'Proposals\\Controllers']);

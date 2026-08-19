@@ -13,6 +13,62 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
 // Carregar helpers necessários
 helper(['url', 'text', 'function']);
 
+// Registra o evento também para instalações existentes do plugin.
+try {
+    $Notification_settings_model = model('App\\Models\\Notification_settings_model');
+    $proposal_status_notification = $Notification_settings_model->get_one_where(array('event' => 'proposal_status_changed', 'deleted' => 0));
+    if (!$proposal_status_notification || !$proposal_status_notification->id) {
+        $Notification_settings_model->ci_save(array(
+            'event' => 'proposal_status_changed',
+            'category' => 'proposal',
+            'enable_email' => 1,
+            'enable_web' => 1,
+            'enable_slack' => 0,
+            'notify_to_team' => '',
+            'notify_to_team_members' => '',
+            'notify_to_terms' => '',
+            'sort' => 850,
+            'deleted' => 0
+        ), 0);
+    }
+} catch (\Throwable $e) {
+    log_message('error', '[Proposals] notification event setup error: ' . $e->getMessage());
+}
+
+app_hooks()->add_filter('app_filter_notification_config', function ($events) {
+    $events['proposal_status_changed'] = array(
+        'notify_to' => array(),
+        'info' => function ($options) {
+            $proposal_id = !empty($options->proposal_id) ? (int)$options->proposal_id : 0;
+            return array('url' => $proposal_id ? get_uri('propostas/view/' . $proposal_id) : get_uri('propostas'));
+        }
+    );
+    return $events;
+});
+
+app_hooks()->add_filter('app_filter_notification_description', function ($descriptions, $notification) {
+    if (!$notification || $notification->event !== 'proposal_status_changed') {
+        return $descriptions;
+    }
+
+    $proposal_id = !empty($notification->proposal_id) ? (int)$notification->proposal_id : 0;
+    if (!$proposal_id) {
+        return $descriptions;
+    }
+
+    $Proposals_model = model('Proposals\\Models\\Proposals_model');
+    $proposal = $Proposals_model->get_details(array('id' => $proposal_id))->getRow();
+    if ($proposal) {
+        $label = !empty($proposal->title) ? $proposal->title : ('#' . $proposal->id);
+        $status = !empty($notification->plugin_proposal_status) ? $notification->plugin_proposal_status : ($proposal->status ?? '');
+        $descriptions[] = '<div>' . app_lang('proposals_menu') . ': ' . esc($label) . '</div>';
+        if ($status) {
+            $descriptions[] = '<div>' . app_lang('status') . ': ' . esc(app_lang('proposals_status_' . $status)) . '</div>';
+        }
+    }
+    return $descriptions;
+});
+
 use App\Controllers\Security_Controller;
 
 app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {

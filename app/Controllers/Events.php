@@ -81,6 +81,7 @@ class Events extends Security_Controller {
         $model_info->end_time = $model_info->end_time ? $model_info->end_time : $this->request->getPost('end_time');
 
         $view_data['client_id'] = $this->request->getPost('client_id');
+        $view_data['proposal_id'] = $model_info->proposal_id ? $model_info->proposal_id : $this->request->getPost('proposal_id');
 
         //don't show clients dropdown for lead's estimate editing
         $client_info = $this->Clients_model->get_one($model_info->client_id);

@@ -201,4 +201,34 @@ class Proposals_model extends Crud_model
 
         return $this->ci_save($data, $proposal_id) ? true : false;
     }
+
+    /**
+     * Retorna o valor atual dos itens da proposta, sem depender do total
+     * armazenado no cabeçalho ou da memória de cálculo.
+     */
+    public function get_items_total($proposal_id)
+    {
+        $proposal_id = (int) $proposal_id;
+        if (!$proposal_id) {
+            return 0;
+        }
+
+        $items_table = $this->db->prefixTable('proposal_items_custom');
+        if (!$this->db->tableExists($items_table)) {
+            return 0;
+        }
+
+        $items = $this->db->query("SELECT qty, cost_unit, markup_percent, sale_unit FROM {$items_table} WHERE proposal_id = ? AND deleted = 0", [$proposal_id])->getResult();
+        $total = 0;
+        foreach ($items as $item) {
+            $qty = (float) ($item->qty ?? 0);
+            $cost_unit = (float) ($item->cost_unit ?? 0);
+            $markup_percent = (float) ($item->markup_percent ?? 0);
+            $sale_unit = (float) ($item->sale_unit ?? 0);
+            $unit_value = $sale_unit > 0 ? $sale_unit : ($cost_unit * (1 + ($markup_percent / 100)));
+            $total += $qty * $unit_value;
+        }
+
+        return $total;
+    }
 }

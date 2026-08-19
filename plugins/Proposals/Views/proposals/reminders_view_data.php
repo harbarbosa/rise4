@@ -99,7 +99,7 @@ if ($hide_form) {
                             "years" => app_lang("interval_years"),
                         ),
                         "days",
-                        "class='select2 recurring_element' id='$reminder_id_prefix" . "repeat_type'"
+                        "class='recurring_element form-select' id='$reminder_id_prefix" . "repeat_type'"
                     );
                     ?>
                 </div>

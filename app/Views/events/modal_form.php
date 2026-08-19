@@ -3,6 +3,9 @@
     <div class="modal-body clearfix">
         <div class="container-fluid">
             <input type="hidden" name="id" value="<?php echo $model_info->id; ?>" />
+            <?php if (!empty($proposal_id)) { ?>
+                <input type="hidden" name="proposal_id" value="<?php echo (int)$proposal_id; ?>" />
+            <?php } ?>
             <div class="form-group">
                 <div class="row">
                     <label for="title" class=" col-md-3"><?php echo app_lang('title'); ?></label>
@@ -319,6 +322,11 @@
                 if (typeof getReminders === 'function') {
                     getReminders();
                 }
+
+                <?php if (!empty($proposal_id)) { ?>
+                    // Notify proposal pages so their CRM follow-up timeline can refresh.
+                    $(document).trigger('proposal-followup-saved', [<?php echo (int)$proposal_id; ?>]);
+                <?php } ?>
             }
         });
 

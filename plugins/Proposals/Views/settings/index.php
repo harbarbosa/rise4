@@ -2,6 +2,9 @@
 $settings = $settings ?? (object) array();
 $taxes = $taxes ?? array();
 $commission_types = $commission_types ?? array();
+$proposal_statuses = $proposal_statuses ?? array();
+$status_notification_assignments = $status_notification_assignments ?? array();
+$team_members = $team_members ?? array();
 
 $tax_product = array("percent" => 0, "active" => 1);
 $tax_service = array("percent" => 0, "active" => 1);
@@ -35,6 +38,37 @@ foreach ($taxes as $tax) {
             <div class="form-group">
                 <label for="default_markup_percent"><?php echo app_lang('proposals_markup_percent'); ?></label>
                 <input type="text" id="default_markup_percent" name="default_markup_percent" class="form-control" value="<?php echo esc(number_format((float)($settings->default_markup_percent ?? 0), 2, ",", ".")); ?>" />
+            </div>
+
+            <div class="mt20 mb20">
+                <h4><?php echo app_lang('proposals_status_notification_settings'); ?></h4>
+                <p class="text-muted"><?php echo app_lang('proposals_status_notification_help'); ?></p>
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead><tr><th><?php echo app_lang('status'); ?></th><th><?php echo app_lang('proposals_notification_members'); ?></th></tr></thead>
+                        <tbody>
+                            <?php foreach ($proposal_statuses as $status_row):
+                                $status_id = (string)$status_row['id'];
+                                $selected_members = isset($status_notification_assignments[$status_id]) && is_array($status_notification_assignments[$status_id]) ? $status_notification_assignments[$status_id] : array();
+                            ?>
+                                <tr>
+                                    <td><?php echo esc($status_row['text']); ?></td>
+                                    <td>
+                                        <select name="status_notification_members[<?php echo esc($status_id); ?>][]" class="select2 w100p" multiple="multiple" data-placeholder="<?php echo esc(app_lang('team_members')); ?>">
+                                            <?php foreach ($team_members as $member):
+                                                $member_id = (string)$member->id;
+                                                $member_name = trim(($member->first_name ?? '') . ' ' . ($member->last_name ?? ''));
+                                                if (!$member_name) { $member_name = $member->email ?? ('#' . $member_id); }
+                                            ?>
+                                                <option value="<?php echo esc($member_id); ?>" <?php echo in_array($member_id, array_map('strval', $selected_members), true) ? 'selected' : ''; ?>><?php echo esc($member_name); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <div class="mt20">

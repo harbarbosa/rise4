@@ -138,6 +138,11 @@ $columns_to_add = array(
         "table" => $dbprefix . "proposals_module_settings_custom",
         "column" => "default_markup_percent",
         "sql" => "ALTER TABLE `" . $dbprefix . "proposals_module_settings_custom` ADD COLUMN `default_markup_percent` DECIMAL(8,2) NOT NULL DEFAULT 0 AFTER `default_commission_value`"
+    ),
+    array(
+        "table" => $dbprefix . "proposals_module_settings_custom",
+        "column" => "status_notification_assignments_json",
+        "sql" => "ALTER TABLE `" . $dbprefix . "proposals_module_settings_custom` ADD COLUMN `status_notification_assignments_json` TEXT NULL"
     )
 );
 

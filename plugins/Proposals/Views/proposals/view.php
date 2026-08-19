@@ -325,7 +325,7 @@ foreach ($items as $proposal_item) {
                     </button>
                 <?php } ?>
                 <?php if (!empty($can_manage)) { ?>
-                    <select id="proposal-status-select" class="form-select">
+                    <select id="proposal-status-select" class="select2 form-select">
                         <?php foreach (($status_options ?? array()) as $status_option) { ?>
                             <option value="<?php echo esc($status_option['id']); ?>" <?php echo ($proposal_info->status ?? 'draft') === $status_option['id'] ? 'selected' : ''; ?>>
                                 <?php echo esc($status_option['text']); ?>
@@ -597,6 +597,11 @@ foreach ($items as $proposal_item) {
                     <div id="proposal-memory-sections"></div>
 
                     <div class="mt20 text-end">
+                        <?php if ($can_manage) { ?>
+                            <button type="button" class="btn btn-outline-success me10" id="proposal-memory-send-to-quotation">
+                                <i data-feather="send" class="icon-16"></i> <?php echo app_lang('proposals_send_to_quotation'); ?>
+                            </button>
+                        <?php } ?>
                         <strong><?php echo app_lang('proposals_total_cost'); ?>:</strong>
                         <span id="proposal-memory-total-cost">0,00</span>
                         | <strong><?php echo app_lang('proposals_total_general'); ?>:</strong>
@@ -700,7 +705,7 @@ foreach ($items as $proposal_item) {
                         <div class="tab-title clearfix">
                             <h4><?php echo app_lang('proposals_followup'); ?></h4>
                             <div class="title-button-group">
-                                <?php echo modal_anchor(get_uri("propostas/followup_modal_form/" . ($proposal_info->id ?? 0)), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('proposals_add_followup'), array("class" => "btn btn-default", "title" => app_lang('proposals_add_followup'))); ?>
+                                <?php echo modal_anchor(get_uri("events/modal_form"), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('proposals_add_followup'), array("class" => "btn btn-default", "title" => app_lang('proposals_add_followup'), "data-post-proposal_id" => (int)($proposal_info->id ?? 0), "data-post-client_id" => (int)($proposal_info->client_id ?? 0))); ?>
                             </div>
                         </div>
                         <div id="followup-events-list" data-proposal-id="<?php echo $proposal_info->id ?? 0; ?>">
@@ -715,7 +720,7 @@ foreach ($items as $proposal_item) {
                         <div class="tab-title clearfix">
                             <h4><?php echo app_lang('notes') . " (" . app_lang('private') . ")"; ?></h4>
                             <div class="title-button-group">
-                                <?php echo modal_anchor(get_uri("notes/modal_form"), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add_note'), array("class" => "btn btn-default", "title" => app_lang('add_note'), "data-post-proposal_id" => $proposal_info->id)); ?>           
+                                <?php echo modal_anchor(get_uri("propostas/note_modal_form/" . (int)$proposal_info->id), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add_note'), array("class" => "btn btn-default", "title" => app_lang('add_note'), "data-post-proposal_id" => $proposal_info->id)); ?>
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -735,7 +740,7 @@ foreach ($items as $proposal_item) {
                             <li class="nav-item"><a class="nav-link active" role="presentation" href="javascript:;" data-bs-target="#proposal-files-list"><?php echo app_lang("files_list"); ?></a></li>
                             <div class="tab-title clearfix no-border">
                                 <div class="title-button-group">
-                                    <?php echo modal_anchor(get_uri("propostas/file_modal_form"), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add_files'), array("class" => "btn btn-default", "title" => app_lang('add_files'), "data-post-proposal_id" => $proposal_info->id)); ?>
+                                    <?php echo modal_anchor(get_uri("propostas/file_modal_form/" . (int)$proposal_info->id), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add_files'), array("class" => "btn btn-default", "title" => app_lang('add_files'), "data-post-proposal_id" => $proposal_info->id)); ?>
                                 </div>
                             </div>
                         </ul>
@@ -1042,6 +1047,38 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
         $materialRequestItemOptions.find("option[data-type='service']").remove();
         newRequestItemOptionsHtml = $materialRequestItemOptions.html();
 
+        $("#proposal-status-select").select2();
+
+        $("#proposal-memory-send-to-quotation").on("click", function () {
+            if (!window.confirm(<?php echo json_encode(app_lang('proposals_send_to_quotation_confirm')); ?>)) {
+                return;
+            }
+
+            var $button = $(this);
+            $button.prop("disabled", true).addClass("disabled");
+            appAjaxRequest({
+                url: "<?php echo_uri('propostas/send_memory_to_quotation'); ?>",
+                type: "POST",
+                dataType: "json",
+                data: {
+                    proposal_id: <?php echo (int)($proposal_info->id ?? 0); ?>
+                },
+                success: function (result) {
+                    if (result && result.success && result.redirect) {
+                        window.location.href = result.redirect;
+                        return;
+                    }
+
+                    appAlert.error((result && result.message) || <?php echo json_encode(app_lang('error_occurred')); ?>);
+                    $button.prop("disabled", false).removeClass("disabled");
+                },
+                error: function () {
+                    appAlert.error(<?php echo json_encode(app_lang('error_occurred')); ?>);
+                    $button.prop("disabled", false).removeClass("disabled");
+                }
+            });
+        });
+
         if (savedTab) {
             var $savedTabLink = $proposalTabs.filter('[href="' + savedTab + '"]');
 
@@ -1161,7 +1198,7 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
         // Tabela de notas
         var proposalId = <?php echo (int)($proposal_info->id ?? 0); ?>;
         $("#proposal-note-table").appTable({
-            source: '<?php echo_uri("notes/list_data/proposal/"); ?>' + proposalId,
+            source: '<?php echo_uri("propostas/notes_list_data/"); ?>' + proposalId,
             order: [[0, 'desc']],
             columns: [
                 {targets: [1], visible: false},
@@ -1175,7 +1212,7 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
 
         // Tabela de arquivos
         $("#proposal-file-table").appTable({
-            source: '<?php echo_uri("projects/files_list_data/0/"); ?>' + proposalId,
+            source: '<?php echo_uri("propostas/files_list_data/"); ?>' + proposalId,
             order: [[0, 'desc']],
             columns: [
                 {title: '<?php echo app_lang("created_date"); ?>'},
@@ -1210,23 +1247,7 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
         });
 
         // Carregar eventos de follow-up quando a aba for clicada
-        $('a[href="#proposal-followup"]').on('shown.bs.tab', function() {
-            var proposalId = $(this).data('proposal-id');
-            if (proposalId) {
-                $.ajax({
-                    url: '<?php echo_uri("propostas/get_followup_events/"); ?>' + proposalId,
-                    type: 'GET',
-                    success: function(response) {
-                        if (response.success) {
-                            $('#followup-events-list').html(response.html);
-                        }
-                    }
-                });
-            }
-        });
-
-        // Atualizar lista de follow-up após criar evento
-        $(document).on('ajax-form-success', '#events-modal-form', function() {
+        function reloadProposalFollowups() {
             var proposalId = $('#followup-events-list').data('proposal-id');
             if (proposalId) {
                 $.ajax({
@@ -1238,6 +1259,15 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
                         }
                     }
                 });
+            }
+        }
+
+        $('a[href="#proposal-followup"]').on('shown.bs.tab', reloadProposalFollowups);
+
+        // O modal nativo usa app-modal, não o evento Bootstrap hidden.bs.modal.
+        $(document).on('proposal-followup-saved', function (event, savedProposalId) {
+            if (String(savedProposalId) === String($('#followup-events-list').data('proposal-id'))) {
+                reloadProposalFollowups();
             }
         });
 
