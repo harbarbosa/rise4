@@ -28,7 +28,9 @@ $sections_dropdown_html .= proposals_render_section_options($sections, null, 0);
 $default_desired_date = date('Y-m-d');
 $requestable_items = array();
 $requestable_items_map = array();
-foreach ($items as $proposal_item) {
+// Usar apenas memória de cálculo
+$source_items = $memory_items ?? array();
+foreach ($source_items as $proposal_item) {
     if (($proposal_item->item_type ?? 'material') !== 'material') {
         continue;
     }
