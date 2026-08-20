@@ -57,6 +57,14 @@
                         <label>Limite sem aprovacao especial</label>
                         <input type="text" name="travelrefunds_special_approval_limit" class="form-control money" value="<?php echo esc($settings['travelrefunds_special_approval_limit'] ?? '0'); ?>" />
                     </div>
+                    <div class="col-md-4 mb10">
+                        <label>Valor padrao Alimentacao (R$)</label>
+                        <input type="text" name="travelrefunds_default_food_allowance" class="form-control money" value="<?php echo esc($settings['travelrefunds_default_food_allowance'] ?? '0'); ?>" />
+                    </div>
+                    <div class="col-md-4 mb10">
+                        <label>Valor padrao Hospedagem (R$)</label>
+                        <input type="text" name="travelrefunds_default_accommodation_allowance" class="form-control money" value="<?php echo esc($settings['travelrefunds_default_accommodation_allowance'] ?? '0'); ?>" />
+                    </div>
                     <div class="col-md-12 mb10">
                         <label class="d-block">Categorias de despesas</label>
                         <a href="<?php echo get_uri('travelrefunds/categories'); ?>" class="btn btn-default btn-sm">Gerenciar categorias</a>

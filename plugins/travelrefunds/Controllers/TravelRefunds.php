@@ -888,6 +888,8 @@ class TravelRefunds extends Security_Controller
             'travelrefunds_allow_expenses_without_receipt' => $this->request->getPost('travelrefunds_allow_expenses_without_receipt') ? '1' : '0',
             'travelrefunds_default_approver_ids' => implode(',', array_filter(array_map('intval', (array) $this->request->getPost('default_approver_ids')))),
             'travelrefunds_special_approval_limit' => (float) ($this->request->getPost('travelrefunds_special_approval_limit') ?: 0),
+            'travelrefunds_default_food_allowance' => (float) ($this->request->getPost('travelrefunds_default_food_allowance') ?: 0),
+            'travelrefunds_default_accommodation_allowance' => (float) ($this->request->getPost('travelrefunds_default_accommodation_allowance') ?: 0),
         );
 
         foreach ($settings as $name => $value) {
@@ -907,6 +909,8 @@ class TravelRefunds extends Security_Controller
             'travelrefunds_allow_expenses_without_receipt' => $this->settingsModel->get_setting('travelrefunds_allow_expenses_without_receipt', '1'),
             'travelrefunds_default_approver_ids' => $this->settingsModel->get_setting('travelrefunds_default_approver_ids', ''),
             'travelrefunds_special_approval_limit' => $this->settingsModel->get_setting('travelrefunds_special_approval_limit', '0'),
+            'travelrefunds_default_food_allowance' => $this->settingsModel->get_setting('travelrefunds_default_food_allowance', '0'),
+            'travelrefunds_default_accommodation_allowance' => $this->settingsModel->get_setting('travelrefunds_default_accommodation_allowance', '0'),
         );
     }
 
