@@ -36,9 +36,8 @@ foreach ($items as $proposal_item) {
     $title = trim((string)(($proposal_item->item_title ?? app_lang('item')) . (($proposal_item->description_override ?? '') ? ' - ' . $proposal_item->description_override : '')));
     
     // Normalizar chave para agrupar itens duplicados
-    $key = preg_replace('/\s+/', ' ', trim($title));
-    $key = preg_replace('/\s*-\s*/', '-', $key);
-    $key = preg_replace('/-+/', '-', $key);
+    // Remover tudo que não seja letra, número ou hífen
+    $key = preg_replace('/[^a-z0-9]/i', '', $title);
     $key = strtolower($key);
     
     $qty = (float)($proposal_item->qty ?? 0);
