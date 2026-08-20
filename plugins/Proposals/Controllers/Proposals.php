@@ -2484,17 +2484,36 @@ class Proposals extends Security_Controller
             );
         }
 
-        if (!$rows) {
+        // Agregar itens duplicados (mesma descrição)
+        $aggregated_rows = array();
+        foreach ($rows as $row) {
+            $key = strtolower($row['description']);
+            if (isset($aggregated_rows[$key])) {
+                $aggregated_rows[$key]['quantity'] += $row['quantity'];
+                // Combine notes if both exist
+                if ($row['note'] && $aggregated_rows[$key]['note']) {
+                    $aggregated_rows[$key]['note'] .= '; ' . $row['note'];
+                } elseif ($row['note']) {
+                    $aggregated_rows[$key]['note'] = $row['note'];
+                }
+            } else {
+                $aggregated_rows[$key] = $row;
+            }
+        }
+
+        $final_rows = array_values($aggregated_rows);
+
+        if (!$final_rows) {
             return array('success' => false, 'message' => 'Selecione pelo menos um item para a requisição.');
         }
 
-        foreach ($rows as $row) {
+        foreach ($final_rows as $row) {
             if (empty($row['desired_date'])) {
                 return array('success' => false, 'message' => app_lang('purchases_desired_date_required'));
             }
         }
 
-        return array('success' => true, 'rows' => $rows);
+        return array('success' => true, 'rows' => $final_rows);
     }
 
     private function _create_project_from_proposal($proposal)
