@@ -232,6 +232,41 @@ class ContaAzulClient
         return $last;
     }
 
+    public function deactivateCostCenter($costCenterId)
+    {
+        $costCenterId = trim((string) $costCenterId);
+        if ($costCenterId === '') {
+            return ["ok" => false, "status" => 0, "data" => null, "body" => "ID vazio"];
+        }
+
+        $headers = [
+            'Authorization: Bearer ' . $this->accessToken,
+            'Content-Type: application/json'
+        ];
+
+        $payloads = [
+            ['ativo' => false],
+            ['active' => false],
+        ];
+
+        $endpoints = [
+            self::API_BASE . '/v1/centro-de-custo/' . $costCenterId,
+        ];
+
+        $last = ["ok" => false, "status" => 0, "data" => null, "body" => ""];
+        foreach ($endpoints as $url) {
+            foreach ($payloads as $payload) {
+                $resp = $this->putJsonRequest($url, $headers, $payload);
+                if ($resp["ok"]) {
+                    return $resp;
+                }
+                $last = $resp;
+            }
+        }
+
+        return $last;
+    }
+
     public function getProduct($id)
     {
         return $this->queryEndpoint('/v1/produtos/{id}', [], ['id' => $id]);
@@ -712,6 +747,17 @@ class ContaAzulClient
         if ($error) {
             return ["ok" => false, "status" => 0, "data" => null, "body" => $error];
         }
+
+        return $this->parseResponse($httpCode, $response);
+    }
+
+    public function putJsonRequest($url, $headers, $payload)
+    {
+        $cleanPayload = array_filter($payload, function ($value) {
+            return $value !== null && $value !== '';
+        });
+        return $this->putJson($url, $cleanPayload, $headers);
+    }
 
         $decoded = json_decode($response, true);
         $ok = $httpCode >= 200 && $httpCode < 300;

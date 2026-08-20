@@ -371,6 +371,9 @@ class Projects extends Security_Controller {
             //send notification
             if ($status_id == 2) {
                 log_notification("project_completed", array("project_id" => $save_id));
+                
+                // Desativar centro de custo no Conta Azul quando projeto for completado
+                $this->_deactivate_contaazul_cost_center($save_id);
             }
 
             if (!$id) {
@@ -4013,6 +4016,74 @@ class Projects extends Security_Controller {
             $db->table($projects_table)->where('id', $project_id)->update(array(
                 'cost_center_id' => $localCostCenterId
             ));
+        }
+    }
+
+    private function _deactivate_contaazul_cost_center($project_id)
+    {
+        $project_id = (int) $project_id;
+        if (!$project_id) {
+            return;
+        }
+
+        if (!class_exists('\\ContaAzul\\Libraries\\ContaAzulClient')) {
+            return;
+        }
+
+        $db = db_connect('default');
+        $projects_table = $db->prefixTable('projects');
+        $cost_centers_table = $db->prefixTable('contaazul_cost_centers');
+
+        if (!$db->fieldExists('cost_center_id', $projects_table) || !$db->tableExists($cost_centers_table)) {
+            return;
+        }
+
+        $project = $db->table($projects_table)->select('id, cost_center_id')->where('id', $project_id)->get()->getRow();
+        if (!$project || empty($project->cost_center_id)) {
+            return;
+        }
+
+        $costCenter = $db->table($cost_centers_table)->where('id', $project->cost_center_id)->get()->getRow();
+        if (!$costCenter || empty($costCenter->ca_id)) {
+            return;
+        }
+
+        $clientId = get_setting("contaazul_client_id");
+        $clientSecret = get_setting("contaazul_client_secret");
+        $redirectUri = get_setting("contaazul_redirect_uri") ?: get_uri("contaazul/callback");
+        $scope = get_setting("contaazul_scope") ?: "openid profile aws.cognito.signin.user.admin";
+
+        if (!$clientId || !$clientSecret) {
+            return;
+        }
+
+        $client = new \ContaAzul\Libraries\ContaAzulClient(
+            $clientId,
+            $clientSecret,
+            $redirectUri,
+            $scope,
+            get_setting("contaazul_access_token"),
+            get_setting("contaazul_refresh_token"),
+            get_setting("contaazul_token_expires_at")
+        );
+
+        if ($client->isExpired() && get_setting("contaazul_refresh_token")) {
+            $refresh = $client->refreshAccessToken(get_setting("contaazul_refresh_token"));
+            if ($refresh["ok"]) {
+                $tokens = $client->getTokens();
+                $settingsModel = new Settings_model();
+                $settingsModel->save_setting("contaazul_access_token", $tokens["access_token"] ?? "");
+                $settingsModel->save_setting("contaazul_refresh_token", $tokens["refresh_token"] ?? "");
+                $settingsModel->save_setting("contaazul_token_expires_at", $tokens["expires_at"] ?? "");
+            }
+        }
+
+        $response = $client->deactivateCostCenter($costCenter->ca_id);
+        if ($response["ok"]) {
+            $db->table($cost_centers_table)->where('id', $costCenter->id)->update(['is_active' => 0, 'updated_at' => date('Y-m-d H:i:s')]);
+            log_message('info', 'Centro de custo desativado no Conta Azul para o projeto ' . $project_id);
+        } else {
+            log_message('error', 'Falha ao desativar centro de custo no Conta Azul para o projeto ' . $project_id . ' - ' . ($response['body'] ?? ''));
         }
     }
 
