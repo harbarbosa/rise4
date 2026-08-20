@@ -2571,6 +2571,24 @@ class Proposals extends Security_Controller
         $projects_table = $db->prefixTable('projects');
         $cost_centers_table = $db->prefixTable('contaazul_cost_centers');
 
+        // Criar tabela e coluna se não existirem
+        if (!$db->fieldExists('cost_center_id', $projects_table)) {
+            $db->query("ALTER TABLE `{$projects_table}` ADD `cost_center_id` INT(11) DEFAULT NULL");
+        }
+        if (!$db->tableExists($cost_centers_table)) {
+            $db->query("CREATE TABLE IF NOT EXISTS `{$cost_centers_table}` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `project_id` INT(11) DEFAULT NULL,
+                `contaazul_id` VARCHAR(50) DEFAULT NULL,
+                `code` VARCHAR(20) DEFAULT NULL,
+                `name` VARCHAR(255) DEFAULT NULL,
+                `is_active` TINYINT(1) DEFAULT 1,
+                `created_at` DATETIME DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `project_id` (`project_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+        }
+
         if (!$db->fieldExists('cost_center_id', $projects_table) || !$db->tableExists($cost_centers_table)) {
             return;
         }
