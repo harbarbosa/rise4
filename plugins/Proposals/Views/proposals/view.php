@@ -27,18 +27,39 @@ $sections_dropdown_html = "<option value=''>" . app_lang('proposals_select_secti
 $sections_dropdown_html .= proposals_render_section_options($sections, null, 0);
 $default_desired_date = date('Y-m-d');
 $requestable_items = array();
+$requestable_items_map = array();
 foreach ($items as $proposal_item) {
     if (($proposal_item->item_type ?? 'material') !== 'material') {
         continue;
     }
-    $requestable_items[] = array(
-        'id' => (int)($proposal_item->id ?? 0),
-        'title' => trim((string)(($proposal_item->item_title ?? app_lang('item')) . (($proposal_item->description_override ?? '') ? ' - ' . $proposal_item->description_override : ''))),
-        'qty' => (float)($proposal_item->qty ?? 0),
-        'unit' => trim((string)($proposal_item->item_unit ?? 'UN')),
-        'item_type' => $proposal_item->item_type ?? 'material'
-    );
+    
+    $title = trim((string)(($proposal_item->item_title ?? app_lang('item')) . (($proposal_item->description_override ?? '') ? ' - ' . $proposal_item->description_override : '')));
+    
+    // Normalizar chave para agrupar itens duplicados
+    $key = preg_replace('/\s+/', ' ', trim($title));
+    $key = preg_replace('/\s*-\s*/', '-', $key);
+    $key = preg_replace('/-+/', '-', $key);
+    $key = strtolower($key);
+    
+    $qty = (float)($proposal_item->qty ?? 0);
+    
+    if (isset($requestable_items_map[$key])) {
+        // Item duplicado: soma quantidade
+        $requestable_items_map[$key]['qty'] += $qty;
+    } else {
+        // Novo item
+        $requestable_items_map[$key] = array(
+            'id' => (int)($proposal_item->id ?? 0),
+            'title' => $title,
+            'qty' => $qty,
+            'unit' => trim((string)($proposal_item->item_unit ?? 'UN')),
+            'item_type' => $proposal_item->item_type ?? 'material'
+        );
+    }
 }
+
+// Converter mapa para array
+$requestable_items = array_values($requestable_items_map);
 ?>
 
 <style type="text/css">
