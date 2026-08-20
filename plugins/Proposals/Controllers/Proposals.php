@@ -2487,7 +2487,12 @@ class Proposals extends Security_Controller
         // Agregar itens duplicados (mesma descrição)
         $aggregated_rows = array();
         foreach ($rows as $row) {
-            $key = strtolower($row['description']);
+            // Normalizar descrição: remover espaços extras, hifens, normalizar case
+            $key = preg_replace('/\s+/', ' ', trim($row['description'])); // espaços únicos
+            $key = preg_replace('/\s*-\s*/', '-', $key); // remover espaços ao redor de hifens
+            $key = preg_replace('/-+/', '-', $key); // hifens duplicados
+            $key = strtolower(trim($key));
+            
             if (isset($aggregated_rows[$key])) {
                 $aggregated_rows[$key]['quantity'] += $row['quantity'];
                 // Combine notes if both exist
