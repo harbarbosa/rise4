@@ -1,0 +1,12 @@
+{
+  "name": "AlfaHP Mobile",
+  "short_name": "AlfaHP",
+  "description": "Acompanhamento de campo AlfaHP Tecnologia",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#003B8E",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "any", "type": "image/x-icon" }
+  ]
+}

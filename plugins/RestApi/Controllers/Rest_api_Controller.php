@@ -81,15 +81,30 @@ class Rest_api_Controller extends ResourceController {
 		$api_user = $this->api_settings_model->get_data_by_user($email);
 		$normalized_token = trim((string) $token);
 
-		if (!empty($api_user->id)) {
-			$current_token = trim((string) $api_user->token);
-			if ($current_token !== '' && hash_equals($current_token, $normalized_token)) {
-				return $api_user;
-			}
+        if (!empty($api_user->id)) {
+            $current_token = trim((string) $api_user->token);
+            if ($current_token !== '' && hash_equals($current_token, $normalized_token)) {
+                return $api_user;
+            }
 
-			$this->token_error_message = 'Token not found';
-			return false;
-		}
+            // O JWT já foi validado e pertence a um usuário ativo. Se houver
+            // um token antigo salvo para esse usuário, sincronize-o em vez de
+            // rejeitar o login feito na instalação local.
+            $expires_at = date('Y-m-d H:i:s', time() + (new \RestApi\Config\JWT())->token_expire_time);
+            $stored = $this->api_settings_model->store_login_token([
+                'user' => $email,
+                'name' => trim((string) ($decoded->name ?? ($staff_user->first_name . ' ' . $staff_user->last_name))),
+                'token' => $normalized_token,
+                'expiration_date' => $expires_at,
+            ]);
+
+            if (!$stored) {
+                $this->token_error_message = 'Token not found';
+                return false;
+            }
+
+            return $this->api_settings_model->get_data_by_token($normalized_token);
+        }
 
 		$expires_at = date('Y-m-d H:i:s', time() + (new \RestApi\Config\JWT())->token_expire_time);
 		$stored = $this->api_settings_model->store_login_token([
