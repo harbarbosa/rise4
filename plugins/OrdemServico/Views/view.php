@@ -363,6 +363,26 @@
               <table id="os-atendimentos-table" class="display" width="100%"></table>
             </div>
           </div>
+          <div class="modal fade" id="os-resolution-modal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Registrar pendência</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                  <input type="hidden" id="os-resolution-id" value="">
+                  <label for="os-resolution-pending">Descreva o que não foi resolvido</label>
+                  <textarea id="os-resolution-pending" class="form-control" rows="5" placeholder="Informe a pendência, motivo ou próximo passo"></textarea>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                  <button type="button" class="btn btn-danger" id="os-save-pending">Salvar como pendente</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card p15 mt15">
+            <h4 class="mb15">Fotos e arquivos dos atendimentos</h4>
+            <div id="os-atendimento-attachments"><span class="text-off">Carregando anexos...</span></div>
+          </div>
           <div class="card p15 mt15">
             <div class="row">
               <div class="col-md-12"><strong>Total de Horas:</strong> <span id="total-atendimentos-horas">-</span></div>
@@ -377,7 +397,10 @@
                 {title: "Equipe"},
                 {title: "Início", "class": "w180"},
                 {title: "Fim", "class": "w180"},
+                {title: "Status", "class": "w120"},
                 {title: "Duração", "class": "w120 text-end"},
+                {title: "Defeito apresentado"},
+                {title: "Solução encontrada"},
                 {title: "Observação"},
                 {title: "<i data-feather=\"menu\" class=\"icon-16\"></i>", "class": "text-center option w120"}
               ],
@@ -394,13 +417,57 @@
                   }
                 });
             }
+            function loadOsAtendimentoAttachments(){
+              $.post('<?php echo get_uri('ordemservico/os_attachments_html'); ?>', { os_id: <?php echo (int)$os->id; ?> })
+                .done(function(html){
+                  $('#os-atendimento-attachments').html(html);
+                  if (window.feather) { window.feather.replace(); }
+                });
+            }
+            $(document).on('click', '.os-atendimento-status', function(){
+              var $button = $(this);
+              $button.prop('disabled', true);
+              $.post('<?php echo get_uri('ordemservico/os_atendimentos_status'); ?>', {
+                id: $button.data('id'), status: $button.data('status')
+              }).done(function(res){
+                if (res && res.success) { appAlert.success(res.message); window.reloadOsAtendimentos(); }
+                else { appAlert.error((res && res.message) || 'Não foi possível atualizar o atendimento.'); }
+              }).fail(function(xhr){
+                appAlert.error((xhr.responseJSON && xhr.responseJSON.message) || 'Não foi possível atualizar o atendimento.');
+              }).always(function(){ $button.prop('disabled', false); });
+            });
+            $(document).on('click', '.os-atendimento-resolution', function(){
+              var id = $(this).data('id');
+              var resolution = $(this).data('resolution');
+              if (resolution === 'pendente') {
+                $('#os-resolution-id').val(id);
+                $('#os-resolution-pending').val('');
+                $('#os-resolution-modal').modal('show');
+                return;
+              }
+              $.post('<?php echo get_uri('ordemservico/os_atendimentos_resolution'); ?>', {id: id, resolution: 'resolvido'})
+                .done(function(res){ if (res && res.success) { appAlert.success(res.message); window.reloadOsAtendimentos(); } else { appAlert.error((res && res.message) || 'Não foi possível registrar o resultado.'); } })
+                .fail(function(xhr){ appAlert.error((xhr.responseJSON && xhr.responseJSON.message) || 'Não foi possível registrar o resultado.'); });
+            });
+            $('#os-save-pending').on('click', function(){
+              var pendencia = $.trim($('#os-resolution-pending').val());
+              if (!pendencia) { appAlert.error('Descreva a pendência encontrada.'); return; }
+              $.post('<?php echo get_uri('ordemservico/os_atendimentos_resolution'); ?>', {
+                id: $('#os-resolution-id').val(), resolution: 'pendente', pendencia: pendencia
+              }).done(function(res){
+                if (res && res.success) { $('#os-resolution-modal').modal('hide'); appAlert.success(res.message); window.reloadOsAtendimentos(); }
+                else { appAlert.error((res && res.message) || 'Não foi possível registrar a pendência.'); }
+              }).fail(function(xhr){ appAlert.error((xhr.responseJSON && xhr.responseJSON.message) || 'Não foi possível registrar a pendência.'); });
+            });
             window.reloadOsAtendimentos = function(){
               $("#os-atendimentos-table").appTable({reload: true});
               // re-init tooltips after the table re-renders
               setTimeout(function(){ try { $('[data-bs-toggle="tooltip"]').tooltip(); } catch(e){} }, 400);
               loadOsAtendimentosTotals();
+              loadOsAtendimentoAttachments();
             };
             loadOsAtendimentosTotals();
+            loadOsAtendimentoAttachments();
           });
           </script>
         </div>

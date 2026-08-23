@@ -76,6 +76,15 @@ class OrdemServico extends Security_Controller
                     if (!in_array('contract_id', $fields)) {
                         $db->query("ALTER TABLE `{$os_table}` ADD `contract_id` INT(11) NULL AFTER `task_id`");
                     }
+                    if (!in_array('eugestor_ordem_servico_id', $fields)) {
+                        $db->query("ALTER TABLE `{$os_table}` ADD `eugestor_ordem_servico_id` BIGINT NULL");
+                    }
+                    if (!in_array('eugestor_numero_ordem_servico', $fields)) {
+                        $db->query("ALTER TABLE `{$os_table}` ADD `eugestor_numero_ordem_servico` VARCHAR(100) NULL");
+                    }
+                    if (!in_array('eugestor_identificador_contrato', $fields)) {
+                        $db->query("ALTER TABLE `{$os_table}` ADD `eugestor_identificador_contrato` VARCHAR(150) NULL");
+                    }
                 }
             } catch (\Throwable $e) {
                 // ignore upgrade errors to avoid fatal; listing will fallback
@@ -105,12 +114,32 @@ class OrdemServico extends Security_Controller
                 }
             } catch (\Throwable $e) {}
 
-            // os_atendimentos upgrade: ensure files column
+            // os_atendimentos upgrade: ensure attachments and technical report columns
             try {
                 $a_table = $db->prefixTable('os_atendimentos');
                 $af = $db->getFieldNames($a_table);
+                if (is_array($af) && !in_array('status', $af)) {
+                    $db->query("ALTER TABLE `{$a_table}` ADD `status` VARCHAR(30) NOT NULL DEFAULT 'agendado' AFTER `end_datetime`");
+                }
+                if (is_array($af) && !in_array('resultado', $af)) {
+                    $db->query("ALTER TABLE `{$a_table}` ADD `resultado` VARCHAR(30) NULL AFTER `status`");
+                }
+                if (is_array($af) && !in_array('pendencia', $af)) {
+                    $db->query("ALTER TABLE `{$a_table}` ADD `pendencia` TEXT NULL AFTER `resultado`");
+                }
                 if (is_array($af) && !in_array('files', $af)) {
                     $db->query("ALTER TABLE `{$a_table}` ADD `files` TEXT NULL AFTER `end_datetime`");
+                }
+                foreach ([
+                    'defeito_apresentado' => 'TEXT NULL',
+                    'diagnostico' => 'TEXT NULL',
+                    'solucao_encontrada' => 'TEXT NULL',
+                    'causa_raiz' => 'TEXT NULL',
+                    'materiais_utilizados' => 'TEXT NULL',
+                ] as $column => $definition) {
+                    if (is_array($af) && !in_array($column, $af)) {
+                        $db->query("ALTER TABLE `{$a_table}` ADD `{$column}` {$definition}");
+                    }
                 }
             } catch (\Throwable $e) {}
 
@@ -122,6 +151,65 @@ class OrdemServico extends Security_Controller
                     $db->query("ALTER TABLE `{$f_table}` ADD `original_file_name` VARCHAR(255) NULL AFTER `file_name`");
                 }
             } catch (\Throwable $e) {}
+
+            // Checklist configurável por tipo de Ordem de Serviço.
+            $checklist_items_table = $db->prefixTable('os_checklist_items');
+            $checklist_answers_table = $db->prefixTable('os_atendimento_checklist');
+            $db->query("CREATE TABLE IF NOT EXISTS `{$checklist_items_table}` (
+                `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+                `tipo_id` INT(11) NOT NULL,
+                `title` VARCHAR(255) NOT NULL,
+                `sort_order` INT(11) NOT NULL DEFAULT 0,
+                `required` TINYINT(1) NOT NULL DEFAULT 0,
+                `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+                `created_at` DATETIME NULL,
+                `updated_at` DATETIME NULL,
+                PRIMARY KEY (`id`),
+                INDEX (`tipo_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $db->query("CREATE TABLE IF NOT EXISTS `{$checklist_answers_table}` (
+                `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+                `atendimento_id` INT(11) NOT NULL,
+                `item_id` INT(11) NULL,
+                `item_title` VARCHAR(255) NOT NULL,
+                `status` VARCHAR(20) NOT NULL DEFAULT 'pending',
+                `notes` TEXT NULL,
+                `checked_by` INT(11) NULL,
+                `checked_at` DATETIME NULL,
+                `created_at` DATETIME NULL,
+                `updated_at` DATETIME NULL,
+                `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+                PRIMARY KEY (`id`),
+                INDEX (`atendimento_id`),
+                INDEX (`item_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $sync_table = $db->prefixTable('eugestor_ordens_servico_sync');
+            $log_table = $db->prefixTable('eugestor_sync_logs');
+            $db->query("CREATE TABLE IF NOT EXISTS `{$sync_table}` (
+                `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+                `risecrm_ordem_servico_id` INT(11) NOT NULL,
+                `eugestor_ordem_servico_id` BIGINT NOT NULL,
+                `numero_ordem_servico` VARCHAR(100) NULL,
+                `status_eugestor` VARCHAR(100) NULL,
+                `data_ultima_sincronizacao` DATETIME NULL,
+                `hash_dados` CHAR(64) NULL,
+                `created_at` DATETIME NULL,
+                `updated_at` DATETIME NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `eugestor_os_unique` (`eugestor_ordem_servico_id`),
+                INDEX (`risecrm_ordem_servico_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $db->query("CREATE TABLE IF NOT EXISTS `{$log_table}` (
+                `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+                `success` TINYINT(1) NOT NULL DEFAULT 0,
+                `found` INT(11) NOT NULL DEFAULT 0,
+                `created` INT(11) NOT NULL DEFAULT 0,
+                `updated` INT(11) NOT NULL DEFAULT 0,
+                `errors_count` INT(11) NOT NULL DEFAULT 0,
+                `message` VARCHAR(255) NULL,
+                `created_at` DATETIME NULL,
+                PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         } catch (\Throwable $e) {
             // ignore; controllers will handle empty datasets gracefully
         }
@@ -321,14 +409,31 @@ class OrdemServico extends Security_Controller
 
                 $edit = modal_anchor(get_uri('ordemservico/os_atendimentos_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar atendimento', 'data-post-id' => $r->id, 'data-post-os_id' => $os_id, 'class' => 'btn btn-sm btn-outline-secondary' ]);
                 $del = js_anchor("<i data-feather='x' class='icon-16'></i>", [ 'title' => app_lang('delete'), 'class' => 'btn btn-sm btn-outline-danger delete', 'data-id' => $r->id, 'data-action-url' => get_uri('ordemservico/os_atendimentos_delete'), 'data-action' => 'delete-confirmation', 'data-success-callback' => 'reloadOsAtendimentos' ]);
+                $status = (string)($r->status ?? 'agendado');
+                $statusLabels = ['agendado' => 'Agendado', 'em_atendimento' => 'Em atendimento', 'finalizado' => 'Finalizado', 'pendente' => 'Pendente', 'cancelado' => 'Cancelado'];
+                $statusClasses = ['agendado' => 'bg-warning', 'em_atendimento' => 'bg-info', 'finalizado' => 'bg-success', 'pendente' => 'bg-danger', 'cancelado' => 'bg-secondary'];
+                $statusHtml = "<span class='badge " . ($statusClasses[$status] ?? 'bg-secondary') . "'>" . esc($statusLabels[$status] ?? $status) . "</span>";
+                $statusAction = '';
+                if ($status === 'agendado') {
+                    $statusAction = " <button type='button' class='btn btn-sm btn-outline-primary os-atendimento-status' data-id='" . (int)$r->id . "' data-status='em_atendimento' title='Iniciar atendimento'><i data-feather='play' class='icon-14'></i></button>";
+                } elseif ($status === 'em_atendimento') {
+                    $statusAction = " <button type='button' class='btn btn-sm btn-outline-success os-atendimento-status' data-id='" . (int)$r->id . "' data-status='finalizado' title='Finalizar atendimento'><i data-feather='check' class='icon-14'></i></button>";
+                }
+                if ($status !== 'cancelado') {
+                    $statusAction .= " <button type='button' class='btn btn-sm btn-outline-success os-atendimento-resolution' data-id='" . (int)$r->id . "' data-resolution='resolvido' title='Problema resolvido'><i data-feather='check-circle' class='icon-14'></i></button>";
+                    $statusAction .= " <button type='button' class='btn btn-sm btn-outline-danger os-atendimento-resolution' data-id='" . (int)$r->id . "' data-resolution='pendente' title='Problema não resolvido'><i data-feather='alert-circle' class='icon-14'></i></button>";
+                }
 
                 $rows[] = [
                     $membersHtml,
                     esc($ini),
                     esc($fim),
+                    $statusHtml,
                     esc($duration),
+                    esc($r->defeito_apresentado ?: ''),
+                    esc($r->solucao_encontrada ?: ''),
                     esc($r->notes ?: ''),
-                    $edit . $del
+                    $statusAction . $edit . $del
                 ];
             }
         }
@@ -344,8 +449,75 @@ class OrdemServico extends Security_Controller
         $Amm = model('OrdemServico\\Models\\OsAtendimentos_members_model');
 
         $view_data = [];
-        $view_data['model_info'] = $id ? $At->get_one($id) : (object)['os_id' => $os_id];
+        if ($id) {
+            $view_data['model_info'] = $At->get_one($id);
+        } else {
+            // Preenche novos atendimentos com o horário atual, sempre arredondado
+            // para o bloco de 30 minutos anterior (ex.: 14:45 -> 14:30).
+            $start_default = new \DateTime(get_my_local_time());
+            $minutes = (int)$start_default->format('i');
+            $start_default->setTime(
+                (int)$start_default->format('H'),
+                $minutes - ($minutes % 30),
+                0
+            );
+            $end_default = clone $start_default;
+            $end_default->modify('+30 minutes');
+
+            $view_data['model_info'] = (object)[
+                'os_id' => $os_id,
+                'start_datetime' => $start_default->format('Y-m-d H:i:s'),
+                'end_datetime' => $end_default->format('Y-m-d H:i:s'),
+            ];
+        }
         $view_data['os_id'] = $os_id;
+
+        // Carrega o checklist configurado para o tipo da OS e as respostas salvas.
+        $view_data['checklist_items'] = [];
+        try {
+            $os_info = $this->OrdemServico_model->get_one($os_id);
+            $tipo_id = (int)($os_info->tipo_id ?? 0);
+            if ($tipo_id) {
+                $db = db_connect('default');
+                $items_table = $db->prefixTable('os_checklist_items');
+                $answers_table = $db->prefixTable('os_atendimento_checklist');
+                $items = $db->table($items_table)
+                    ->where('tipo_id', $tipo_id)
+                    ->where('deleted', 0)
+                    ->orderBy('sort_order', 'ASC')
+                    ->orderBy('id', 'ASC')
+                    ->get()->getResult();
+                $answers = [];
+                if ($id) {
+                    foreach ($db->table($answers_table)->where('atendimento_id', $id)->where('deleted', 0)->get()->getResult() as $answer) {
+                        $answers[(int)$answer->item_id] = $answer;
+                    }
+                }
+                foreach ($items as $item) {
+                    $answer = $answers[(int)$item->id] ?? null;
+                    $view_data['checklist_items'][] = (object)[
+                        'id' => (int)$item->id,
+                        'title' => $item->title,
+                        'required' => (int)$item->required,
+                        'status' => $answer->status ?? 'pending',
+                        'notes' => $answer->notes ?? '',
+                    ];
+                    unset($answers[(int)$item->id]);
+                }
+                // Mantém visíveis respostas de itens que foram removidos da configuração.
+                foreach ($answers as $answer) {
+                    $view_data['checklist_items'][] = (object)[
+                        'id' => (int)$answer->item_id,
+                        'title' => $answer->item_title . ' (item removido da configuração)',
+                        'required' => 0,
+                        'status' => $answer->status,
+                        'notes' => $answer->notes ?? '',
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            $view_data['checklist_items'] = [];
+        }
 
         // build staff dropdown list (A?Z)
         $db = db_connect('default');
@@ -390,6 +562,12 @@ class OrdemServico extends Security_Controller
         $ed = trim((string)$this->request->getPost('end_date'));
         $et = trim((string)$this->request->getPost('end_time'));
         $notes = trim((string)$this->request->getPost('notes'));
+        $defeito_apresentado = trim((string)$this->request->getPost('defeito_apresentado'));
+        $diagnostico = trim((string)$this->request->getPost('diagnostico'));
+        $solucao_encontrada = trim((string)$this->request->getPost('solucao_encontrada'));
+        $causa_raiz = trim((string)$this->request->getPost('causa_raiz'));
+        $materiais_utilizados = trim((string)$this->request->getPost('materiais_utilizados'));
+        $posted_status = trim((string)$this->request->getPost('status'));
 
         $start = null; $end = null;
         if ($sd) { $start = $sd . ($st ? (' ' . $st) : ' 00:00:00'); }
@@ -404,7 +582,21 @@ class OrdemServico extends Security_Controller
             'start_datetime' => $start,
             'end_datetime' => $end,
             'notes' => $notes,
+            'defeito_apresentado' => $defeito_apresentado,
+            'diagnostico' => $diagnostico,
+            'solucao_encontrada' => $solucao_encontrada,
+            'causa_raiz' => $causa_raiz,
+            'materiais_utilizados' => $materiais_utilizados,
         ];
+        if ($id) {
+            $current = $At->get_one($id);
+            $data['status'] = in_array($posted_status, ['agendado', 'em_atendimento', 'finalizado', 'pendente', 'cancelado'], true)
+                ? $posted_status : (string)($current->status ?? 'agendado');
+        } else {
+            $data['status'] = in_array($posted_status, ['agendado', 'em_atendimento', 'finalizado', 'pendente', 'cancelado'], true) ? $posted_status : 'agendado';
+        }
+        $data['resultado'] = $this->request->getPost('resultado') ?: ($id ? (string)($At->get_one($id)->resultado ?? '') : '');
+        $data['pendencia'] = trim((string)$this->request->getPost('pendencia'));
         if ($id) {
             // append new files to existing ones on edit
             try { $existing = (string)($At->get_one($id)->files ?? ''); } catch (\Throwable $e) { $existing = ''; }
@@ -463,11 +655,88 @@ class OrdemServico extends Security_Controller
             ];
             $Amm->ci_save($row);
         }
+
+        // Salva as respostas do checklist vinculadas ao atendimento.
+        try {
+            $db = db_connect('default');
+            $items_table = $db->prefixTable('os_checklist_items');
+            $answers_table = $db->prefixTable('os_atendimento_checklist');
+            $statuses = $this->request->getPost('checklist_status');
+            $notes_by_item = $this->request->getPost('checklist_notes');
+            if (is_array($statuses)) {
+                $db->table($answers_table)->where('atendimento_id', $save_id)->delete();
+                foreach ($statuses as $item_id => $status) {
+                    $item_id = (int)$item_id;
+                    $item = $db->table($items_table)->where('id', $item_id)->where('deleted', 0)->get()->getRow();
+                    if (!$item) { continue; }
+                    $allowed = ['pending', 'ok', 'not_ok', 'na'];
+                    $status = in_array($status, $allowed, true) ? $status : 'pending';
+                    $note = is_array($notes_by_item) ? trim((string)($notes_by_item[$item_id] ?? '')) : '';
+                    $db->table($answers_table)->insert([
+                        'atendimento_id' => $save_id,
+                        'item_id' => $item_id,
+                        'item_title' => $item->title,
+                        'status' => $status,
+                        'notes' => $note,
+                        'checked_by' => $this->login_user->id ?? null,
+                        'checked_at' => $status !== 'pending' ? get_my_local_time() : null,
+                        'created_at' => get_my_local_time(),
+                        'updated_at' => get_my_local_time(),
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            // O atendimento continua sendo salvo mesmo se o checklist estiver indisponível.
+        }
        
 
        
 
         return $this->response->setJSON(['success' => true, 'id' => $save_id, 'message' => app_lang('record_saved')]);
+    }
+
+    public function os_atendimentos_status()
+    {
+        $this->ensure_tables();
+        $id = (int)($this->request->getPost('id') ?? 0);
+        $status = trim((string)$this->request->getPost('status'));
+        if (!$id || !in_array($status, ['agendado', 'em_atendimento', 'finalizado', 'pendente', 'cancelado'], true)) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Status inválido.']);
+        }
+        $At = model('OrdemServico\\Models\\OsAtendimentos_model');
+        $row = $At->get_one($id);
+        if (!$row) { return $this->response->setJSON(['success' => false, 'message' => 'Atendimento não encontrado.']); }
+        $data = ['status' => $status, 'updated_at' => get_my_local_time()];
+        if ($status === 'em_atendimento' && empty($row->start_datetime)) { $data['start_datetime'] = get_my_local_time(); }
+        if ($status === 'finalizado' && empty($row->end_datetime)) { $data['end_datetime'] = get_my_local_time(); }
+        $ok = $At->ci_save($data, $id);
+        return $this->response->setJSON(['success' => (bool)$ok, 'message' => $ok ? 'Status do atendimento atualizado.' : 'Não foi possível atualizar o status.']);
+    }
+
+    public function os_atendimentos_resolution()
+    {
+        $this->ensure_tables();
+        $id = (int)($this->request->getPost('id') ?? 0);
+        $resolution = trim((string)$this->request->getPost('resolution'));
+        $pendencia = trim((string)$this->request->getPost('pendencia'));
+        if (!$id || !in_array($resolution, ['resolvido', 'pendente'], true)) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Resultado inválido.']);
+        }
+        if ($resolution === 'pendente' && $pendencia === '') {
+            return $this->response->setJSON(['success' => false, 'message' => 'Descreva a pendência encontrada.']);
+        }
+        $At = model('OrdemServico\\Models\\OsAtendimentos_model');
+        $row = $At->get_one($id);
+        if (!$row) { return $this->response->setJSON(['success' => false, 'message' => 'Atendimento não encontrado.']); }
+        $data = [
+            'resultado' => $resolution,
+            'pendencia' => $resolution === 'pendente' ? $pendencia : null,
+            'status' => $resolution === 'pendente' ? 'pendente' : 'finalizado',
+            'updated_at' => get_my_local_time(),
+        ];
+        if ($resolution === 'resolvido' && empty($row->end_datetime)) { $data['end_datetime'] = get_my_local_time(); }
+        $ok = $At->ci_save($data, $id);
+        return $this->response->setJSON(['success' => (bool)$ok, 'message' => $ok ? 'Resultado do atendimento registrado.' : 'Não foi possível registrar o resultado.']);
     }
 
     public function os_atendimentos_delete()
@@ -713,7 +982,8 @@ class OrdemServico extends Security_Controller
             foreach ($rs->getResult() as $t) {
                 $rows[] = [
                     esc($t->title),
-                    modal_anchor(get_uri('ordemservico/types_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar Tipo', 'data-post-id' => $t->id, 'class' => 'btn btn-sm btn-outline-secondary'])
+                    modal_anchor(get_uri('ordemservico/types_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar Tipo', 'data-post-id' => $t->id, 'class' => 'btn btn-sm btn-outline-secondary']) .
+                    " <a href='" . esc(get_uri('ordemservico/checklists?tipo_id=' . (int)$t->id)) . "' class='btn btn-sm btn-outline-primary' title='Configurar checklist'><i data-feather='check-square' class='icon-16'></i></a>"
                 ];
             }
         }
@@ -742,7 +1012,11 @@ class OrdemServico extends Security_Controller
         $ok = $Tipos->ci_save($data, $id);
         if (!$ok) { return $this->response->setJSON(['success' => false]); }
         $saved = $Tipos->get_one($id ? $id : db_connect('default')->insertID());
-        $row = [ esc($saved->title), modal_anchor(get_uri('ordemservico/types_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar Tipo', 'data-post-id' => $saved->id, 'class' => 'btn btn-sm btn-outline-secondary']) ];
+        $row = [
+            esc($saved->title),
+            modal_anchor(get_uri('ordemservico/types_modal_form'), "<i data-feather='edit' class='icon-16'></i>", [ 'title' => 'Editar Tipo', 'data-post-id' => $saved->id, 'class' => 'btn btn-sm btn-outline-secondary']) .
+            " <a href='" . esc(get_uri('ordemservico/checklists?tipo_id=' . (int)$saved->id)) . "' class='btn btn-sm btn-outline-primary' title='Configurar checklist'><i data-feather='check-square' class='icon-16'></i></a>"
+        ];
         return $this->response->setJSON(['success' => true, 'id' => (int)$saved->id, 'data' => $row, 'message' => app_lang('record_saved') ?? 'saved']);
     }
 
@@ -922,7 +1196,159 @@ class OrdemServico extends Security_Controller
 
     public function settings()
     {
-        return $this->template->rander('OrdemServico\\Views\\settings\\index');
+        $Tipos = model('OrdemServico\\Models\\OsTipos_model');
+        $types = [];
+        $rs = $Tipos->get_all();
+        if ($rs && method_exists($rs, 'getResult')) {
+            foreach ($rs->getResult() as $type) {
+                $types[] = ['id' => (int)$type->id, 'text' => $type->title];
+            }
+        }
+        return $this->template->rander('OrdemServico\\Views\\settings\\index', ['checklist_types' => json_encode($types)]);
+    }
+
+    public function eugestor_integration()
+    {
+        $settings = new \OrdemServico\Libraries\EuGestorSettings();
+        $lastResult = json_decode($settings->getLastSyncResult(), true);
+        return $this->template->rander('OrdemServico\\Views\\settings\\eugestor', [
+            'enabled' => $settings->isEnabled(),
+            'username' => $settings->getUsername(),
+            'domain' => $settings->getDomain(),
+            'has_password' => $settings->hasPassword(),
+            'last_sync_at' => $settings->getLastSyncAt(),
+            'last_sync_result' => is_array($lastResult) ? $lastResult : [],
+        ]);
+    }
+
+    public function eugestor_save()
+    {
+        $settings = new \OrdemServico\Libraries\EuGestorSettings();
+        $username = trim((string)$this->request->getPost('username'));
+        $password = (string)$this->request->getPost('password');
+        $domain = trim((string)$this->request->getPost('domain'));
+        if ($username !== '' && !filter_var($username, FILTER_VALIDATE_EMAIL)) {
+            return $this->response->setJSON(['success' => false, 'message' => 'O EuGestor exige o e-mail cadastrado na conta, não apenas o nome do usuário.']);
+        }
+        if ($username === '' || ($password === '' && !$settings->hasPassword())) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Informe o usuário/e-mail e a senha do EuGestor.']);
+        }
+        try {
+            $settings->saveCredentials($username, $password !== '' ? $password : null, (bool)$this->request->getPost('enabled'), $domain);
+            return $this->response->setJSON(['success' => true, 'message' => 'Configuração do EuGestor salva com segurança.']);
+        } catch (\Throwable $e) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Não foi possível salvar as credenciais.']);
+        }
+    }
+
+    public function eugestor_test_connection()
+    {
+        try {
+            $settings = new \OrdemServico\Libraries\EuGestorSettings();
+            if (!filter_var($settings->getUsername(), FILTER_VALIDATE_EMAIL)) {
+                return $this->response->setStatusCode(401)->setJSON(['success' => false, 'message' => 'Informe o e-mail cadastrado no EuGestor.']);
+            }
+            $result = (new \OrdemServico\Libraries\EuGestorSyncService())->testConnection();
+            if (empty($result['success'])) {
+                $status = (int)($result['status'] ?? 500);
+                return $this->response->setStatusCode($status >= 400 ? $status : 500)->setJSON(['success' => false, 'message' => 'O EuGestor recusou a conexão. HTTP ' . $status]);
+            }
+            return $this->response->setJSON(['success' => true, 'message' => 'Conexão com o EuGestor realizada com sucesso.', 'status' => $result['status'] ?? 200]);
+        } catch (\Throwable $e) {
+            $status = 500;
+            if (strpos($e->getMessage(), 'HTTP 401') !== false || strpos($e->getMessage(), 'Não foi possível autenticar') !== false || strpos($e->getMessage(), 'Credenciais EuGestor') !== false) { $status = 401; }
+            if (strpos($e->getMessage(), 'HTTP 403') !== false) { $status = 403; }
+            return $this->response->setStatusCode($status)->setJSON(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    public function eugestor_sync()
+    {
+        try {
+            $result = (new \OrdemServico\Libraries\EuGestorSyncService())->syncOpenOrders();
+            return $this->response->setJSON(['success' => (bool)$result['success'], 'message' => 'Sincronização concluída.', 'data' => $result]);
+        } catch (\Throwable $e) {
+            return $this->response->setStatusCode(500)->setJSON(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    // -------------------- CHECKLISTS POR TIPO --------------------
+    public function checklists_list_data()
+    {
+        $this->ensure_tables();
+        $tipo_id = (int)($this->request->getPost('tipo_id') ?? $this->request->getGet('tipo_id') ?? 0);
+        $db = db_connect('default');
+        $table = $db->prefixTable('os_checklist_items');
+        $rows = [];
+        if ($tipo_id) {
+            foreach ($db->table($table)->where('tipo_id', $tipo_id)->where('deleted', 0)->orderBy('sort_order', 'ASC')->orderBy('id', 'ASC')->get()->getResult() as $item) {
+                $required = $item->required ? "<span class='badge bg-warning'>Obrigatório</span>" : "<span class='badge bg-secondary'>Opcional</span>";
+                $actions = modal_anchor(get_uri('ordemservico/checklists_modal_form'), "<i data-feather='edit' class='icon-16'></i>", ['title' => 'Editar item', 'data-post-id' => $item->id, 'data-post-tipo_id' => $tipo_id, 'class' => 'btn btn-sm btn-outline-secondary']);
+                $actions .= js_anchor("<i data-feather='x' class='icon-16'></i>", ['title' => app_lang('delete'), 'class' => 'btn btn-sm btn-outline-danger delete', 'data-id' => $item->id, 'data-action-url' => get_uri('ordemservico/checklists_delete'), 'data-action' => 'delete-confirmation', 'data-success-callback' => 'reloadOsChecklists']);
+                $rows[] = [esc($item->title), $required, (int)$item->sort_order, $actions];
+            }
+        }
+        return $this->response->setJSON(['data' => $rows]);
+    }
+
+    public function checklists()
+    {
+        $this->ensure_tables();
+        $Tipos = model('OrdemServico\\Models\\OsTipos_model');
+        $types = [];
+        $rs = $Tipos->get_all();
+        if ($rs && method_exists($rs, 'getResult')) {
+            foreach ($rs->getResult() as $type) {
+                $types[] = ['id' => (int)$type->id, 'title' => $type->title];
+            }
+        }
+        $selected_type = (int)($this->request->getGet('tipo_id') ?? 0);
+        if (!$selected_type && $types) { $selected_type = (int)$types[0]['id']; }
+        return $this->template->rander('OrdemServico\\Views\\settings\\checklists', [
+            'checklist_types' => $types,
+            'selected_type' => $selected_type,
+        ]);
+    }
+
+    public function checklists_modal_form()
+    {
+        $this->ensure_tables();
+        $db = db_connect('default');
+        $table = $db->prefixTable('os_checklist_items');
+        $id = (int)($this->request->getPost('id') ?? 0);
+        $tipo_id = (int)($this->request->getPost('tipo_id') ?? 0);
+        $info = $id ? $db->table($table)->where('id', $id)->get()->getRow() : (object)['tipo_id' => $tipo_id, 'sort_order' => 0, 'required' => 0];
+        return $this->template->view('OrdemServico\\Views\\settings\\checklists_modal_form', ['model_info' => $info, 'tipo_id' => $tipo_id ?: (int)($info->tipo_id ?? 0)]);
+    }
+
+    public function checklists_save()
+    {
+        $this->ensure_tables();
+        $db = db_connect('default');
+        $table = $db->prefixTable('os_checklist_items');
+        $id = (int)$this->request->getPost('id');
+        $data = [
+            'tipo_id' => (int)$this->request->getPost('tipo_id'),
+            'title' => trim((string)$this->request->getPost('title')),
+            'sort_order' => (int)$this->request->getPost('sort_order'),
+            'required' => $this->request->getPost('required') ? 1 : 0,
+            'updated_at' => get_my_local_time(),
+        ];
+        if (!$data['tipo_id'] || !$data['title']) { return $this->response->setJSON(['success' => false, 'message' => app_lang('field_required')]); }
+        if (!$id) { $data['created_at'] = get_my_local_time(); }
+        $builder = $db->table($table);
+        if ($id) { $builder->where('id', $id)->update($data); } else { $builder->insert($data); $id = (int)$db->insertID(); }
+        return $this->response->setJSON(['success' => true, 'id' => $id, 'message' => app_lang('record_saved')]);
+    }
+
+    public function checklists_delete()
+    {
+        $this->ensure_tables();
+        $id = (int)$this->request->getPost('id');
+        if (!$id) { return $this->response->setJSON(['success' => false]); }
+        $db = db_connect('default');
+        $ok = $db->table($db->prefixTable('os_checklist_items'))->where('id', $id)->update(['deleted' => 1, 'updated_at' => get_my_local_time()]);
+        return $this->response->setJSON(['success' => (bool)$ok, 'message' => 'Item excluído com sucesso']);
     }
 
     // -------------------- ARQUIVOS (similar a files de projetos) --------------------

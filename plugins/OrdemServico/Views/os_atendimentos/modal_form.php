@@ -6,6 +6,45 @@
 
     <div class="form-group">
       <div class="row">
+        <label class="col-md-3">Status</label>
+        <div class="col-md-9">
+          <?php $attendance_status = $model_info->status ?? 'agendado'; ?>
+          <select name="status" class="form-control">
+            <option value="agendado" <?php echo $attendance_status === 'agendado' ? 'selected' : ''; ?>>Agendado</option>
+            <option value="em_atendimento" <?php echo $attendance_status === 'em_atendimento' ? 'selected' : ''; ?>>Em atendimento</option>
+            <option value="finalizado" <?php echo $attendance_status === 'finalizado' ? 'selected' : ''; ?>>Finalizado</option>
+            <option value="pendente" <?php echo $attendance_status === 'pendente' ? 'selected' : ''; ?>>Pendente</option>
+            <option value="cancelado" <?php echo $attendance_status === 'cancelado' ? 'selected' : ''; ?>>Cancelado</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="row">
+        <label class="col-md-3">Resultado</label>
+        <div class="col-md-9">
+          <?php $attendance_result = $model_info->resultado ?? ''; ?>
+          <select name="resultado" class="form-control">
+            <option value="">Ainda não informado</option>
+            <option value="resolvido" <?php echo $attendance_result === 'resolvido' ? 'selected' : ''; ?>>Problema resolvido</option>
+            <option value="pendente" <?php echo $attendance_result === 'pendente' ? 'selected' : ''; ?>>Problema não resolvido</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="row">
+        <label class="col-md-3">Pendência</label>
+        <div class="col-md-9">
+          <?php echo form_textarea(array("name"=>"pendencia","value"=>$model_info->pendencia ?? '',"class"=>"form-control","rows"=>"2","placeholder"=>"Descreva o que ficou pendente")); ?>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="row">
         <label class=" col-md-3">Membros da equipe</label>
         <div class=" col-md-9">
           <?php echo form_input(array(
@@ -51,20 +90,98 @@
 
     <div class="form-group">
       <div class="row">
-        <label class=" col-md-3">Observações</label>
+        <label class=" col-md-3">Defeito apresentado</label>
         <div class=" col-md-9">
-          <?php echo form_textarea(array("name"=>"notes","value"=>$model_info->notes ?? '',"class"=>"form-control")); ?>
+          <?php echo form_textarea(array("name"=>"defeito_apresentado","value"=>$model_info->defeito_apresentado ?? '',"class"=>"form-control","rows"=>"2","placeholder"=>"Descreva o problema relatado pelo cliente")); ?>
         </div>
       </div>
     </div>
+    <div class="form-group">
+      <div class="row">
+        <label class=" col-md-3">Diagnóstico</label>
+        <div class=" col-md-9">
+          <?php echo form_textarea(array("name"=>"diagnostico","value"=>$model_info->diagnostico ?? '',"class"=>"form-control","rows"=>"2","placeholder"=>"Informe a causa ou diagnóstico técnico")); ?>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="row">
+        <label class=" col-md-3">Solução encontrada</label>
+        <div class=" col-md-9">
+          <?php echo form_textarea(array("name"=>"solucao_encontrada","value"=>$model_info->solucao_encontrada ?? '',"class"=>"form-control","rows"=>"2","placeholder"=>"Descreva o serviço realizado e a solução aplicada")); ?>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="row">
+        <label class=" col-md-3">Causa raiz</label>
+        <div class=" col-md-9">
+          <?php echo form_textarea(array("name"=>"causa_raiz","value"=>$model_info->causa_raiz ?? '',"class"=>"form-control","rows"=>"2")); ?>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="row">
+        <label class=" col-md-3">Materiais utilizados</label>
+        <div class=" col-md-9">
+          <?php echo form_textarea(array("name"=>"materiais_utilizados","value"=>$model_info->materiais_utilizados ?? '',"class"=>"form-control","rows"=>"2","placeholder"=>"Peças, materiais ou ferramentas utilizados")); ?>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="row">
+        <label class=" col-md-3">Observações</label>
+        <div class=" col-md-9">
+          <?php echo form_textarea(array("name"=>"notes","value"=>$model_info->notes ?? '',"class"=>"form-control","rows"=>"2")); ?>
+        </div>
+      </div>
+    </div>
+    <?php if (!empty($checklist_items)) { ?>
+      <div class="card p15 mb15">
+        <h4 class="mb15">Checklist da manutenção</h4>
+        <div class="table-responsive">
+          <table class="table table-bordered mb0">
+            <thead><tr><th>Verificação</th><th class="w150">Resultado</th><th>Observação</th></tr></thead>
+            <tbody>
+              <?php foreach ($checklist_items as $check_item) { ?>
+                <tr>
+                  <td>
+                    <?php echo esc($check_item->title); ?>
+                    <?php if (!empty($check_item->required)) { ?><span class="badge bg-warning ms5">Obrigatório</span><?php } ?>
+                  </td>
+                  <td>
+                    <select name="checklist_status[<?php echo (int)$check_item->id; ?>]" class="form-control">
+                      <option value="pending" <?php echo ($check_item->status ?? 'pending') === 'pending' ? 'selected' : ''; ?>>Pendente</option>
+                      <option value="ok" <?php echo ($check_item->status ?? '') === 'ok' ? 'selected' : ''; ?>>OK</option>
+                      <option value="not_ok" <?php echo ($check_item->status ?? '') === 'not_ok' ? 'selected' : ''; ?>>Não OK</option>
+                      <option value="na" <?php echo ($check_item->status ?? '') === 'na' ? 'selected' : ''; ?>>Não se aplica</option>
+                    </select>
+                  </td>
+                  <td><input type="text" name="checklist_notes[<?php echo (int)$check_item->id; ?>]" value="<?php echo esc($check_item->notes ?? ''); ?>" class="form-control" placeholder="Observação"></td>
+                </tr>
+              <?php } ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <?php } ?>
+    <?php if (!empty($model_info->files)) { ?>
+      <div class="form-group">
+        <label>Anexos existentes</label>
+        <div class="row">
+          <?php echo view("includes/file_list", ["files" => $model_info->files]); ?>
+        </div>
+      </div>
+    <?php } ?>
     <?php echo view("includes/dropzone_preview"); ?>
   </div>
+  <div class="modal-footer">
+    <div class="me-auto"><?php echo view("includes/upload_button"); ?></div>
+    <button type="submit" class="btn btn-primary">Salvar</button>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+  </div>
 </div>
-<div class="modal-footer">
-  <div class="me-auto"><?php echo view("includes/upload_button"); ?></div>
-  <button type="submit" class="btn btn-primary">Salvar</button>
-  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-  <script>
+<script>
     (function(){
       try{
         var list = <?php echo isset($members_dropdown)?$members_dropdown:'[]';?>;
@@ -93,6 +210,5 @@
         }
       });
     });
-  </script>
-</div>
+</script>
 <?php echo form_close(); ?>
