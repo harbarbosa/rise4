@@ -25,6 +25,17 @@
             
             <!-- Visualização Kanban -->
             <div role="tabpanel" class="tab-pane" id="kanban-view">
+                <div class="filter-bar mb15">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" id="kanban-search" placeholder="Buscar propostas...">
+                        </div>
+                        <div class="col-md-4">
+                            <button type="button" class="btn btn-primary" id="kanban-filter-btn">Filtrar</button>
+                            <button type="button" class="btn btn-default" id="kanban-filter-clear">Limpar</button>
+                        </div>
+                    </div>
+                </div>
                 <div id="proposals-kanban" class="kanban-wrapper">
                     <div class="kanban-scroll-holder">
                         <?php 
@@ -82,6 +93,22 @@
         var kanbanLoading = false;
         var kanbanDragging = false;
 
+        // Filtros do Kanban
+        $('#kanban-filter-btn').on('click', function() {
+            loadKanbanBoard();
+        });
+        
+        $('#kanban-filter-clear').on('click', function() {
+            $('#kanban-search').val('');
+            loadKanbanBoard();
+        });
+        
+        $('#kanban-search').on('keypress', function(e) {
+            if (e.which === 13) {
+                loadKanbanBoard();
+            }
+        });
+
         function switchProposalTab(target) {
             $('.nav-tabs .nav-link').removeClass('active');
             $('.tab-pane').removeClass('active show');
@@ -105,9 +132,13 @@
                 return;
             }
             kanbanLoading = true;
+            
+            var search = $('#kanban-search').val() || '';
+            
             $.ajax({
                 url: '<?php echo_uri("propostas/kanban_data") ?>',
                 type: 'GET',
+                data: {search: search},
                 dataType: 'json',
                 success: function(response) {
                     if (response.success && response.data) {

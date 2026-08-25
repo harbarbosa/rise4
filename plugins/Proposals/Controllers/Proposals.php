@@ -54,9 +54,15 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
         }
 
+        $search = $this->request->getGet('search');
+        
         $options = array(
             "company_id" => $this->_get_company_id()
         );
+        
+        if ($search) {
+            $options["search"] = $search;
+        }
 
         $query = $this->Proposals_model->get_details($options);
         $proposals = ($query && method_exists($query, 'getResult')) ? $query->getResult() : array();
