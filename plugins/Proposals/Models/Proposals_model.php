@@ -59,8 +59,9 @@ class Proposals_model extends Crud_model
         if ($search && $has_title) {
             $search = $this->db->escapeLikeString($search);
             $search_parts = ["$table.title LIKE '%$search%' ESCAPE '!'"];
-            if ($has_client_name) {
-                $search_parts[] = "$table.client_name LIKE '%$search%' ESCAPE '!'";
+            // Buscar também por nome do cliente se client_id existir
+            if ($has_client_id) {
+                $search_parts[] = "$clients_table.company_name LIKE '%$search%' ESCAPE '!'";
             }
             $where .= " AND (" . implode(' OR ', $search_parts) . ")";
         }
