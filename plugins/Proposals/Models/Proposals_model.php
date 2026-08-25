@@ -218,7 +218,7 @@ class Proposals_model extends Crud_model
             return 0;
         }
 
-        $items = $this->db->query("SELECT qty, cost_unit, markup_percent, sale_unit FROM {$items_table} WHERE proposal_id = ? AND deleted = 0", [$proposal_id])->getResult();
+        $items = $this->db->query("SELECT qty, cost_unit, markup_percent, sale_unit FROM {$items_table} WHERE proposal_id = ? AND deleted = 0 AND (in_memory = 0 OR in_memory IS NULL)", [$proposal_id])->getResult();
         $total = 0;
         foreach ($items as $item) {
             $qty = (float) ($item->qty ?? 0);
