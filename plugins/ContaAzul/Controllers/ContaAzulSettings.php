@@ -20,7 +20,16 @@ class ContaAzulSettings extends Security_Controller
     public function __construct()
     {
         parent::__construct();
-        $this->access_only_admin();
+        
+        // Permite acesso sem login para cron jobs
+        $is_cron = $this->uri->getSegment(2) === 'cron-import';
+        $cron_key = $this->request->getGet('key');
+        $saved_cron_key = get_setting('contaazul_cron_key');
+        
+        if (!$is_cron || $cron_key !== $saved_cron_key) {
+            $this->access_only_admin();
+        }
+        
         $this->Settings_model = new Settings_model();
         $this->Clients_model = new Clients_model();
         $this->Items_model = new Items_model();
