@@ -759,11 +759,6 @@ class ContaAzulClient
         return $this->putJson($url, $cleanPayload, $headers);
     }
 
-        $decoded = json_decode($response, true);
-        $ok = $httpCode >= 200 && $httpCode < 300;
-        return ["ok" => $ok, "status" => $httpCode, "data" => $decoded, "body" => $response];
-    }
-
     private function deleteRequest($url, $headers)
     {
         $ch = curl_init($url);
