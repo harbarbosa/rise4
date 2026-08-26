@@ -22,7 +22,8 @@ class ContaAzulSettings extends Security_Controller
         parent::__construct();
         
         // Permite acesso sem login para cron jobs (verificação de chave feita no método)
-        $is_cron = $this->uri->getSegment(2) === 'cron-import';
+        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+        $is_cron = strpos($request_uri, 'cron-import') !== false;
         
         if (!$is_cron) {
             $this->access_only_admin();
