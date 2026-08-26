@@ -1263,7 +1263,7 @@ class ContaAzulSettings extends Security_Controller
             get_array_value($customer, "cpf_cnpj") ??
             get_array_value($customer, "tax_id") ?? "";
 
-        $personType = strtolower(get_array_value($customer, "tipo_pessoa", "juridica"));
+        $personType = strtolower((string)get_array_value($customer, "tipo_pessoa", "juridica"));
         $type = in_array($personType, ["fisica", "natural", "pf", "person"]) ? "person" : "organization";
 
         $now = get_current_utc_time();
@@ -1318,8 +1318,8 @@ class ContaAzulSettings extends Security_Controller
         }
 
         foreach ($profiles as $profile) {
-            $type = strtolower(get_array_value((array)$profile, "tipo_perfil", ""));
-            if ($type === strtolower($profileType)) {
+            $type = strtolower((string)get_array_value((array)$profile, "tipo_perfil", ""));
+            if ($type === strtolower((string)$profileType)) {
                 return true;
             }
         }
