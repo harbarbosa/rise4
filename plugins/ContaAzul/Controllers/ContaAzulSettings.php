@@ -19,11 +19,12 @@ class ContaAzulSettings extends Security_Controller
 
     public function __construct()
     {
-        parent::__construct();
-        
-        // Permite acesso sem login para cron jobs (verificação de chave feita no método)
+        // Verificar se é cron antes de chamar construtor pai
         $request_uri = $_SERVER['REQUEST_URI'] ?? '';
         $is_cron = strpos($request_uri, 'cron-import') !== false;
+        
+        // Se for cron, não redirecionar para login
+        parent::__construct(!$is_cron);
         
         if (!$is_cron) {
             $this->access_only_admin();
