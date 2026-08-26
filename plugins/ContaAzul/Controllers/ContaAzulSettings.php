@@ -700,6 +700,7 @@ class ContaAzulSettings extends Security_Controller
             }
         }
 
+        $sample = null;
         $db = db_connect('default');
         $table = $db->prefixTable('contaazul_cost_centers');
 
