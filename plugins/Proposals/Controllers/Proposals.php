@@ -1533,6 +1533,12 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
         }
 
+        // Atualizar preço do produto se for memória de cálculo
+        if (!empty($data['in_memory']) && !empty($data['item_id']) && !empty($data['sale_unit'])) {
+            $items_model = model('App\\Models\\Items_model');
+            $items_model->ci_save(['unit' => $data['sale_unit']], $data['item_id']);
+        }
+
         $data['id'] = is_int($save_id) ? $save_id : db_connect('default')->insertID();
         $this->Proposals_model->calculate_totals($proposal_id);
         $this->_log_activity('item_created', $proposal_id, $data['id']);
@@ -1572,6 +1578,13 @@ class Proposals extends Security_Controller
         $data = $this->_prepare_item_data($proposal_id, $section_id, $item);
 
         $ok = $this->Proposal_items_model->ci_save($data, $id);
+        
+        // Atualizar preço do produto se for memória de cálculo
+        if ($ok && !empty($data['in_memory']) && !empty($data['item_id']) && !empty($data['sale_unit'])) {
+            $items_model = model('App\\Models\\Items_model');
+            $items_model->ci_save(['unit' => $data['sale_unit']], $data['item_id']);
+        }
+        
         $this->Proposals_model->calculate_totals($proposal_id);
         if ($ok) {
             $this->_log_activity('item_updated', $proposal_id, $id);
