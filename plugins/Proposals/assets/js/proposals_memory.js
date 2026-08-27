@@ -338,7 +338,7 @@
         $(".clone-section").off("click").on("click", function (e) {
             e.preventDefault();
             var $section = $(this).closest(".proposal-section");
-            var sectionId = $section.data("id");
+            var sectionId = parseInt($section.data("id"), 10);
             var originalTitle = $section.find(".section-title-text").text();
             var newTitle = prompt("Nome da nova etapa:", originalTitle + " (cópia)");
             if (!newTitle) {
@@ -350,6 +350,9 @@
             if (!originalSection) {
                 return;
             }
+            
+            // Sincronizar estado do DOM antes de clonar
+            syncStateFromDom();
             
             // Clonar itens da seção original
             var itemsToClone = getItemsBySection(sectionId);
