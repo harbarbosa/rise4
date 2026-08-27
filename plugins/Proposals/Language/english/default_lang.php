@@ -2,6 +2,8 @@
 
 return [
     'proposals_menu' => 'Proposals',
+    'unit' => 'Unit',
+    'payment_terms' => 'Payment terms',
     'proposals_dashboard' => 'Proposals Dashboard',
     'proposals_dashboard_description' => 'Proposals dashboard home.',
     'proposals_code' => 'Code',

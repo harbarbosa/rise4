@@ -2,6 +2,8 @@
 
 return [
     'proposals_menu' => 'Propostas',
+    'unit' => 'Unidade',
+    'payment_terms' => 'Condições de pagamento',
     'proposals_dashboard' => 'Propostas',
     'proposals_dashboard_description' => 'Pagina inicial das propostas.',
     'proposals_dashboard_tab' => 'Dashboard',
