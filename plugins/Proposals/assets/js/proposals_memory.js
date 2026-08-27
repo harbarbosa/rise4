@@ -382,10 +382,28 @@
                             newItem.section_id = newSectionId;
                             newItem.deleted = "0";
                             state.items.push(newItem);
+                            
+                            // Salvar item no banco
+                            appAjaxRequest({
+                                url: config.endpoints.addItem,
+                                type: "POST",
+                                data: {
+                                    proposal_id: state.proposalId,
+                                    section_id: newSectionId,
+                                    item_id: item.item_id || "",
+                                    item_title: item.item_title || "",
+                                    description_override: item.description_override || "",
+                                    qty: item.qty || 1,
+                                    unit: item.unit || "UN",
+                                    cost_unit: item.cost_unit || 0,
+                                    markup_percent: item.markup_percent || 0,
+                                    sale_unit: item.sale_unit || 0,
+                                    item_type: item.item_type || "material"
+                                }
+                            });
                         });
                         
                         render();
-                        saveAll();
                     } else {
                         appAlert.error(result.message || "Erro ao criar etapa");
                     }
