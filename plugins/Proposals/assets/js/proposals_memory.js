@@ -18,6 +18,11 @@
         if (value === null || value === undefined) {
             return 0;
         }
+    }
+
+    function generateTempId() {
+        return -1 * (new Date().getTime()) + Math.floor(Math.random() * 1000);
+    }
         if (typeof value === "number") {
             return isNaN(value) ? 0 : value;
         }
@@ -344,21 +349,43 @@
                 return;
             }
             
-            // Criar nova seção
-            var newSectionId = addSection(newTitle, originalSection.parent_id);
-            
             // Clonar itens da seção original
             var itemsToClone = getItemsBySection(sectionId);
-            itemsToClone.forEach(function(item) {
-                var newItem = Object.assign({}, item);
-                newItem.id = generateTempId();
-                newItem.section_id = newSectionId;
-                newItem.deleted = "0";
-                state.items.push(newItem);
-            });
             
-            renderAll();
-            saveAll();
+            // Criar nova seção via AJAX
+            appAjaxRequest({
+                url: config.endpoints.addSection,
+                type: "POST",
+                dataType: "json",
+                data: {
+                    proposal_id: state.proposalId,
+                    title: newTitle,
+                    parent_id: originalSection.parent_id || ""
+                },
+                success: function (result) {
+                    if (result && result.success && result.data) {
+                        state.sections.push(result.data);
+                        var newSectionId = result.data.id;
+                        
+                        // Clonar itens para a nova seção
+                        itemsToClone.forEach(function(item) {
+                            var newItem = Object.assign({}, item);
+                            newItem.id = generateTempId();
+                            newItem.section_id = newSectionId;
+                            newItem.deleted = "0";
+                            state.items.push(newItem);
+                        });
+                        
+                        renderAll();
+                        saveAll();
+                    } else {
+                        appAlert.error(result.message || "Erro ao criar etapa");
+                    }
+                },
+                error: function() {
+                    appAlert.error("Erro ao criar etapa");
+                }
+            });
         });
 
         $(".add-item").off("click").on("click", function (e) {
