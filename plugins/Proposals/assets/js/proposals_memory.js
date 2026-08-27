@@ -25,6 +25,9 @@
     }
 
     function parseNumber(value) {
+        if (value === null || value === undefined) {
+            return 0;
+        }
         if (typeof value === "number") {
             return isNaN(value) ? 0 : value;
         }
