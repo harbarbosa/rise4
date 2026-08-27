@@ -1136,6 +1136,7 @@
             item_id: itemId,
             description: selectedText && selectedText !== "-" ? selectedText : "",
             item_type: itemType,
+            section_id: sectionId,
             qty: $row.find(".item-qty").val(),
             cost_unit: $row.find(".item-cost").val(),
             markup_percent: $row.find(".item-markup").val(),

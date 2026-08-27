@@ -1565,7 +1565,11 @@ class Proposals extends Security_Controller
             return $this->_json_permission_denied();
         }
 
-        $data = $this->_prepare_item_data($proposal_id, (int)$item->section_id, $item);
+        $section_id = (int)$this->request->getPost('section_id');
+        if (!$section_id) {
+            $section_id = (int)$item->section_id;
+        }
+        $data = $this->_prepare_item_data($proposal_id, $section_id, $item);
 
         $ok = $this->Proposal_items_model->ci_save($data, $id);
         $this->Proposals_model->calculate_totals($proposal_id);
