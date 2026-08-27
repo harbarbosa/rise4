@@ -139,6 +139,11 @@
         $header.append($left).append($right);
         $section.append($header);
 
+        // Aplicar estado de colapso se estiver marcado como colapsado
+        if (isCollapsed) {
+            $section.find(".card-body").first().addClass("hide");
+        }
+
         var sectionDescription = section.description || "";
         var $body = $("<div class='card-body'></div>");
 // Seção de descrição dos serviços
