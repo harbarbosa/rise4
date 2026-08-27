@@ -994,7 +994,8 @@ $requestable_items = array_values($requestable_items_map);
             save: <?php echo json_encode(app_lang('save')); ?>,
             cancel: <?php echo json_encode(app_lang('cancel')); ?>,
             addDescription: <?php echo json_encode(app_lang('proposals_add_description') ?: 'Adicionar descrição'); ?>,
-            serviceDescription: <?php echo json_encode(app_lang('proposals_service_description') ?: 'Descrição dos Serviços'); ?>
+            serviceDescription: <?php echo json_encode(app_lang('proposals_service_description') ?: 'Descrição dos Serviços'); ?>,
+            products: <?php echo json_encode(app_lang('proposals_products') ?: 'Produtos'); ?>
         }
     };
 </script>

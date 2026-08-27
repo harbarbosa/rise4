@@ -174,6 +174,11 @@
         }
         var items = getItemsBySection(sectionId);
         var children = getSectionsByParent(sectionId);
+        
+        // Separar itens por tipo: serviços primeiro, depois produtos
+        var serviceItems = items.filter(function(i) { return i.item_type === 'service'; });
+        var productItems = items.filter(function(i) { return i.item_type !== 'service'; });
+        
         if (items.length) {
             var $table = $("<table class='table table-bordered proposal-items-table mb10'></table>");
             var $thead = $("<thead><tr>" +
@@ -187,9 +192,22 @@
                 "</tr></thead>");
             $table.append($thead);
             var $tbody = $("<tbody></tbody>");
-            items.forEach(function (item) {
+            
+            // Renderizar serviços primeiro
+            serviceItems.forEach(function (item) {
                 $tbody.append(renderItemRow(item));
             });
+            
+            // Separador visual se houver ambos os tipos
+            if (serviceItems.length && productItems.length) {
+                $tbody.append("<tr class='type-separator'><td colspan='7' class='text-center text-muted bg-light py-1'><strong>" + (config.labels.products || "Produtos") + "</strong></td></tr>");
+            }
+            
+            // Renderizar produtos depois
+            productItems.forEach(function (item) {
+                $tbody.append(renderItemRow(item));
+            });
+            
             $table.append($tbody);
             $body.append($table);
         } else if (!children.length) {
