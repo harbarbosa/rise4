@@ -128,8 +128,8 @@
         var $right = $("<div class='d-flex align-items-center gap5'></div>");
         if (canManage) {
             $right.append("<button type='button' class='btn btn-default btn-sm add-subsection' title='" + config.labels.addSubSection + "'><i data-feather='plus' class='icon-16'></i></button>");
-            $right.append("<button type='button' class='btn btn-default btn-sm clone-section' title='" + (config.labels.cloneSection || "Clonar etapa") + "'><i data-feather='copy' class='icon-16'></i></button>");
             $right.append("<button type='button' class='btn btn-default btn-sm add-item' title='" + config.labels.item + "'><i data-feather='plus-square' class='icon-16'></i></button>");
+            $right.append("<button type='button' class='btn btn-default btn-sm clone-section' title='" + (config.labels.cloneSection || "Clonar etapa") + "'><i data-feather='copy' class='icon-16'></i></button>");
             $right.append("<button type='button' class='btn btn-default btn-sm add-description' title='" + (config.labels.addDescription || "Adicionar descrição") + "'><i data-feather='file-text' class='icon-16'></i></button>");
             $right.append("<button type='button' class='btn btn-default btn-sm move-up' title='" + config.labels.moveUp + "'><i data-feather='arrow-up' class='icon-16'></i></button>");
             $right.append("<button type='button' class='btn btn-default btn-sm move-down' title='" + config.labels.moveDown + "'><i data-feather='arrow-down' class='icon-16'></i></button>");
