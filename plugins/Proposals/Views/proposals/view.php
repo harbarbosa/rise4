@@ -1032,7 +1032,8 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
             noItems: <?php echo json_encode(app_lang('proposals_no_proposal_items')); ?>,
             selectItem: <?php echo json_encode(app_lang('proposals_select_item')); ?>,
             save: <?php echo json_encode(app_lang('save')); ?>,
-            cancel: <?php echo json_encode(app_lang('cancel')); ?>
+            cancel: <?php echo json_encode(app_lang('cancel')); ?>,
+            products: <?php echo json_encode(app_lang('proposals_products') ?: 'Produtos'); ?>
         }
     };
 </script>

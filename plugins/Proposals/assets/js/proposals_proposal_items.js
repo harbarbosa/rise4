@@ -267,7 +267,22 @@
             $("#proposal-proposal-items-empty").addClass("hide");
         }
 
-        items.forEach(function (item) {
+        // Separar itens por tipo: serviços primeiro, depois produtos
+        var serviceItems = items.filter(function(i) { return i.item_type === 'service'; });
+        var productItems = items.filter(function(i) { return i.item_type !== 'service'; });
+
+        // Renderizar serviços primeiro
+        serviceItems.forEach(function (item) {
+            $tbody.append(buildRow(item));
+        });
+
+        // Separador visual se houver ambos os tipos
+        if (serviceItems.length && productItems.length) {
+            $tbody.append("<tr class='type-separator'><td colspan='6' class='text-center text-muted bg-light py-1'><strong>" + (config.labels.products || "Produtos") + "</strong></td></tr>");
+        }
+
+        // Renderizar produtos depois
+        productItems.forEach(function (item) {
             $tbody.append(buildRow(item));
         });
 
