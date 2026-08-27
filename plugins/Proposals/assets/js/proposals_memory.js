@@ -128,6 +128,7 @@
         var $right = $("<div class='d-flex align-items-center gap5'></div>");
         if (canManage) {
             $right.append("<button type='button' class='btn btn-default btn-sm add-subsection' title='" + config.labels.addSubSection + "'><i data-feather='plus' class='icon-16'></i></button>");
+            $right.append("<button type='button' class='btn btn-default btn-sm clone-section' title='" + (config.labels.cloneSection || "Clonar etapa") + "'><i data-feather='copy' class='icon-16'></i></button>");
             $right.append("<button type='button' class='btn btn-default btn-sm add-item' title='" + config.labels.item + "'><i data-feather='plus-square' class='icon-16'></i></button>");
             $right.append("<button type='button' class='btn btn-default btn-sm add-description' title='" + (config.labels.addDescription || "Adicionar descrição") + "'><i data-feather='file-text' class='icon-16'></i></button>");
             $right.append("<button type='button' class='btn btn-default btn-sm move-up' title='" + config.labels.moveUp + "'><i data-feather='arrow-up' class='icon-16'></i></button>");
@@ -319,6 +320,39 @@
                 return;
             }
             addSection(title, parentId);
+        });
+
+        $(".clone-section").off("click").on("click", function (e) {
+            e.preventDefault();
+            var $section = $(this).closest(".proposal-section");
+            var sectionId = $section.data("id");
+            var originalTitle = $section.find(".section-title-text").text();
+            var newTitle = prompt("Nome da nova etapa:", originalTitle + " (cópia)");
+            if (!newTitle) {
+                return;
+            }
+            
+            // Encontrar a seção original
+            var originalSection = state.sections.find(function(s) { return parseInt(s.id, 10) === sectionId; });
+            if (!originalSection) {
+                return;
+            }
+            
+            // Criar nova seção
+            var newSectionId = addSection(newTitle, originalSection.parent_id);
+            
+            // Clonar itens da seção original
+            var itemsToClone = getItemsBySection(sectionId);
+            itemsToClone.forEach(function(item) {
+                var newItem = Object.assign({}, item);
+                newItem.id = generateTempId();
+                newItem.section_id = newSectionId;
+                newItem.deleted = "0";
+                state.items.push(newItem);
+            });
+            
+            renderAll();
+            saveAll();
         });
 
         $(".add-item").off("click").on("click", function (e) {
