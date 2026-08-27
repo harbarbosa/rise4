@@ -23,6 +23,8 @@
     function generateTempId() {
         return -1 * (new Date().getTime()) + Math.floor(Math.random() * 1000);
     }
+
+    function parseNumber(value) {
         if (typeof value === "number") {
             return isNaN(value) ? 0 : value;
         }
