@@ -348,12 +348,9 @@
                 return;
             }
             
-            console.log("Cloning section:", sectionId, "to:", newTitle);
-            
             // Encontrar a seção original
             var originalSection = state.sections.find(function(s) { return parseInt(s.id, 10) === sectionId; });
             if (!originalSection) {
-                console.log("Section not found");
                 return;
             }
             
@@ -362,7 +359,6 @@
             
             // Clonar itens da seção original
             var itemsToClone = getItemsBySection(sectionId);
-            console.log("Items to clone:", itemsToClone);
             
             // Criar nova seção via AJAX
             appAjaxRequest({
@@ -375,7 +371,6 @@
                     parent_id: originalSection.parent_id || ""
                 },
                 success: function (result) {
-                    console.log("Result:", result);
                     if (result && result.success && result.data) {
                         state.sections.push(result.data);
                         var newSectionId = result.data.id;
@@ -389,15 +384,14 @@
                             state.items.push(newItem);
                         });
                         
-                        renderAll();
+                        render();
                         saveAll();
                     } else {
                         appAlert.error(result.message || "Erro ao criar etapa");
                     }
                 },
-                error: function(xhr, status, error) {
-                    console.log("Error:", status, error);
-                    appAlert.error("Erro ao criar etapa: " + error);
+                error: function() {
+                    appAlert.error("Erro ao criar etapa");
                 }
             });
         });
