@@ -1184,6 +1184,10 @@ class Proposals extends Security_Controller
         $items = ($items_query && method_exists($items_query, 'getResult')) ? $items_query->getResult() : array();
         $memory_items = ($memory_items_query && method_exists($memory_items_query, 'getResult')) ? $memory_items_query->getResult() : array();
         $proposal_items = ($proposal_items_query && method_exists($proposal_items_query, 'getResult')) ? $proposal_items_query->getResult() : array();
+        
+        // Recalcular totais baseados na memória de cálculo antes de carregar a view
+        $this->Proposals_model->calculate_totals($id);
+        $proposal = $this->_get_proposal_for_company($id);
         $dashboard_data = $this->_get_dashboard_data($proposal);
         $settings = $this->Proposals_module_settings_model->get_settings($this->_get_company_id());
         $default_markup_percent = $settings && isset($settings->default_markup_percent) ? (float)$settings->default_markup_percent : 0;
@@ -2197,6 +2201,10 @@ class Proposals extends Security_Controller
         if (!$proposal) {
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
         }
+
+        // Recalcular totais baseados na memória de cálculo
+        $this->Proposals_model->calculate_totals($proposal_id);
+        $proposal = $this->_get_proposal_for_company($proposal_id);
 
         return $this->response->setJSON(array(
             'success' => true,
