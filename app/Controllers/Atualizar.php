@@ -118,6 +118,20 @@ class Atualizar extends Controller
             $results[] = 'Erro items: ' . $e->getMessage();
         }
 
+        // 3. Verificar e adicionar coluna proposal_id na tabela de projetos
+        try {
+            $fields = $db->getFieldNames($dbprefix . 'projects');
+            if (!in_array('proposal_id', $fields)) {
+                $sql = "ALTER TABLE `{$dbprefix}projects` ADD COLUMN `proposal_id` INT(11) NULL AFTER `client_id`";
+                $db->query($sql);
+                $results[] = 'Coluna proposal_id adicionada em projects';
+            } else {
+                $results[] = 'Coluna proposal_id já existe em projects';
+            }
+        } catch (\Exception $e) {
+            $results[] = 'Erro projects: ' . $e->getMessage();
+        }
+
         return $this->response->setJSON([
             'success' => true,
             'message' => implode('. ', $results)
