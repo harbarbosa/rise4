@@ -294,7 +294,7 @@ class Projects extends Security_Controller {
 
         // Proposals dropdown (if Proposals plugin is available)
         $proposals_dropdown = array("" => "-");
-        $proposals_table = $dbprefix . "proposals_custom";
+        $proposals_table = $db->prefixTable('proposals_custom');
         if ($db->tableExists($proposals_table)) {
             $rows = $db->table($proposals_table)
                 ->select("id, title, client_company")
