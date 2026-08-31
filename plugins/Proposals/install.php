@@ -242,6 +242,14 @@ $columns_to_add[] = array(
     "sql" => "ALTER TABLE `" . $sections_table . "` ADD COLUMN `description` TEXT NULL AFTER `title`"
 );
 
+// Adicionar proposal_id na tabela de projetos
+$projects_table = $dbprefix . "projects";
+$columns_to_add[] = array(
+    "table" => $projects_table,
+    "column" => "proposal_id",
+    "sql" => "ALTER TABLE `" . $projects_table . "` ADD COLUMN `proposal_id` INT(11) NULL AFTER `client_id`"
+);
+
 $columns_to_add[] = array(
     "table" => $items_table,
     "column" => "ca_code",

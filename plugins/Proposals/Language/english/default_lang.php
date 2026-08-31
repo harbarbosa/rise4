@@ -2,6 +2,12 @@
 
 return [
     'proposals_menu' => 'Proposals',
+    'no_proposal_linked' => 'No proposal linked',
+    'proposal' => 'Proposal',
+    'proposals_materials' => 'Materials',
+    'proposals_services' => 'Services',
+    'proposals_sections' => 'Stages',
+    'proposals_dash_summary' => 'Financial Summary',
     'unit' => 'Unit',
     'payment_terms' => 'Payment terms',
     'proposals_dashboard' => 'Proposals Dashboard',

@@ -4,6 +4,8 @@
         <input type="hidden" name="id" value="<?php echo $model_info->id; ?>" />
         <input type="hidden" name="context" value="<?php echo $context; ?>" />
         <input type="hidden" name="context_id" value="<?php echo $context_id; ?>" />
+        <input type="hidden" name="import_sections" value="<?php echo $import_sections ?? 0; ?>" />
+        <input type="hidden" name="proposal_id" value="<?php echo $model_info->proposal_id; ?>" id="proposal_id_hidden" />
         <div class="form-group">
             <div class="row">
                 <label for="title" class=" col-md-3"><?php echo app_lang('title'); ?></label>
@@ -72,6 +74,39 @@
                     </div>
                 </div>
             </div>
+        <?php } ?>
+
+        <?php if (!empty($proposals_dropdown) && count($proposals_dropdown) > 1) { ?>
+        <div class="form-group">
+            <div class="row">
+                <label for="proposal_id" class=" col-md-3"><?php echo app_lang('proposal'); ?></label>
+                <div class=" col-md-9">
+                    <?php
+                    echo form_dropdown(
+                        "proposal_id",
+                        $proposals_dropdown,
+                        array($model_info->proposal_id ?? ""),
+                        "class='select2' id='proposal_id' placeholder='-'"
+                    );
+                    ?>
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="row">
+                <div class="col-md-9 col-md-offset-3">
+                    <label>
+                        <?php echo form_checkbox(array(
+                            "name" => "import_sections",
+                            "value" => "1",
+                            "id" => "import_sections_checkbox",
+                            "class" => "form-check-input"
+                        )); ?>
+                        <?php echo app_lang('import_sections'); ?>
+                    </label>
+                </div>
+            </div>
+        </div>
         <?php } ?>
 
         <div class="form-group">

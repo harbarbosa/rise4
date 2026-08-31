@@ -257,6 +257,7 @@ class Projects extends Security_Controller {
         //check if it's from estimate, order or proposal
         $view_data["context"] = $this->request->getPost('context');
         $view_data["context_id"] = $this->request->getPost('context_id');
+        $view_data["import_sections"] = $this->request->getPost('import_sections') ? 1 : 0;
 
         $view_data["custom_fields"] = $this->Custom_fields_model->get_combined_details("projects", $view_data['model_info']->id, $this->login_user->is_admin, $this->login_user->user_type)->getResult();
 
@@ -290,6 +291,27 @@ class Projects extends Security_Controller {
             }
         }
         $view_data["cost_centers_dropdown"] = $cost_centers_dropdown;
+
+        // Proposals dropdown (if Proposals plugin is available)
+        $proposals_dropdown = array("" => "-");
+        $proposals_table = $dbprefix . "proposals_custom";
+        if ($db->tableExists($proposals_table)) {
+            $rows = $db->table($proposals_table)
+                ->select("id, title, client_company")
+                ->where("deleted", 0)
+                ->orderBy("id", "DESC")
+                ->limit(100)
+                ->get()
+                ->getResult();
+            foreach ($rows as $row) {
+                $label = "#" . str_pad($row->id, 3, "0", STR_PAD_LEFT) . " - " . $row->title;
+                if ($row->client_company) {
+                    $label .= " (" . $row->client_company . ")";
+                }
+                $proposals_dropdown[$row->id] = $label;
+            }
+        }
+        $view_data["proposals_dropdown"] = $proposals_dropdown;
 
         return $this->template->view('projects/modal_form', $view_data);
     }
@@ -331,7 +353,8 @@ class Projects extends Security_Controller {
             "price" => unformat_currency($this->request->getPost('price')),
             "labels" => $labels,
             "status_id" => $status_id ? $status_id : 1,
-            "cost_center_id" => $this->request->getPost('cost_center_id') ?: null
+            "cost_center_id" => $this->request->getPost('cost_center_id') ?: null,
+            "proposal_id" => $this->request->getPost('proposal_id') ?: null
         );
 
         $context = $this->request->getPost('context');
@@ -365,6 +388,13 @@ class Projects extends Security_Controller {
 
         $save_id = $this->Projects_model->ci_save($data, $id);
         if ($save_id) {
+
+            // Importar etapas da proposta se solicitado
+            $import_sections = $this->request->getPost('import_sections');
+            $proposal_id = $this->request->getPost('proposal_id');
+            if ($import_sections && $proposal_id) {
+                $this->_import_proposal_sections_to_project($proposal_id, $save_id);
+            }
 
             save_custom_fields("projects", $save_id, $this->login_user->is_admin, $this->login_user->user_type);
 
@@ -4120,6 +4150,47 @@ class Projects extends Security_Controller {
         $info->file_preview_url = get_uri("projects/view_file");
         $info->show_file_preview_sidebar = true;
         return $info;
+    }
+
+    // Importar etapas da proposta para o projeto
+    private function _import_proposal_sections_to_project($proposal_id, $project_id)
+    {
+        if (!$proposal_id || !$project_id) {
+            return;
+        }
+
+        // Verificar se o plugin Proposals está disponível
+        $sections_model = null;
+        try {
+            $sections_model = model('Proposals\Models\Proposal_sections_model');
+        } catch (\CodeIgniter\Database\Exceptions\DatabaseException $e) {
+            return;
+        }
+
+        if (!$sections_model) {
+            return;
+        }
+
+        // Buscar todas as seções da proposta
+        $sections = $sections_model->get_details(['proposal_id' => $proposal_id])->getResult();
+        if (!$sections) {
+            return;
+        }
+
+        // Importar cada seção como uma milestone do projeto
+        $milestones_model = model('App\Models\Project_milestones_model');
+        
+        foreach ($sections as $section) {
+            $milestone_data = [
+                'project_id' => $project_id,
+                'title' => $section->title,
+                'description' => $section->description ?? '',
+                'due_date' => null,
+                'created_by' => $this->login_user->id,
+                'created_at' => get_current_utc_time()
+            ];
+            $milestones_model->ci_save($milestone_data, 0);
+        }
     }
 
     //used by App_folders

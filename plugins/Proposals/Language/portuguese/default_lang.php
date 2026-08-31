@@ -2,6 +2,13 @@
 
 return [
     'proposals_menu' => 'Propostas',
+    'no_proposal_linked' => 'Nenhuma proposta vinculada',
+    'proposal' => 'Proposta',
+    'proposals_materials' => 'Materiais',
+    'proposals_services' => 'Serviços',
+    'proposals_sections' => 'Etapas',
+    'import_sections_hint' => 'Edite o projeto e marque para importar as etapas como milestones.',
+    'import_sections' => 'Importar etapas da proposta',
     'unit' => 'Unidade',
     'payment_terms' => 'Condições de pagamento',
     'proposals_dashboard' => 'Propostas',
