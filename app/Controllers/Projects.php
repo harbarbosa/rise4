@@ -296,19 +296,25 @@ class Projects extends Security_Controller {
         $proposals_dropdown = array("" => "-");
         $proposals_table = $db->prefixTable('proposals_custom');
         if ($db->tableExists($proposals_table)) {
-            $rows = $db->table($proposals_table)
-                ->select("id, title, client_company")
-                ->where("deleted", 0)
-                ->orderBy("id", "DESC")
-                ->limit(100)
-                ->get()
-                ->getResult();
-            foreach ($rows as $row) {
-                $label = "#" . str_pad($row->id, 3, "0", STR_PAD_LEFT) . " - " . $row->title;
-                if ($row->client_company) {
-                    $label .= " (" . $row->client_company . ")";
+            try {
+                $result = $db->table($proposals_table)
+                    ->select("id, title, client_name")
+                    ->where("deleted", 0)
+                    ->orderBy("id", "DESC")
+                    ->limit(100)
+                    ->get();
+                if ($result) {
+                    $rows = $result->getResult();
+                    foreach ($rows as $row) {
+                        $label = "#" . str_pad($row->id, 3, "0", STR_PAD_LEFT) . " - " . $row->title;
+                        if ($row->client_name) {
+                            $label .= " (" . $row->client_name . ")";
+                        }
+                        $proposals_dropdown[$row->id] = $label;
+                    }
                 }
-                $proposals_dropdown[$row->id] = $label;
+            } catch (\Exception $e) {
+                // Silently ignore if table doesn't have expected columns
             }
         }
         $view_data["proposals_dropdown"] = $proposals_dropdown;
