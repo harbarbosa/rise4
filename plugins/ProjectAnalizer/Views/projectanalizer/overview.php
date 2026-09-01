@@ -1,5 +1,12 @@
 <div class="clearfix default-bg">
 
+    <style>
+        #ai-project-plan-chat { height: 180px; max-height: 180px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; background: #fafafa; }
+        #ai-project-plan-chat .ai-plan-message { margin-bottom: 8px; padding: 6px 9px; border-radius: 5px; }
+        #ai-project-plan-chat .ai-plan-user { background: #eaf3ff; }
+        #ai-project-plan-chat .ai-plan-assistant { background: #f1f1f1; }
+    </style>
+
     <div class="card mb15">
         <div class="card-body d-flex align-items-center justify-content-between">
             <div><h4 class="mb5"><?php echo app_lang("ai_project_planning"); ?></h4><div class="text-off"><?php echo app_lang("ai_project_planning_help"); ?></div></div>
@@ -25,11 +32,15 @@
             function requestPlan(instruction) {
                 var button = $(this), result = $("#ai-project-plan-result");
                 button = $("#generate-ai-project-plan, #ai-project-plan-send").prop("disabled", true);
-                result.removeClass("hide").html("<div class='text-off'><?php echo app_lang("generating_ai_plan"); ?></div>");
+                var chat = $("#ai-project-plan-chat"), loadingId = "ai-plan-loading-" + Date.now();
+                chat.append("<div class='ai-plan-message ai-plan-user'><strong><?php echo app_lang("you"); ?>:</strong> " + safe(instruction || "<?php echo app_lang("initial_ai_plan"); ?>") + "</div><div id='" + loadingId + "' class='ai-plan-message ai-plan-assistant text-off'><?php echo app_lang("generating_ai_plan"); ?></div>");
+                chat.scrollTop(chat[0].scrollHeight);
+                if (!currentPlan) { result.removeClass("hide").html("<div class='text-off'><?php echo app_lang("generating_ai_plan"); ?></div>"); }
                 appAjaxRequest({url: "<?php echo get_uri("projectanalizer/ai_generate_plan/" . $project_id); ?>", type: "POST", data: {instruction: instruction || "", current_plan: currentPlan ? JSON.stringify(currentPlan) : ""}, dataType: "json", success: function (response) {
-                    if (!response.success) { result.html("<div class='alert alert-danger'>" + safe(response.message) + "</div>"); return; }
-                    currentPlan = response.plan; renderPlan(currentPlan); $("#ai-project-plan-chat").append("<div class='text-off mb5'>" + safe(instruction || "<?php echo app_lang("initial_ai_plan"); ?>") + "</div>");
-                }, error: function (xhr) { result.html("<div class='alert alert-danger'>" + safe((xhr.responseJSON && xhr.responseJSON.message) || "<?php echo app_lang("error_occurred"); ?>") + "</div>"); }, complete: function () { button.prop("disabled", false); } });
+                    $("#" + loadingId).remove();
+                    if (!response.success) { chat.append("<div class='ai-plan-message ai-plan-assistant text-danger'>" + safe(response.message) + "</div>"); return; }
+                    currentPlan = response.plan; renderPlan(currentPlan); chat.append("<div class='ai-plan-message ai-plan-assistant'><strong><?php echo app_lang("assistant"); ?>:</strong> <?php echo app_lang("ai_plan_updated"); ?></div>"); chat.scrollTop(chat[0].scrollHeight);
+                }, error: function (xhr) { $("#" + loadingId).remove(); chat.append("<div class='ai-plan-message ai-plan-assistant text-danger'>" + safe((xhr.responseJSON && xhr.responseJSON.message) || "<?php echo app_lang("error_occurred"); ?>") + "</div>"); chat.scrollTop(chat[0].scrollHeight); }, complete: function () { button.prop("disabled", false); } });
             }
             $("#generate-ai-project-plan").on("click", function () { requestPlan(""); });
             $("#ai-project-plan-send").on("click", function () { var input = $("#ai-project-plan-message"), message = input.val().trim(); if (!message) return; input.val(""); requestPlan(message); });

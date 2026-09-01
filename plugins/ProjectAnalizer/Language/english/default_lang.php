@@ -22,6 +22,9 @@ $lang['ai_project_plan_chat_placeholder'] = 'Request changes to the plan, for ex
 $lang['initial_ai_plan'] = 'Initial plan generated';
 $lang['apply_ai_plan'] = 'Implement plan';
 $lang['confirm_apply_ai_plan'] = 'Create the stages and tasks from this plan in the project?';
+$lang['you'] = 'You';
+$lang['assistant'] = 'Assistant';
+$lang['ai_plan_updated'] = 'Plan updated according to your request.';
 $lang['material'] = 'Material';
 $lang['tool'] = 'Tool';
 
