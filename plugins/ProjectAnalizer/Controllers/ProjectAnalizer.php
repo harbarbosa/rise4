@@ -628,6 +628,33 @@ class ProjectAnalizer extends Security_Controller {
         $view_data["labor_profiles"] = $labor_profiles;
         $view_data["task_labor_profiles"] = $task_labor_profiles;
 
+        $proposal_materials = array();
+        $task_materials = array();
+        $task_tools = array();
+        $tools = array();
+        if ($project_id) {
+            $project_info = $this->Projects_model->get_one($project_id);
+            if ($project_info && $project_info->proposal_id) {
+                $proposal_items_model = model("Proposals\\Models\\Proposal_items_model");
+                $proposal_items = $proposal_items_model->get_details(array("proposal_id" => $project_info->proposal_id, "in_memory" => 1))->getResult();
+                foreach ($proposal_items as $proposal_item) {
+                    if ($proposal_item->item_type == "material" || $proposal_item->item_type == "item") {
+                        $proposal_materials[] = $proposal_item;
+                    }
+                }
+            }
+            if ($model_info && $model_info->id) {
+                $task_materials = model("ProjectAnalizer\\Models\\Task_materials_model")->get_details(array("task_id" => $model_info->id))->getResult();
+                $task_tools = model("ProjectAnalizer\\Models\\Task_tools_model")->get_details(array("task_id" => $model_info->id))->getResult();
+            }
+            $tools_query = model("ProjectAnalizer\\Models\\Tools_model")->get_active_tools();
+            $tools = $tools_query ? $tools_query->getResult() : array();
+        }
+        $view_data["proposal_materials"] = $proposal_materials;
+        $view_data["task_materials"] = $task_materials;
+        $view_data["tools"] = $tools;
+        $view_data["task_tools"] = $task_tools;
+
         return $this->template->view('ProjectAnalizer\\Views\\tasks\\modal_form', $view_data);
     }
 
@@ -731,6 +758,8 @@ class ProjectAnalizer extends Security_Controller {
         $view_data["total_task_hours"] = convert_seconds_to_time_format($info->timesheet_total);
         $view_data["show_timesheet_info"] = $this->can_view_timesheet($project_id);
         $view_data["show_time_with_task"] = (get_setting("show_time_with_task_start_date_and_deadline")) ? true : false;
+        $view_data["task_materials"] = model("ProjectAnalizer\\Models\\Task_materials_model")->get_details(array("task_id" => $task_id))->getResult();
+        $view_data["task_tools"] = model("ProjectAnalizer\\Models\\Task_tools_model")->get_details(array("task_id" => $task_id))->getResult();
 
         $view_data['contexts'] = array("project");
         $view_data["checklist_templates"] = $this->Checklist_template_model->get_details()->getResult();
@@ -1022,6 +1051,49 @@ class ProjectAnalizer extends Security_Controller {
                 $task_labor_profiles_model = model("ProjectAnalizer\\Models\\Task_labor_profiles_model");
                 $task_labor_profiles_model->upsert_task_profiles($save_id, $labor_items);
             }
+
+            $project_info = $this->Projects_model->get_one($project_id);
+            $proposal_item_ids = array();
+            if ($project_info && $project_info->proposal_id) {
+                $proposal_items_model = model("Proposals\\Models\\Proposal_items_model");
+                foreach ($proposal_items_model->get_details(array("proposal_id" => $project_info->proposal_id, "in_memory" => 1))->getResult() as $proposal_item) {
+                    if ($proposal_item->item_type == "material" || $proposal_item->item_type == "item") {
+                        $proposal_item_ids[] = (int) $proposal_item->id;
+                    }
+                }
+            }
+            $materials = $this->request->getPost("task_materials");
+            $material_items = array();
+            if (is_array($materials)) {
+                foreach ($materials as $material) {
+                    $proposal_item_id = (int) get_array_value($material, "proposal_item_id");
+                    if ($proposal_item_id && in_array($proposal_item_id, $proposal_item_ids, true)) {
+                        $material_items[] = array(
+                            "id" => (int) get_array_value($material, "id"),
+                            "proposal_item_id" => $proposal_item_id,
+                            "quantity" => get_array_value($material, "quantity"),
+                            "notes" => get_array_value($material, "notes")
+                        );
+                    }
+                }
+            }
+            model("ProjectAnalizer\\Models\\Task_materials_model")->upsert_task_materials($save_id, $project_id, $material_items);
+
+            $tools_data = $this->request->getPost("task_tools");
+            $tool_items = array();
+            if (is_array($tools_data)) {
+                foreach ($tools_data as $tool) {
+                    if (!is_array($tool)) { continue; }
+                    $tool_items[] = array(
+                        "id" => (int) get_array_value($tool, "id"),
+                        "tool_id" => (int) get_array_value($tool, "tool_id"),
+                        "tool_name" => get_array_value($tool, "tool_name"),
+                        "quantity" => get_array_value($tool, "quantity"),
+                        "requirement" => get_array_value($tool, "requirement")
+                    );
+                }
+            }
+            model("ProjectAnalizer\\Models\\Task_tools_model")->upsert_task_tools($save_id, $project_id, $tool_items);
 
             $activity_log_id = get_array_value($data, "activity_log_id");
             save_custom_fields("tasks", $save_id, $this->login_user->is_admin, $this->login_user->user_type, $activity_log_id);

@@ -282,6 +282,50 @@
                 </div>
             </div>
 
+            <?php
+            $proposal_materials = isset($proposal_materials) && is_array($proposal_materials) ? $proposal_materials : array();
+            $task_materials = isset($task_materials) && is_array($task_materials) ? $task_materials : array();
+            $tools = isset($tools) && is_array($tools) ? $tools : array();
+            $task_tools = isset($task_tools) && is_array($task_tools) ? $task_tools : array();
+            $material_options = "<option value=''>" . app_lang("select_proposal_material") . "</option>";
+            foreach ($proposal_materials as $material) {
+                $label = ($material->item_title ?: $material->description_override ?: ("#" . $material->item_id));
+                if ($material->item_unit) { $label .= " (" . $material->item_unit . ")"; }
+                $material_options .= "<option value='" . esc($material->id) . "'>" . esc($label) . "</option>";
+            }
+            $tool_options = "<option value=''>" . app_lang("select_tool") . "</option>";
+            foreach ($tools as $tool) { $tool_options .= "<option value='" . esc($tool->id) . "'>" . esc($tool->name) . "</option>"; }
+            ?>
+
+            <div class="form-group">
+                <div class="row">
+                    <label class="col-md-3"><?php echo app_lang("task_materials"); ?></label>
+                    <div class="col-md-9">
+                        <input type="hidden" name="task_materials_present" value="1" />
+                        <?php if (!$proposal_materials) { ?><div class="alert alert-warning"><?php echo app_lang("no_proposal_materials"); ?></div><?php } ?>
+                        <div class="table-responsive"><table class="table table-bordered"><thead><tr>
+                            <th><?php echo app_lang("material"); ?></th><th style="width:140px"><?php echo app_lang("quantity"); ?></th><th><?php echo app_lang("notes"); ?></th><th style="width:1%"></th>
+                        </tr></thead><tbody id="task-materials-rows">
+                        <?php foreach ($task_materials as $index => $row) { $options = str_replace("value='" . esc($row->proposal_item_id) . "'", "value='" . esc($row->proposal_item_id) . "' selected", $material_options); ?>
+                            <tr><td><input type="hidden" name="task_materials[<?php echo $index; ?>][id]" value="<?php echo esc($row->id); ?>" /><select name="task_materials[<?php echo $index; ?>][proposal_item_id]" class="form-control"><?php echo $options; ?></select></td>
+                            <td><input type="number" min="0.001" step="0.001" name="task_materials[<?php echo $index; ?>][quantity]" value="<?php echo esc($row->quantity); ?>" class="form-control" /></td>
+                            <td><input type="text" name="task_materials[<?php echo $index; ?>][notes]" value="<?php echo esc($row->notes); ?>" class="form-control" /></td>
+                            <td><button type="button" class="btn btn-default btn-sm js-remove-resource"><i data-feather="x" class="icon-16"></i></button></td></tr>
+                        <?php } ?></tbody></table></div>
+                        <button type="button" class="btn btn-default btn-sm" id="add-task-material"><i data-feather="plus-circle" class="icon-16"></i> <?php echo app_lang("add_material"); ?></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="row"><label class="col-md-3"><?php echo app_lang("task_tools"); ?></label><div class="col-md-9">
+                    <input type="hidden" name="task_tools_present" value="1" />
+                    <div class="table-responsive"><table class="table table-bordered"><thead><tr><th><?php echo app_lang("tool"); ?></th><th style="width:120px"><?php echo app_lang("quantity"); ?></th><th><?php echo app_lang("specific_tool_need"); ?></th><th style="width:1%"></th></tr></thead><tbody id="task-tools-rows">
+                    <?php foreach ($task_tools as $index => $row) { $options = str_replace("value='" . esc($row->tool_id) . "'", "value='" . esc($row->tool_id) . "' selected", $tool_options); ?><tr><td><input type="hidden" name="task_tools[<?php echo $index; ?>][id]" value="<?php echo esc($row->id); ?>" /><select name="task_tools[<?php echo $index; ?>][tool_id]" class="form-control tool-select"><?php echo $options; ?></select><input type="text" name="task_tools[<?php echo $index; ?>][tool_name]" class="form-control mt5" placeholder="<?php echo app_lang("new_tool_name"); ?>" /></td><td><input type="number" min="0.01" step="0.01" name="task_tools[<?php echo $index; ?>][quantity]" value="<?php echo esc($row->quantity); ?>" class="form-control" /></td><td><input type="text" name="task_tools[<?php echo $index; ?>][requirement]" value="<?php echo esc($row->requirement); ?>" class="form-control" /></td><td><button type="button" class="btn btn-default btn-sm js-remove-resource"><i data-feather="x" class="icon-16"></i></button></td></tr><?php } ?></tbody></table></div>
+                    <button type="button" class="btn btn-default btn-sm" id="add-task-tool"><i data-feather="plus-circle" class="icon-16"></i> <?php echo app_lang("add_tool"); ?></button>
+                </div></div>
+            </div>
+
             <div class="form-group">
                 <div class="row">
                     <label for="status_id" class=" col-md-3"><?php echo app_lang('status'); ?></label>
@@ -1002,6 +1046,20 @@
             $(this).closest("tr").remove();
         });
 
+        var materialIndex = $("#task-materials-rows tr").length;
+        var toolIndex = $("#task-tools-rows tr").length;
+        $("#add-task-material").on("click", function () {
+            var html = $("#task-material-row-template").html().replace(/__INDEX__/g, materialIndex++);
+            $("#task-materials-rows").append(html);
+        });
+        $("#add-task-tool").on("click", function () {
+            var html = $("#task-tool-row-template").html().replace(/__INDEX__/g, toolIndex++);
+            $("#task-tools-rows").append(html);
+            $("#task-tools-rows tr:last .tool-select").select2();
+        });
+        $(document).on("click", ".js-remove-resource", function () { $(this).closest("tr").remove(); });
+        $(".tool-select").select2();
+
         $(".labor-profile-select").select2();
 
         $(document).on("change", "#milestone_id", function () {
@@ -1013,6 +1071,14 @@
         }, 300);
 
     });
+</script>
+
+<script type="text/template" id="task-material-row-template">
+    <tr><td><select name="task_materials[__INDEX__][proposal_item_id]" class="form-control"><?php echo $material_options; ?></select></td><td><input type="number" min="0.001" step="0.001" name="task_materials[__INDEX__][quantity]" value="1" class="form-control" /></td><td><input type="text" name="task_materials[__INDEX__][notes]" class="form-control" /></td><td><button type="button" class="btn btn-default btn-sm js-remove-resource"><i data-feather="x" class="icon-16"></i></button></td></tr>
+</script>
+
+<script type="text/template" id="task-tool-row-template">
+    <tr><td><select name="task_tools[__INDEX__][tool_id]" class="form-control tool-select"><?php echo $tool_options; ?></select><input type="text" name="task_tools[__INDEX__][tool_name]" class="form-control mt5" placeholder="<?php echo app_lang("new_tool_name"); ?>" /></td><td><input type="number" min="0.01" step="0.01" name="task_tools[__INDEX__][quantity]" value="1" class="form-control" /></td><td><input type="text" name="task_tools[__INDEX__][requirement]" class="form-control" /></td><td><button type="button" class="btn btn-default btn-sm js-remove-resource"><i data-feather="x" class="icon-16"></i></button></td></tr>
 </script>
 
 <?php

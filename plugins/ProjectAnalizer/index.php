@@ -733,6 +733,23 @@ register_update_hook("ProjectAnalizer", function () {
         INDEX `idx_pa_execution_schedule_user_date` (`user_id`, `start_date`, `end_date`),
         INDEX `idx_pa_execution_schedule_leader_date` (`leader_id`, `start_date`, `end_date`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+    $db->query("CREATE TABLE IF NOT EXISTS `" . $dbprefix . "pa_task_materials` (
+        `id` INT(11) NOT NULL AUTO_INCREMENT, `project_id` INT(11) NOT NULL, `task_id` INT(11) NOT NULL,
+        `proposal_item_id` INT(11) NOT NULL, `quantity` DECIMAL(14,3) NOT NULL DEFAULT 0, `notes` TEXT NULL,
+        `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP, `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        `deleted` TINYINT(1) NOT NULL DEFAULT 0, PRIMARY KEY (`id`), INDEX (`project_id`), INDEX (`task_id`), INDEX (`proposal_item_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    $db->query("CREATE TABLE IF NOT EXISTS `" . $dbprefix . "pa_tools` (
+        `id` INT(11) NOT NULL AUTO_INCREMENT, `name` VARCHAR(190) NOT NULL, `active` TINYINT(1) NOT NULL DEFAULT 1,
+        `deleted` TINYINT(1) NOT NULL DEFAULT 0, `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP, `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`), UNIQUE KEY `idx_pa_tools_name` (`name`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+    $db->query("CREATE TABLE IF NOT EXISTS `" . $dbprefix . "pa_task_tools` (
+        `id` INT(11) NOT NULL AUTO_INCREMENT, `project_id` INT(11) NOT NULL, `task_id` INT(11) NOT NULL, `tool_id` INT(11) NOT NULL,
+        `quantity` DECIMAL(10,2) NOT NULL DEFAULT 1, `requirement` TEXT NULL, `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP, `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        `deleted` TINYINT(1) NOT NULL DEFAULT 0, PRIMARY KEY (`id`), INDEX (`project_id`), INDEX (`task_id`), INDEX (`tool_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
     $messages[] = "Ensured projectanalizer_execution_schedule";
 
     $execution_schedule_group_key = $db->query("SHOW COLUMNS FROM `" . $dbprefix . "projectanalizer_execution_schedule` LIKE 'group_key'")->getRow();

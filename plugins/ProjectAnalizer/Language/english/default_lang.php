@@ -1,5 +1,18 @@
 <?php
 
+$lang['task_materials'] = 'Required materials';
+$lang['select_proposal_material'] = 'Select a proposal material';
+$lang['no_proposal_materials'] = 'No materials available in the linked proposal.';
+$lang['add_material'] = 'Add material';
+$lang['task_tools'] = 'Required tools';
+$lang['select_tool'] = 'Select a tool';
+$lang['new_tool_name'] = 'Or enter a new tool';
+$lang['add_tool'] = 'Add tool';
+$lang['specific_tool_need'] = 'Specific requirement';
+$lang['task_resources'] = 'Task resources';
+$lang['materials'] = 'Materials';
+$lang['tools'] = 'Tools';
+
 $lang['projectanalizer'] = 'Project Analyzer';
 $lang['etapas'] = 'Stages';
 $lang['projectanalizer_etapas'] = 'Stages';
