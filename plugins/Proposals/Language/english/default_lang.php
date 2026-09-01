@@ -4,6 +4,7 @@ return [
     'proposals_menu' => 'Proposals',
     'no_proposal_linked' => 'No proposal linked',
     'proposal' => 'Proposal',
+    'view_proposal' => 'View proposal',
     'proposals_materials' => 'Materials',
     'proposals_services' => 'Services',
     'proposals_sections' => 'Stages',

@@ -4,6 +4,7 @@ return [
     'proposals_menu' => 'Propostas',
     'no_proposal_linked' => 'Nenhuma proposta vinculada',
     'proposal' => 'Proposta',
+    'view_proposal' => 'Visualizar proposta',
     'proposals_materials' => 'Materiais',
     'proposals_services' => 'Serviços',
     'proposals_sections' => 'Etapas',
