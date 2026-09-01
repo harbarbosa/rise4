@@ -200,6 +200,7 @@ if (!function_exists("make_project_tabs_data")) {
                     <div role="tabpanel" class="tab-pane fade" id="project-expenses-section"></div>
                     <div role="tabpanel" class="tab-pane fade" id="project-contracts-section"></div>
                     <div role="tabpanel" class="tab-pane fade" id="project-tickets-section"></div>
+                    <div role="tabpanel" class="tab-pane fade" id="project-proposals-section"></div>
 
                     <?php
                     if ($login_user->user_type === "staff") {
