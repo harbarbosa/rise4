@@ -40,52 +40,17 @@ foreach ($memory_items as $item) {
     $items_by_section[$section_id][] = $item;
 
     $qty = (float)($item->qty ?? 0);
-    $cost_unit = (float)($item->cost_unit ?? 0);
-    $sale_unit = (float)($item->sale_unit ?? 0);
-    $markup = (float)($item->markup_percent ?? 0);
-    $sale_unit_calculated = $sale_unit > 0 ? $sale_unit : ($cost_unit * (1 + $markup / 100));
-    $cost_total = $qty * $cost_unit;
-    $sale_total = $qty * $sale_unit_calculated;
 
     if (!isset($grouped_items[$group_key])) {
         $grouped_items[$group_key] = array(
             'description' => $description,
             'item_unit' => (string)($item->item_unit ?? ''),
             'qty' => 0,
-            'cost_total' => 0,
-            'sale_total' => 0,
         );
     }
     $grouped_items[$group_key]['qty'] += $qty;
-    $grouped_items[$group_key]['cost_total'] += $cost_total;
-    $grouped_items[$group_key]['sale_total'] += $sale_total;
 }
 
-// Calcular totais
-$total_material = 0;
-$total_service = 0;
-$total_sale = 0;
-
-foreach ($memory_items as $item) {
-    $qty = (float)$item->qty;
-    $sale_unit = (float)($item->sale_unit ?? 0);
-    $cost_unit = (float)($item->cost_unit ?? 0);
-    $markup = (float)($item->markup_percent ?? 0);
-    
-    $sale_total = $qty * ($sale_unit > 0 ? $sale_unit : ($cost_unit * (1 + $markup / 100)));
-    $cost_total = $qty * $cost_unit;
-    
-    if ($item->item_type === 'service') {
-        $total_service += $cost_total;
-    } else {
-        $total_material += $cost_total;
-    }
-    $total_sale += $sale_total;
-}
-
-$total_cost = $total_material + $total_service;
-$profit = $total_sale - $total_cost;
-$profit_pct = $total_sale > 0 ? ($profit / $total_sale) * 100 : 0;
 ?>
 
 <div class="bg-white p15 mb15 rounded">
@@ -99,29 +64,6 @@ $profit_pct = $total_sale > 0 ? ($profit / $total_sale) * 100 : 0;
     <?php } ?>
 </div>
 
-<!-- Resumo Financeiro -->
-<div class="bg-white p15 mb15 rounded">
-    <h5 class="mb10"><?php echo app_lang('proposals_dash_summary'); ?></h5>
-    <div class="row">
-        <div class="col-md-3">
-            <div class="text-muted"><?php echo app_lang('proposals_cost_label'); ?></div>
-            <div class="font-highlight"><?php echo to_currency($total_cost); ?></div>
-        </div>
-        <div class="col-md-3">
-            <div class="text-muted"><?php echo app_lang('proposals_sale_label'); ?></div>
-            <div class="font-highlight"><?php echo to_currency($total_sale); ?></div>
-        </div>
-        <div class="col-md-3">
-            <div class="text-muted"><?php echo app_lang('proposals_dash_net_profit'); ?></div>
-            <div class="font-highlight<?php echo $profit >= 0 ? ' text-success' : ' text-danger'; ?>"><?php echo to_currency($profit); ?> (<?php echo number_format($profit_pct, 1, ",", "."); ?>%)</div>
-        </div>
-        <div class="col-md-3">
-            <div class="text-muted"><?php echo app_lang('items'); ?></div>
-            <div class="font-highlight"><?php echo count($memory_items); ?></div>
-        </div>
-    </div>
-</div>
-
 <!-- Lista total consolidada -->
 <?php if (count($grouped_items) > 0) { ?>
 <div class="bg-white p15 mb15 rounded">
@@ -132,28 +74,20 @@ $profit_pct = $total_sale > 0 ? ($profit / $total_sale) * 100 : 0;
                 <th><?php echo app_lang('item'); ?></th>
                 <th class="text-end"><?php echo app_lang('quantity'); ?></th>
                 <th class="text-end"><?php echo app_lang('unit'); ?></th>
-                <th class="text-end"><?php echo app_lang('proposals_cost_unit'); ?></th>
-                <th class="text-end"><?php echo app_lang('proposals_sale_unit'); ?></th>
-                <th class="text-end"><?php echo app_lang('total'); ?></th>
             </tr>
         </thead>
         <tbody>
             <?php foreach ($grouped_items as $grouped_item) {
-                $average_cost = $grouped_item['qty'] > 0 ? $grouped_item['cost_total'] / $grouped_item['qty'] : 0;
-                $average_sale = $grouped_item['qty'] > 0 ? $grouped_item['sale_total'] / $grouped_item['qty'] : 0;
             ?>
             <tr>
                 <td><?php echo esc($grouped_item['description']); ?></td>
                 <td class="text-end"><?php echo $grouped_item['qty']; ?></td>
                 <td class="text-end"><?php echo $grouped_item['item_unit'] ?: 'UN'; ?></td>
-                <td class="text-end"><?php echo to_currency($average_cost); ?></td>
-                <td class="text-end"><?php echo to_currency($average_sale); ?></td>
-                <td class="text-end"><?php echo to_currency($grouped_item['sale_total']); ?></td>
             </tr>
             <?php } ?>
             <tr class="bg-light">
-                <td colspan="5"><strong><?php echo app_lang('total'); ?></strong></td>
-                <td class="text-end"><strong><?php echo to_currency($total_sale); ?></strong></td>
+                <td colspan="2"><strong><?php echo app_lang('total'); ?></strong></td>
+                <td class="text-end"><strong><?php echo array_sum(array_column($grouped_items, 'qty')); ?></strong></td>
             </tr>
         </tbody>
     </table>
@@ -179,27 +113,17 @@ $profit_pct = $total_sale > 0 ? ($profit / $total_sale) * 100 : 0;
                             <th><?php echo app_lang('item'); ?></th>
                             <th class="text-end"><?php echo app_lang('quantity'); ?></th>
                             <th class="text-end"><?php echo app_lang('unit'); ?></th>
-                            <th class="text-end"><?php echo app_lang('proposals_cost_unit'); ?></th>
-                            <th class="text-end"><?php echo app_lang('proposals_sale_unit'); ?></th>
-                            <th class="text-end"><?php echo app_lang('total'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($section_items as $item) {
                             $qty = (float)($item->qty ?? 0);
-                            $cost_unit = (float)($item->cost_unit ?? 0);
-                            $sale_unit = (float)($item->sale_unit ?? 0);
-                            $markup = (float)($item->markup_percent ?? 0);
-                            $calculated_sale_unit = $sale_unit > 0 ? $sale_unit : ($cost_unit * (1 + $markup / 100));
                             $description = trim((string)($item->description_override ?? '')) ?: trim((string)($item->item_title ?? '')) ?: '-';
                         ?>
                             <tr>
                                 <td><?php echo esc($description); ?></td>
                                 <td class="text-end"><?php echo $qty; ?></td>
                                 <td class="text-end"><?php echo !empty($item->item_unit) ? esc($item->item_unit) : 'UN'; ?></td>
-                                <td class="text-end"><?php echo to_currency($cost_unit); ?></td>
-                                <td class="text-end"><?php echo to_currency($calculated_sale_unit); ?></td>
-                                <td class="text-end"><?php echo to_currency($qty * $calculated_sale_unit); ?></td>
                             </tr>
                         <?php } ?>
                     </tbody>
