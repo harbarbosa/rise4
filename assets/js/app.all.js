@@ -25408,6 +25408,10 @@ function attachDropzoneWithForm(dropzoneTarget, uploadUrl, validationUrl, option
         postFileUploadRowId = getRandomAlphabet(15),
         uploadFileButtonId = getRandomAlphabet(15);
 
+    if (!$previews.length || !$postFileUploadRow.length || !$uploadFileButton.length) {
+        return null;
+    }
+
     //set random id with the previws 
     $previews.attr("id", previewsContainer);
     $postFileUploadRow.attr("id", postFileUploadRowId);

@@ -12,6 +12,8 @@ $lang['specific_tool_need'] = 'Specific requirement';
 $lang['task_resources'] = 'Task resources';
 $lang['materials'] = 'Materials';
 $lang['tools'] = 'Tools';
+$lang['material'] = 'Material';
+$lang['tool'] = 'Tool';
 
 $lang['projectanalizer'] = 'Project Analyzer';
 $lang['etapas'] = 'Stages';
