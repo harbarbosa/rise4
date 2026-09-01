@@ -124,7 +124,7 @@ $service_items = array_filter($memory_items, function($i) { return $i->item_type
             <tr>
                 <td><?php echo $description; ?></td>
                 <td class="text-end"><?php echo $qty; ?></td>
-                <td class="text-end"><?php echo $item->unit ?? 'UN'; ?></td>
+                <td class="text-end"><?php echo isset($item->item_unit) && $item->item_unit !== '' ? $item->item_unit : 'UN'; ?></td>
                 <td class="text-end"><?php echo to_currency($cost_unit); ?></td>
                 <td class="text-end"><?php echo to_currency($sale_unit); ?></td>
                 <td class="text-end"><?php echo to_currency($sale_total); ?></td>
@@ -169,7 +169,7 @@ $service_items = array_filter($memory_items, function($i) { return $i->item_type
             <tr>
                 <td><?php echo $description; ?></td>
                 <td class="text-end"><?php echo $qty; ?></td>
-                <td class="text-end"><?php echo $item->unit ?? 'UN'; ?></td>
+                <td class="text-end"><?php echo isset($item->item_unit) && $item->item_unit !== '' ? $item->item_unit : 'UN'; ?></td>
                 <td class="text-end"><?php echo to_currency($cost_unit); ?></td>
                 <td class="text-end"><?php echo to_currency($sale_unit); ?></td>
                 <td class="text-end"><?php echo to_currency($sale_total); ?></td>
