@@ -751,6 +751,22 @@ class ContaAzulClient
         return $this->parseResponse($httpCode, $response);
     }
 
+    /**
+     * Normalize responses from JSON endpoints, including successful 204 responses.
+     */
+    private function parseResponse($httpCode, $response)
+    {
+        $decoded = json_decode($response, true);
+        $ok = $httpCode >= 200 && $httpCode < 300;
+
+        return [
+            "ok" => $ok,
+            "status" => $httpCode,
+            "data" => $decoded,
+            "body" => $response
+        ];
+    }
+
     public function putJsonRequest($url, $headers, $payload)
     {
         $cleanPayload = array_filter($payload, function ($value) {

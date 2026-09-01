@@ -21,7 +21,9 @@ class Plugin
             $seed_file = PLUGINPATH . 'AssistenteIA/Database/Seeds/AssistenteIASettingsSeeder.php';
             if (is_file($seed_file)) {
                 require_once $seed_file;
-                (new \AssistenteIA\Database\Seeds\AssistenteIASettingsSeeder())->run();
+                $database_config = new \Config\Database();
+                $seeder = new \AssistenteIA\Database\Seeds\AssistenteIASettingsSeeder($database_config);
+                $seeder->setSilent(true)->run();
             }
         } catch (\Throwable $e) {
             \log_message('error', '[AssistenteIA] Migration error: ' . $e->getMessage());
