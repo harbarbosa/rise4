@@ -446,6 +446,14 @@ class Proposals extends Security_Controller {
             $view_data['comments'] = $this->Proposal_comments_model->get_details($comments_options)->getResult();
             $view_data["sort_as_decending"] = $sort_as_decending;
 
+            // Proposals created by the Proposals plugin are served by its own
+            // controller. Keep legacy links working without trying to render
+            // the legacy view with an incomplete data array.
+            if (!$view_data || !isset($view_data["proposal_info"])) {
+                app_redirect("propostas/view/" . $proposal_id);
+                return;
+            }
+
             if ($view_data) {
                 $view_data['proposal_status_label'] = $this->_get_proposal_status_label($view_data["proposal_info"], true, "large rounded-pill");
                 $view_data['proposal_status'] = $this->_get_proposal_status_label($view_data["proposal_info"], false);
