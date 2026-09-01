@@ -203,10 +203,21 @@ if ($total_sub_tasks) {
                         </div>
                     <?php } ?>
 
-                    <?php if (!empty($task_materials) || !empty($task_tools)) { ?>
+                    <?php
+                    $task_materials_grouped = array();
+                    foreach ((array) $task_materials as $resource) {
+                        $resource_key = ($resource->item_type ?: "material") . ":" . ($resource->item_id ?: $resource->proposal_item_id);
+                        if (!isset($task_materials_grouped[$resource_key])) {
+                            $task_materials_grouped[$resource_key] = $resource;
+                            $task_materials_grouped[$resource_key]->quantity = 0;
+                        }
+                        $task_materials_grouped[$resource_key]->quantity += (float) $resource->quantity;
+                    }
+                    ?>
+                    <?php if (!empty($task_materials_grouped) || !empty($task_tools)) { ?>
                         <div class="col-md-12 mb15 b-t pt15">
                             <strong><?php echo app_lang("task_resources"); ?></strong>
-                            <?php if (!empty($task_materials)) { ?><div class="mt10"><strong><?php echo app_lang("materials"); ?>:</strong><ul class="mb0"><?php foreach ($task_materials as $resource) { ?><li><?php echo esc($resource->material_description ?: ("#" . $resource->item_id)); ?> — <?php echo esc($resource->quantity); ?> <?php echo esc($resource->item_unit); ?><?php if ($resource->notes) { ?> (<?php echo esc($resource->notes); ?>)<?php } ?></li><?php } ?></ul></div><?php } ?>
+                            <?php if (!empty($task_materials_grouped)) { ?><div class="mt10"><strong><?php echo app_lang("materials"); ?>:</strong><ul class="mb0"><?php foreach ($task_materials_grouped as $resource) { ?><li><?php echo esc($resource->material_description ?: ("#" . $resource->item_id)); ?> — <?php echo esc(rtrim(rtrim(number_format($resource->quantity, 3, ".", ""), "0"), ".")); ?> <?php echo esc($resource->item_unit); ?></li><?php } ?></ul></div><?php } ?>
                             <?php if (!empty($task_tools)) { ?><div class="mt10"><strong><?php echo app_lang("tools"); ?>:</strong><ul class="mb0"><?php foreach ($task_tools as $resource) { ?><li><?php echo esc($resource->tool_name); ?> — <?php echo esc($resource->quantity); ?><?php if ($resource->requirement) { ?> (<?php echo esc($resource->requirement); ?>)<?php } ?></li><?php } ?></ul></div><?php } ?>
                         </div>
                     <?php } ?>
