@@ -45,7 +45,7 @@ class ProposalsController extends ModuleApiController
         ]);
     }
 
-    public function show(int $id = 0)
+    public function show($id = null)
     {
         $id = $id ?: (int) $this->request->getGet('id');
         if ($id <= 0) {
@@ -96,7 +96,7 @@ class ProposalsController extends ModuleApiController
         ]);
     }
 
-    public function delete(int $id = 0)
+    public function delete($id = null)
     {
         $id = $id ?: (int) $this->request->getPost('id');
         if ($id <= 0) {

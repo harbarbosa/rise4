@@ -18,7 +18,7 @@ try {
     $Notification_settings_model = model('App\\Models\\Notification_settings_model');
     $proposal_status_notification = $Notification_settings_model->get_one_where(array('event' => 'proposal_status_changed', 'deleted' => 0));
     if (!$proposal_status_notification || !$proposal_status_notification->id) {
-        $Notification_settings_model->ci_save(array(
+        $notification_data = array(
             'event' => 'proposal_status_changed',
             'category' => 'proposal',
             'enable_email' => 1,
@@ -29,7 +29,8 @@ try {
             'notify_to_terms' => '',
             'sort' => 850,
             'deleted' => 0
-        ), 0);
+        );
+        $Notification_settings_model->ci_save($notification_data, 0);
     }
 } catch (\Throwable $e) {
     log_message('error', '[Proposals] notification event setup error: ' . $e->getMessage());
