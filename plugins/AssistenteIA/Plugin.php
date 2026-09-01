@@ -18,7 +18,11 @@ class Plugin
     {
         try {
             \service('migrations')->setNamespace('AssistenteIA')->latest();
-            \service('seeder')->setPath(PLUGINPATH . 'AssistenteIA/Database/Seeds')->call('AssistenteIASettingsSeeder');
+            $seed_file = PLUGINPATH . 'AssistenteIA/Database/Seeds/AssistenteIASettingsSeeder.php';
+            if (is_file($seed_file)) {
+                require_once $seed_file;
+                (new \AssistenteIA\Database\Seeds\AssistenteIASettingsSeeder())->run();
+            }
         } catch (\Throwable $e) {
             \log_message('error', '[AssistenteIA] Migration error: ' . $e->getMessage());
         }
