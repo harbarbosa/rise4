@@ -14,6 +14,7 @@
     <script>
         $(function () {
             var currentPlan = null;
+            var safe = function (value) { return $("<div>").text(value || "").html(); };
             function renderPlan(plan) {
                 var html = "<h5><?php echo app_lang("suggested_project_plan"); ?></h5>";
                 (plan.stages || []).forEach(function (stage, index) { html += "<div class='mb15'><strong>" + (index + 1) + ". " + safe(stage.title) + "</strong>" + (stage.description ? "<div class='text-off'>" + safe(stage.description) + "</div>" : "") + "<ul>"; (stage.tasks || []).forEach(function (task) { html += "<li>" + safe(task.title) + " — " + safe(task.duration_days || 1) + " <?php echo app_lang("days"); ?></li>"; }); html += "</ul></div>"; });
@@ -22,7 +23,7 @@
                 if (typeof feather !== "undefined") { feather.replace(); }
             }
             function requestPlan(instruction) {
-                var button = $(this), result = $("#ai-project-plan-result"), safe = function (value) { return $("<div>").text(value || "").html(); };
+                var button = $(this), result = $("#ai-project-plan-result");
                 button = $("#generate-ai-project-plan, #ai-project-plan-send").prop("disabled", true);
                 result.removeClass("hide").html("<div class='text-off'><?php echo app_lang("generating_ai_plan"); ?></div>");
                 appAjaxRequest({url: "<?php echo get_uri("projectanalizer/ai_generate_plan/" . $project_id); ?>", type: "POST", data: {instruction: instruction || "", current_plan: currentPlan ? JSON.stringify(currentPlan) : ""}, dataType: "json", success: function (response) {
