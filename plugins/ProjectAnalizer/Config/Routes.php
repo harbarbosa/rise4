@@ -38,6 +38,7 @@ $routes->get('projectanalizer/evolucao/export/(:num)', 'Projectanalizer_projects
 $routes->get('projectanalizer/evolucao/export_costs_csv/(:num)', 'Projectanalizer_projects::export_costs_csv/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/cost_centers/sync', 'ProjectAnalizer::sync_cost_centers', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/ai_generate_plan/(:num)', 'ProjectAnalizer::ai_generate_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/ai_apply_plan/(:num)', 'ProjectAnalizer::ai_apply_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/(:any)', 'ProjectAnalizer::$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/(:any)', 'ProjectAnalizer::$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 

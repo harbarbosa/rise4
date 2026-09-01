@@ -18,6 +18,10 @@ $lang['generate_ai_plan'] = 'Generate AI plan';
 $lang['generating_ai_plan'] = 'AI is analyzing the project...';
 $lang['suggested_project_plan'] = 'Suggested plan';
 $lang['days'] = 'days';
+$lang['ai_project_plan_chat_placeholder'] = 'Request changes to the plan, for example: split by rack...';
+$lang['initial_ai_plan'] = 'Initial plan generated';
+$lang['apply_ai_plan'] = 'Implement plan';
+$lang['confirm_apply_ai_plan'] = 'Create the stages and tasks from this plan in the project?';
 $lang['material'] = 'Material';
 $lang['tool'] = 'Tool';
 

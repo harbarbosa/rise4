@@ -521,6 +521,10 @@ class ProjectAnalizer extends Security_Controller {
         foreach ($materials as &$material) { $material["quantity"] = rtrim(rtrim(number_format($material["quantity"], 3, ".", ""), "0"), "."); }
         unset($material);
         $prompt = "Crie um plano de execução de uma obra de infraestrutura. Responda SOMENTE JSON válido no formato {\"stages\":[{\"title\":\"\",\"description\":\"\",\"tasks\":[{\"title\":\"\",\"description\":\"\",\"duration_days\":1,\"materials\":[{\"name\":\"\",\"quantity\":\"\",\"unit\":\"\"}]}]}]}. Use o descritivo e os materiais. Não inclua valores financeiros. Organize as tarefas na ordem de execução e use dias úteis.\nProjeto: " . ($project->title ?? "") . "\nDescritivo: " . ($project->description ?? "") . "\nMateriais: " . json_encode(array_values($materials), JSON_UNESCAPED_UNICODE);
+        $instruction = trim((string) $this->request->getPost("instruction"));
+        $current_plan = $this->request->getPost("current_plan");
+        if ($instruction) { $prompt .= "\n\nPedido de ajuste do usuário: " . clean_data($instruction); }
+        if ($current_plan) { $prompt .= "\nPlano atual para revisar: " . clean_data($current_plan); }
         try {
             $open_router_class = "\\AssistenteIA\\Services\\OpenRouterService";
             if (!class_exists($open_router_class)) {
@@ -539,6 +543,43 @@ class ProjectAnalizer extends Security_Controller {
             log_message("error", "[ProjectAnalizer AI] " . $e->getMessage());
             return $this->response->setStatusCode(502)->setJSON(array("success" => false, "message" => $e->getMessage()));
         }
+    }
+
+    public function ai_apply_plan($project_id = 0)
+    {
+        validate_numeric_value($project_id);
+        $this->access_only_team_members();
+        $this->init_project_permission_checker($project_id);
+        if (!$this->_can_create_project_tasks($project_id) || !$this->can_create_milestones()) {
+            return $this->response->setStatusCode(403)->setJSON(array("success" => false, "message" => app_lang("permission_denied")));
+        }
+        $plan = $this->request->getPost("plan");
+        $plan = is_string($plan) ? json_decode($plan, true) : $plan;
+        if (!is_array($plan) || empty($plan["stages"]) || !is_array($plan["stages"])) {
+            return $this->response->setStatusCode(422)->setJSON(array("success" => false, "message" => "Plano inválido para implementação."));
+        }
+        $milestones_model = model("App\\Models\\Milestones_model");
+        $stages_count = count($plan["stages"]);
+        $db = db_connect();
+        $existing = $db->query("SELECT IFNULL(SUM(percentage), 0) AS total FROM " . $db->prefixTable("milestones") . " WHERE project_id=" . (int) $project_id . " AND deleted=0")->getRow();
+        $remaining = max(0, 100 - (float) ($existing->total ?? 0));
+        $stage_percentage = $stages_count ? round($remaining / $stages_count, 2) : 0;
+        $created_stages = 0; $created_tasks = 0;
+        $db->transStart();
+        foreach ($plan["stages"] as $stage) {
+            if (!is_array($stage) || !trim((string) get_array_value($stage, "title"))) { continue; }
+            $milestone_id = $milestones_model->ci_save(array("title" => clean_data(get_array_value($stage, "title")), "description" => clean_data(get_array_value($stage, "description")), "project_id" => (int) $project_id, "percentage" => $stage_percentage), 0);
+            if (!$milestone_id) { $db->transRollback(); return $this->response->setJSON(array("success" => false, "message" => "Não foi possível criar uma etapa.")); }
+            $created_stages++;
+            foreach ((array) get_array_value($stage, "tasks") as $task) {
+                if (!is_array($task) || !trim((string) get_array_value($task, "title"))) { continue; }
+                $task_data = array("title" => clean_data(get_array_value($task, "title")), "description" => clean_data(get_array_value($task, "description")), "project_id" => (int) $project_id, "milestone_id" => (int) $milestone_id, "status_id" => 1, "priority_id" => 1, "context" => "project", "created_date" => get_current_utc_time(), "created_by" => $this->login_user->id);
+                $task_data["sort"] = $this->Tasks_model->get_next_sort_value($project_id, 1);
+                if ($this->Tasks_model->ci_save($task_data, 0)) { $created_tasks++; }
+            }
+        }
+        $db->transComplete();
+        return $this->response->setJSON(array("success" => $db->transStatus(), "stages" => $created_stages, "tasks" => $created_tasks, "message" => "Plano implementado com sucesso."));
     }
 
     function etapas($project_id) {

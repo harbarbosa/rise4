@@ -6,20 +6,33 @@
             <button type="button" class="btn btn-primary" id="generate-ai-project-plan"><i data-feather="cpu" class="icon-16"></i> <?php echo app_lang("generate_ai_plan"); ?></button>
         </div>
         <div id="ai-project-plan-result" class="card-body b-t hide"></div>
+        <div class="card-body b-t">
+            <div class="input-group"><input type="text" id="ai-project-plan-message" class="form-control" placeholder="<?php echo app_lang("ai_project_plan_chat_placeholder"); ?>" /><button type="button" class="btn btn-default" id="ai-project-plan-send"><i data-feather="send" class="icon-16"></i> <?php echo app_lang("send"); ?></button></div>
+            <div id="ai-project-plan-chat" class="mt10"></div>
+        </div>
     </div>
     <script>
         $(function () {
-            $("#generate-ai-project-plan").on("click", function () {
+            var currentPlan = null;
+            function renderPlan(plan) {
+                var html = "<h5><?php echo app_lang("suggested_project_plan"); ?></h5>";
+                (plan.stages || []).forEach(function (stage, index) { html += "<div class='mb15'><strong>" + (index + 1) + ". " + safe(stage.title) + "</strong>" + (stage.description ? "<div class='text-off'>" + safe(stage.description) + "</div>" : "") + "<ul>"; (stage.tasks || []).forEach(function (task) { html += "<li>" + safe(task.title) + " — " + safe(task.duration_days || 1) + " <?php echo app_lang("days"); ?></li>"; }); html += "</ul></div>"; });
+                html += "<button type='button' class='btn btn-success' id='apply-ai-project-plan'><i data-feather='check-circle' class='icon-16'></i> <?php echo app_lang("apply_ai_plan"); ?></button>";
+                $("#ai-project-plan-result").removeClass("hide").html(html);
+                if (typeof feather !== "undefined") { feather.replace(); }
+            }
+            function requestPlan(instruction) {
                 var button = $(this), result = $("#ai-project-plan-result"), safe = function (value) { return $("<div>").text(value || "").html(); };
-                button.prop("disabled", true);
+                button = $("#generate-ai-project-plan, #ai-project-plan-send").prop("disabled", true);
                 result.removeClass("hide").html("<div class='text-off'><?php echo app_lang("generating_ai_plan"); ?></div>");
-                appAjaxRequest({url: "<?php echo get_uri("projectanalizer/ai_generate_plan/" . $project_id); ?>", type: "POST", dataType: "json", success: function (response) {
+                appAjaxRequest({url: "<?php echo get_uri("projectanalizer/ai_generate_plan/" . $project_id); ?>", type: "POST", data: {instruction: instruction || "", current_plan: currentPlan ? JSON.stringify(currentPlan) : ""}, dataType: "json", success: function (response) {
                     if (!response.success) { result.html("<div class='alert alert-danger'>" + safe(response.message) + "</div>"); return; }
-                    var html = "<h5><?php echo app_lang("suggested_project_plan"); ?></h5>";
-                    (response.plan.stages || []).forEach(function (stage, index) { html += "<div class='mb15'><strong>" + (index + 1) + ". " + safe(stage.title) + "</strong>" + (stage.description ? "<div class='text-off'>" + safe(stage.description) + "</div>" : "") + "<ul>"; (stage.tasks || []).forEach(function (task) { html += "<li>" + safe(task.title) + " — " + safe(task.duration_days || 1) + " <?php echo app_lang("days"); ?></li>"; }); html += "</ul></div>"; });
-                    result.html(html);
+                    currentPlan = response.plan; renderPlan(currentPlan); $("#ai-project-plan-chat").append("<div class='text-off mb5'>" + safe(instruction || "<?php echo app_lang("initial_ai_plan"); ?>") + "</div>");
                 }, error: function (xhr) { result.html("<div class='alert alert-danger'>" + safe((xhr.responseJSON && xhr.responseJSON.message) || "<?php echo app_lang("error_occurred"); ?>") + "</div>"); }, complete: function () { button.prop("disabled", false); } });
-            });
+            }
+            $("#generate-ai-project-plan").on("click", function () { requestPlan(""); });
+            $("#ai-project-plan-send").on("click", function () { var input = $("#ai-project-plan-message"), message = input.val().trim(); if (!message) return; input.val(""); requestPlan(message); });
+            $(document).on("click", "#apply-ai-project-plan", function () { var button = $(this); if (!currentPlan || !confirm("<?php echo app_lang("confirm_apply_ai_plan"); ?>")) return; button.prop("disabled", true); appAjaxRequest({url: "<?php echo get_uri("projectanalizer/ai_apply_plan/" . $project_id); ?>", type: "POST", data: {plan: JSON.stringify(currentPlan)}, dataType: "json", success: function (response) { if (response.success) { appAlert.success(response.message); setTimeout(function () { location.reload(); }, 1000); } else { appAlert.error(response.message); button.prop("disabled", false); } }, error: function () { appAlert.error("<?php echo app_lang("error_occurred"); ?>"); button.prop("disabled", false); } }); });
         });
     </script>
 
