@@ -568,7 +568,8 @@ class ProjectAnalizer extends Security_Controller {
         $db->transStart();
         foreach ($plan["stages"] as $stage) {
             if (!is_array($stage) || !trim((string) get_array_value($stage, "title"))) { continue; }
-            $milestone_id = $milestones_model->ci_save(array("title" => clean_data(get_array_value($stage, "title")), "description" => clean_data(get_array_value($stage, "description")), "project_id" => (int) $project_id, "percentage" => $stage_percentage), 0);
+            $milestone_data = array("title" => clean_data(get_array_value($stage, "title")), "description" => clean_data(get_array_value($stage, "description")), "project_id" => (int) $project_id, "percentage" => $stage_percentage);
+            $milestone_id = $milestones_model->ci_save($milestone_data, 0);
             if (!$milestone_id) { $db->transRollback(); return $this->response->setJSON(array("success" => false, "message" => "Não foi possível criar uma etapa.")); }
             $created_stages++;
             foreach ((array) get_array_value($stage, "tasks") as $task) {
