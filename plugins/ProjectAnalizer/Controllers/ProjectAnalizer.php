@@ -498,6 +498,41 @@ class ProjectAnalizer extends Security_Controller {
         return $this->template->view('ProjectAnalizer\Views\projectanalizer\overview', $view_data);
         }
 
+    public function ai_generate_plan($project_id = 0)
+    {
+        validate_numeric_value($project_id);
+        $this->access_only_team_members();
+        $this->init_project_permission_checker($project_id);
+        if (!$this->_can_create_project_tasks($project_id) || !$this->can_create_milestones()) {
+            return $this->response->setStatusCode(403)->setJSON(array("success" => false, "message" => app_lang("permission_denied")));
+        }
+        $project = $this->Projects_model->get_one($project_id);
+        if (!$project) { return $this->response->setStatusCode(404)->setJSON(array("success" => false, "message" => app_lang("record_not_found"))); }
+        $materials = array();
+        if (!empty($project->proposal_id)) {
+            $items_model = model("Proposals\\Models\\Proposal_items_model");
+            foreach ($items_model->get_details(array("proposal_id" => $project->proposal_id, "in_memory" => 1))->getResult() as $item) {
+                if (($item->item_type ?? "material") !== "material") { continue; }
+                $key = (int) $item->item_id;
+                if (!isset($materials[$key])) { $materials[$key] = array("name" => $item->item_title ?: ("Item #" . $item->item_id), "unit" => $item->item_unit ?: "", "quantity" => 0); }
+                $materials[$key]["quantity"] += (float) $item->qty;
+            }
+        }
+        foreach ($materials as &$material) { $material["quantity"] = rtrim(rtrim(number_format($material["quantity"], 3, ".", ""), "0"), "."); }
+        unset($material);
+        $prompt = "Crie um plano de execução de uma obra de infraestrutura. Responda SOMENTE JSON válido no formato {\"stages\":[{\"title\":\"\",\"description\":\"\",\"tasks\":[{\"title\":\"\",\"description\":\"\",\"duration_days\":1,\"materials\":[{\"name\":\"\",\"quantity\":\"\",\"unit\":\"\"}]}]}]}. Use o descritivo e os materiais. Não inclua valores financeiros. Organize as tarefas na ordem de execução e use dias úteis.\nProjeto: " . ($project->title ?? "") . "\nDescritivo: " . ($project->description ?? "") . "\nMateriais: " . json_encode(array_values($materials), JSON_UNESCAPED_UNICODE);
+        try {
+            $response = (new \AssistenteIA\Services\OpenRouterService())->chat(array(array("role" => "system", "content" => "Você é um planejador de obras. Responda apenas JSON válido."), array("role" => "user", "content" => $prompt)));
+            $content = preg_replace('/^```(?:json)?\s*|\s*```$/i', "", trim($response["choices"][0]["message"]["content"] ?? ""));
+            $plan = json_decode($content, true);
+            if (!is_array($plan) || !isset($plan["stages"]) || !is_array($plan["stages"])) { throw new \RuntimeException("A IA não retornou um plano válido."); }
+            return $this->response->setJSON(array("success" => true, "plan" => $plan));
+        } catch (\Throwable $e) {
+            log_message("error", "[ProjectAnalizer AI] " . $e->getMessage());
+            return $this->response->setStatusCode(502)->setJSON(array("success" => false, "message" => $e->getMessage()));
+        }
+    }
+
     function etapas($project_id) {
         validate_numeric_value($project_id);
         $this->access_only_team_members();

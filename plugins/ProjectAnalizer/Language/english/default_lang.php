@@ -12,6 +12,12 @@ $lang['specific_tool_need'] = 'Specific requirement';
 $lang['task_resources'] = 'Task resources';
 $lang['materials'] = 'Materials';
 $lang['tools'] = 'Tools';
+$lang['ai_project_planning'] = 'Smart project planning';
+$lang['ai_project_planning_help'] = 'Analyze the proposal description and materials to suggest stages and tasks.';
+$lang['generate_ai_plan'] = 'Generate AI plan';
+$lang['generating_ai_plan'] = 'AI is analyzing the project...';
+$lang['suggested_project_plan'] = 'Suggested plan';
+$lang['days'] = 'days';
 $lang['material'] = 'Material';
 $lang['tool'] = 'Tool';
 

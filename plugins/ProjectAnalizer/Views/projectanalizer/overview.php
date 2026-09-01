@@ -1,5 +1,28 @@
 <div class="clearfix default-bg">
 
+    <div class="card mb15">
+        <div class="card-body d-flex align-items-center justify-content-between">
+            <div><h4 class="mb5"><?php echo app_lang("ai_project_planning"); ?></h4><div class="text-off"><?php echo app_lang("ai_project_planning_help"); ?></div></div>
+            <button type="button" class="btn btn-primary" id="generate-ai-project-plan"><i data-feather="cpu" class="icon-16"></i> <?php echo app_lang("generate_ai_plan"); ?></button>
+        </div>
+        <div id="ai-project-plan-result" class="card-body b-t hide"></div>
+    </div>
+    <script>
+        $(function () {
+            $("#generate-ai-project-plan").on("click", function () {
+                var button = $(this), result = $("#ai-project-plan-result"), safe = function (value) { return $("<div>").text(value || "").html(); };
+                button.prop("disabled", true);
+                result.removeClass("hide").html("<div class='text-off'><?php echo app_lang("generating_ai_plan"); ?></div>");
+                appAjaxRequest({url: "<?php echo get_uri("projectanalizer/ai_generate_plan/" . $project_id); ?>", type: "POST", dataType: "json", success: function (response) {
+                    if (!response.success) { result.html("<div class='alert alert-danger'>" + safe(response.message) + "</div>"); return; }
+                    var html = "<h5><?php echo app_lang("suggested_project_plan"); ?></h5>";
+                    (response.plan.stages || []).forEach(function (stage, index) { html += "<div class='mb15'><strong>" + (index + 1) + ". " + safe(stage.title) + "</strong>" + (stage.description ? "<div class='text-off'>" + safe(stage.description) + "</div>" : "") + "<ul>"; (stage.tasks || []).forEach(function (task) { html += "<li>" + safe(task.title) + " — " + safe(task.duration_days || 1) + " <?php echo app_lang("days"); ?></li>"; }); html += "</ul></div>"; });
+                    result.html(html);
+                }, error: function (xhr) { result.html("<div class='alert alert-danger'>" + safe((xhr.responseJSON && xhr.responseJSON.message) || "<?php echo app_lang("error_occurred"); ?>") + "</div>"); }, complete: function () { button.prop("disabled", false); } });
+            });
+        });
+    </script>
+
     <div class="row">
         <?php if (isset($project_result_summary)) { ?>
             <div class="col-md-6 col-sm-12 d-flex">
