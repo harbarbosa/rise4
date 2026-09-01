@@ -120,6 +120,11 @@ if (!function_exists("make_project_tabs_data")) {
                                 $project_tabs["tickets"] = "projects/tickets/" . $project_info->id;
                             }
 
+                            // Mostrar aba de proposta se houver proposta vinculada
+                            if (!empty($project_info->proposal_id)) {
+                                $project_tabs["proposals"] = "projects/proposals/" . $project_info->id;
+                            }
+
                             $project_tabs_of_hook_of_staff = array();
                             $project_tabs_of_hook_of_staff = app_hooks()->apply_filters('app_filter_team_members_project_details_tab', $project_tabs_of_hook_of_staff, $project_info->id);
                             $project_tabs_of_hook_of_staff = is_array($project_tabs_of_hook_of_staff) ? $project_tabs_of_hook_of_staff : array();
