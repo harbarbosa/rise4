@@ -1197,7 +1197,8 @@ class Settings extends Security_Controller {
             "payments",
             "expenses",
             "contracts",
-            "tickets"
+            "tickets",
+            "proposals"
         );
 
         $project_tabs_of_hook_of_staff = array();

@@ -1170,6 +1170,22 @@ class Projects extends Security_Controller {
         return $this->template->view('projects/overview', $view_data);
     }
 
+    /* load linked proposal section */
+
+    function proposals($project_id) {
+        validate_numeric_value($project_id);
+        $this->access_only_team_members();
+        $this->init_project_permission_checker($project_id);
+
+        $view_data = $this->_get_project_info_data($project_id);
+        if (empty($view_data['project_info'])) {
+            show_404();
+        }
+
+        $view_data['project_id'] = $project_id;
+        return $this->template->view('projects/proposals/index', $view_data);
+    }
+
     /* add-remove start mark from project */
 
     function add_remove_star($project_id, $type = "add") {
