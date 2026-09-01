@@ -122,12 +122,6 @@
                     </div>
                 <?php } ?>
 
-                <?php if ($project_info->proposal_id) { ?>
-                    <div class="col-md-12 col-sm-12">
-                        <?php echo view("projects/proposals/index"); ?>
-                    </div>
-                <?php } ?>
-
                 <?php if ($can_add_remove_project_members) { ?>
                     <div class="col-md-12 col-sm-12">
                         <?php echo view("projects/project_members/index"); ?>
