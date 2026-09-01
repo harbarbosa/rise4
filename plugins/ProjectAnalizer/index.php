@@ -86,6 +86,14 @@ app_hooks()->add_action('app_hook_before_app_access', function () {
                     array_splice($tabs, $pos + 1, 0, array("execution_schedule"));
                 }
             }
+            if (!in_array("proposals", $tabs, true)) {
+                $pos = array_search("teamactivities", $tabs, true);
+                if ($pos === false) {
+                    $tabs[] = "proposals";
+                } else {
+                    array_splice($tabs, $pos + 1, 0, array("proposals"));
+                }
+            }
 
             // Se não tiver nenhuma das tabs do plugin, forçar o padrão do plugin
             if (!in_array("projectanalizer", $tabs, true)) {
