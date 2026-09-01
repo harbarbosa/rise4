@@ -307,7 +307,7 @@
                             <th><?php echo app_lang("material"); ?></th><th style="width:140px"><?php echo app_lang("quantity"); ?></th><th><?php echo app_lang("notes"); ?></th><th style="width:1%"></th>
                         </tr></thead><tbody id="task-materials-rows">
                         <?php foreach ($task_materials as $index => $row) { $options = str_replace("value='" . esc($row->proposal_item_id) . "'", "value='" . esc($row->proposal_item_id) . "' selected", $material_options); ?>
-                            <tr><td><input type="hidden" name="task_materials[<?php echo $index; ?>][id]" value="<?php echo esc($row->id); ?>" /><select name="task_materials[<?php echo $index; ?>][proposal_item_id]" class="form-control"><?php echo $options; ?></select></td>
+                            <tr><td><input type="hidden" name="task_materials[<?php echo $index; ?>][id]" value="<?php echo esc($row->id); ?>" /><select name="task_materials[<?php echo $index; ?>][proposal_item_id]" class="form-control material-select"><?php echo $options; ?></select></td>
                             <td><input type="number" min="0.001" step="0.001" name="task_materials[<?php echo $index; ?>][quantity]" value="<?php echo esc($row->quantity); ?>" class="form-control" /></td>
                             <td><input type="text" name="task_materials[<?php echo $index; ?>][notes]" value="<?php echo esc($row->notes); ?>" class="form-control" /></td>
                             <td><button type="button" class="btn btn-default btn-sm js-remove-resource"><i data-feather="x" class="icon-16"></i></button></td></tr>
@@ -1051,6 +1051,7 @@
         $("#add-task-material").on("click", function () {
             var html = $("#task-material-row-template").html().replace(/__INDEX__/g, materialIndex++);
             $("#task-materials-rows").append(html);
+            $("#task-materials-rows tr:last .material-select").select2();
         });
         $("#add-task-tool").on("click", function () {
             var html = $("#task-tool-row-template").html().replace(/__INDEX__/g, toolIndex++);
@@ -1059,6 +1060,7 @@
         });
         $(document).on("click", ".js-remove-resource", function () { $(this).closest("tr").remove(); });
         $(".tool-select").select2();
+        $(".material-select").select2();
 
         $(".labor-profile-select").select2();
 
@@ -1074,7 +1076,7 @@
 </script>
 
 <script type="text/template" id="task-material-row-template">
-    <tr><td><select name="task_materials[__INDEX__][proposal_item_id]" class="form-control"><?php echo $material_options; ?></select></td><td><input type="number" min="0.001" step="0.001" name="task_materials[__INDEX__][quantity]" value="1" class="form-control" /></td><td><input type="text" name="task_materials[__INDEX__][notes]" class="form-control" /></td><td><button type="button" class="btn btn-default btn-sm js-remove-resource"><i data-feather="x" class="icon-16"></i></button></td></tr>
+    <tr><td><select name="task_materials[__INDEX__][proposal_item_id]" class="form-control material-select"><?php echo $material_options; ?></select></td><td><input type="number" min="0.001" step="0.001" name="task_materials[__INDEX__][quantity]" value="1" class="form-control" /></td><td><input type="text" name="task_materials[__INDEX__][notes]" class="form-control" /></td><td><button type="button" class="btn btn-default btn-sm js-remove-resource"><i data-feather="x" class="icon-16"></i></button></td></tr>
 </script>
 
 <script type="text/template" id="task-tool-row-template">
