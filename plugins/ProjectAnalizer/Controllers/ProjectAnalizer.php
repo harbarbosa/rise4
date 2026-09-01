@@ -522,7 +522,15 @@ class ProjectAnalizer extends Security_Controller {
         unset($material);
         $prompt = "Crie um plano de execução de uma obra de infraestrutura. Responda SOMENTE JSON válido no formato {\"stages\":[{\"title\":\"\",\"description\":\"\",\"tasks\":[{\"title\":\"\",\"description\":\"\",\"duration_days\":1,\"materials\":[{\"name\":\"\",\"quantity\":\"\",\"unit\":\"\"}]}]}]}. Use o descritivo e os materiais. Não inclua valores financeiros. Organize as tarefas na ordem de execução e use dias úteis.\nProjeto: " . ($project->title ?? "") . "\nDescritivo: " . ($project->description ?? "") . "\nMateriais: " . json_encode(array_values($materials), JSON_UNESCAPED_UNICODE);
         try {
-            $response = (new \AssistenteIA\Services\OpenRouterService())->chat(array(array("role" => "system", "content" => "Você é um planejador de obras. Responda apenas JSON válido."), array("role" => "user", "content" => $prompt)));
+            $open_router_class = "\\AssistenteIA\\Services\\OpenRouterService";
+            if (!class_exists($open_router_class)) {
+                $service_file = PLUGINPATH . "AssistenteIA/Services/OpenRouterService.php";
+                if (is_file($service_file)) { require_once $service_file; }
+            }
+            if (!class_exists($open_router_class)) {
+                throw new \RuntimeException("O plugin AssistenteIA não está instalado ou ativado.");
+            }
+            $response = (new $open_router_class())->chat(array(array("role" => "system", "content" => "Você é um planejador de obras. Responda apenas JSON válido."), array("role" => "user", "content" => $prompt)));
             $content = preg_replace('/^```(?:json)?\s*|\s*```$/i', "", trim($response["choices"][0]["message"]["content"] ?? ""));
             $plan = json_decode($content, true);
             if (!is_array($plan) || !isset($plan["stages"]) || !is_array($plan["stages"])) { throw new \RuntimeException("A IA não retornou um plano válido."); }
