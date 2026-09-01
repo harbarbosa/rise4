@@ -23,7 +23,7 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
     
 app_hooks()->add_action('app_hook_after_signin', function () {
  
-    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities';
+    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities,proposals';
  
 
     $save_setting = new \App\Models\Settings_model();
@@ -40,7 +40,7 @@ app_hooks()->add_action('app_hook_after_signin', function () {
 // "evolucao_ff" exista mesmo sem precisar sair/entrar no sistema.
 app_hooks()->add_action('app_hook_before_app_access', function () {
     try {
-        $desired_default = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities';
+        $desired_default = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities,proposals';
 
         $normalize = function ($value) use ($desired_default) {
             $value = is_string($value) ? trim($value) : "";
@@ -226,7 +226,7 @@ app_hooks()->add_filter('app_filter_admin_settings_menu', function ($settings_me
 register_installation_hook("ProjectAnalizer", function ($item_purchase_code) {
     
 
-    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities';
+    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities,proposals';
  
 
     $save_setting = new \App\Models\Settings_model();
@@ -482,7 +482,7 @@ register_update_hook("ProjectAnalizer", function () {
     $dbprefix = get_db_prefix();
     $messages = array();
 
-    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities';
+    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities,proposals';
     $save_setting = new \App\Models\Settings_model();
     $save_setting->save_setting('project_tab_order', $project_tabs);
     $messages[] = "Updated project_tab_order";
