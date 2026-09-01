@@ -1,0 +1,7 @@
+{
+  "name": "AssistenteIA",
+  "title": "Assistente IA",
+  "description": "Assistente contextual para consultas e ações autorizadas no RISE CRM.",
+  "version": "0.1.0",
+  "requires": "3.9.0"
+}
