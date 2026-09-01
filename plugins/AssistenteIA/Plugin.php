@@ -18,6 +18,7 @@ class Plugin
     {
         try {
             \service('migrations')->setNamespace('AssistenteIA')->latest();
+            \service('seeder')->setPath(PLUGINPATH . 'AssistenteIA/Database/Seeds')->call('AssistenteIASettingsSeeder');
         } catch (\Throwable $e) {
             \log_message('error', '[AssistenteIA] Migration error: ' . $e->getMessage());
         }
