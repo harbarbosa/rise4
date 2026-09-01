@@ -199,7 +199,6 @@ $service_items = array_filter($memory_items, function($i) { return $i->item_type
         </thead>
         <tbody>
             <?php 
-            $sections_model->db = db_connect();
             foreach ($sections as $section) {
                 $section_items = $items_model->get_details([
                     'proposal_id' => $proposal_id,
