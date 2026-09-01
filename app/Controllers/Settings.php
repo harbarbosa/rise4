@@ -20,6 +20,67 @@ class Settings extends Security_Controller {
         return $this->template->rander("settings/general");
     }
 
+    function error_logs() {
+        $logs_path = WRITEPATH . 'logs';
+        $log_files = array();
+
+        if (is_dir($logs_path)) {
+            foreach (glob($logs_path . DIRECTORY_SEPARATOR . 'log-*.log') ?: array() as $path) {
+                if (is_file($path)) {
+                    $log_files[] = array(
+                        'name' => basename($path),
+                        'modified' => filemtime($path),
+                        'size' => filesize($path),
+                    );
+                }
+            }
+        }
+
+        usort($log_files, function ($a, $b) {
+            return ($b['modified'] ?? 0) <=> ($a['modified'] ?? 0);
+        });
+
+        $selected_file = $this->request->getGet('file');
+        if (!$selected_file && $log_files) {
+            $selected_file = $log_files[0]['name'];
+        }
+
+        $log_content = array();
+        $selected_path = '';
+        if ($selected_file && preg_match('/^log-[A-Za-z0-9_-]+\.log$/', $selected_file)) {
+            $candidate = $logs_path . DIRECTORY_SEPARATOR . $selected_file;
+            if (is_file($candidate)) {
+                $selected_path = $candidate;
+                $file = new \SplFileObject($candidate, 'r');
+                $file->seek(PHP_INT_MAX);
+                $last_line = $file->key();
+                $file->seek(max(0, $last_line - 2000));
+                while (!$file->eof()) {
+                    $line = trim((string) $file->current());
+                    if ($line !== '') {
+                        $log_content[] = $line;
+                    }
+                    $file->next();
+                }
+            }
+        }
+
+        $search = trim((string) $this->request->getGet('search'));
+        if ($search !== '') {
+            $log_content = array_values(array_filter($log_content, function ($line) use ($search) {
+                return stripos($line, $search) !== false;
+            }));
+        }
+
+        return $this->template->rander('settings/error_logs', array(
+            'log_files' => $log_files,
+            'selected_file' => $selected_file,
+            'selected_path' => $selected_path,
+            'log_content' => $log_content,
+            'search' => $search,
+        ));
+    }
+
     function save_general_settings() {
         $settings = array("site_logo", "favicon", "show_background_image_in_signin_page", "show_logo_in_signin_page", "app_title", "accepted_file_formats", "landing_page", "item_purchase_code", "default_theme_color");
         $has_php_file_format = false;
