@@ -743,7 +743,10 @@ function attachDropzoneWithForm(dropzoneTarget, uploadUrl, validationUrl, option
 
 
     //get the template HTML and remove it from the doumenthe template HTML and remove it from the doument
-    var previewNode = document.querySelector("#" + postFileUploadRowId);
+    var previewNode = $postFileUploadRow[0];
+    if (!previewNode) {
+        return null;
+    }
     previewNode.id = "";
     var previewTemplate = previewNode.parentNode.innerHTML;
     previewNode.parentNode.removeChild(previewNode);

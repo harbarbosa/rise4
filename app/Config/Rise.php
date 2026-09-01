@@ -9,7 +9,7 @@ use CodeIgniter\Config\BaseConfig;
 class Rise extends BaseConfig {
 
     public $app_settings_array = array(
-        "app_version" => "3.9.4",
+        "app_version" => "3.9.5",
         "app_update_url" => 'https://releases.fairsketch.com/rise/',
         "updates_path" => './updates/',
     );
