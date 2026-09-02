@@ -753,7 +753,10 @@ class ProjectAnalizerController extends ModuleApiController
         }
 
         return array_filter($filters, static function ($value) {
-            return $value !== null && $value !== '';
+            // Optional numeric filters arrive as 0 when they weren't sent.
+            // Passing those zero values to Tasks_model incorrectly restricts
+            // the project task list (for example, assigned_to = 0).
+            return $value !== null && $value !== '' && $value !== 0;
         });
     }
 
