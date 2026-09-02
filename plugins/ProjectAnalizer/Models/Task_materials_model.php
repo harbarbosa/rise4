@@ -18,6 +18,11 @@ class Task_materials_model extends Crud_model
         $table = $this->db->prefixTable($this->table_without_prefix);
         $items = $this->db->prefixTable("proposal_items_custom");
         $catalog = $this->db->prefixTable("items");
+
+        if (!$this->db->tableExists($table)) {
+            return $this->db->query("SELECT NULL AS id WHERE 1=0");
+        }
+
         $where = "";
         foreach (array("task_id", "project_id") as $field) {
             $value = $this->_get_clean_value($options, $field);
@@ -26,12 +31,48 @@ class Task_materials_model extends Crud_model
             }
         }
 
-        return $this->db->query("SELECT $table.*, $items.item_type, $items.item_id,
-            COALESCE(NULLIF($items.description_override, ''), $catalog.title) AS material_description,
-            $items.qty AS proposal_qty, $catalog.unit_type AS item_unit, $items.section_id
-            FROM $table LEFT JOIN $items ON $items.id=$table.proposal_item_id
-            LEFT JOIN $catalog ON $catalog.id=$items.item_id
-            WHERE $table.deleted=0 $where ORDER BY $table.id ASC");
+        $select = array(
+            "$table.*",
+            "NULL AS item_type",
+            "NULL AS item_id",
+            "NULL AS material_description",
+            "NULL AS proposal_qty",
+            "NULL AS item_unit",
+            "NULL AS section_id"
+        );
+        $joins = "";
+
+        if ($this->db->tableExists($items)) {
+            $has_item_type = $this->db->fieldExists("item_type", $items);
+            $has_item_id = $this->db->fieldExists("item_id", $items);
+            $has_description = $this->db->fieldExists("description_override", $items);
+            $has_qty = $this->db->fieldExists("qty", $items);
+            $has_section = $this->db->fieldExists("section_id", $items);
+
+            $select[1] = $has_item_type ? "$items.item_type AS item_type" : "NULL AS item_type";
+            $select[2] = $has_item_id ? "$items.item_id AS item_id" : "NULL AS item_id";
+            $select[4] = $has_qty ? "$items.qty AS proposal_qty" : "NULL AS proposal_qty";
+            $select[6] = $has_section ? "$items.section_id AS section_id" : "NULL AS section_id";
+            $joins .= " LEFT JOIN $items ON $items.id=$table.proposal_item_id";
+
+            $has_catalog = $has_item_id && $this->db->tableExists($catalog);
+            if ($has_catalog) {
+                $joins .= " LEFT JOIN $catalog ON $catalog.id=$items.item_id";
+                $select[5] = $this->db->fieldExists("unit_type", $catalog) ? "$catalog.unit_type AS item_unit" : "NULL AS item_unit";
+                if ($this->db->fieldExists("title", $catalog)) {
+                    $select[3] = $has_description
+                        ? "COALESCE(NULLIF($items.description_override, ''), $catalog.title) AS material_description"
+                        : "$catalog.title AS material_description";
+                }
+            } elseif ($has_description) {
+                $select[3] = "$items.description_override AS material_description";
+            }
+        }
+
+        return $this->db->query(
+            "SELECT " . implode(", ", $select) .
+            " FROM $table$joins WHERE $table.deleted=0 $where ORDER BY $table.id ASC"
+        );
     }
 
     public function upsert_task_materials($task_id, $project_id, $items)
