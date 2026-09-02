@@ -1259,6 +1259,12 @@ class ProjectAnalizer extends Security_Controller {
             $milestone_percentage_label = to_decimal_format($data->percentage, false) . "%";
         }
 
+        $assigned_to_avatar = "<span class='avatar avatar-xs'><img src='" . get_avatar() . "' alt='...'></span>";
+        if (!empty($data->assigned_to)) {
+            $image_url = get_avatar(isset($data->assigned_to_avatar) ? $data->assigned_to_avatar : "");
+            $assigned_to_avatar = "<span class='avatar avatar-xs'><img src='$image_url' alt='...'></span>";
+        }
+
         $collaborators = $this->_get_collaborators($data->collaborator_list);
         if (!$collaborators) {
             $collaborators = "-";
