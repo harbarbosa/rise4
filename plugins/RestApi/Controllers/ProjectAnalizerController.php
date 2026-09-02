@@ -261,7 +261,14 @@ class ProjectAnalizerController extends ModuleApiController
 		$result = $this->executionScheduleModel->get_details($filters);
 		$rows = is_object($result) && method_exists($result, 'getResult') ? $result->getResult() : [];
 		$data = [];
+		$seenGroups = [];
 		foreach ($rows as $row) {
+			$groupIdentity = !empty($row->group_key) ? 'group:' . $row->group_key : 'row:' . $row->id;
+			if (isset($seenGroups[$groupIdentity])) {
+				continue;
+			}
+			$seenGroups[$groupIdentity] = true;
+
 			$groupRows = [];
 			if (!empty($row->group_key)) {
 				$groupRows = $this->executionScheduleModel->get_group_rows($row->group_key, $row->id, false);
