@@ -843,8 +843,11 @@ class ProjectAnalizer extends Security_Controller {
         $view_data["total_task_hours"] = convert_seconds_to_time_format($info->timesheet_total);
         $view_data["show_timesheet_info"] = $this->can_view_timesheet($project_id);
         $view_data["show_time_with_task"] = (get_setting("show_time_with_task_start_date_and_deadline")) ? true : false;
-        $view_data["task_materials"] = model("ProjectAnalizer\\Models\\Task_materials_model")->get_details(array("task_id" => $task_id))->getResult();
-        $view_data["task_tools"] = model("ProjectAnalizer\\Models\\Task_tools_model")->get_details(array("task_id" => $task_id))->getResult();
+        $task_materials_query = model("ProjectAnalizer\\Models\\Task_materials_model")->get_details(array("task_id" => $task_id));
+        $view_data["task_materials"] = $task_materials_query ? $task_materials_query->getResult() : array();
+
+        $task_tools_query = model("ProjectAnalizer\\Models\\Task_tools_model")->get_details(array("task_id" => $task_id));
+        $view_data["task_tools"] = $task_tools_query ? $task_tools_query->getResult() : array();
 
         $view_data['contexts'] = array("project");
         $view_data["checklist_templates"] = $this->Checklist_template_model->get_details()->getResult();
