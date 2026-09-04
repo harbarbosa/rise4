@@ -16,7 +16,52 @@ class Rest_api_Controller extends ResourceController {
 	public function __construct() {
 		$this->api_settings_model = model('RestApi\Models\Api_settings_model');
 		helper('jwt');
-		$request_path = strtolower(trim((string) service('request')->getUri()->getPath(), '/'));
+		$request = service('request');
+		$request_path = strtolower(trim((string) $request->getUri()->getPath(), '/'));
+
+		// The original RestApi controllers read request data through getPost().
+		// Mobile clients and external integrations commonly send application/json,
+		// which makes getPost() empty in CodeIgniter. Normalize JSON objects into
+		// the POST global so existing controllers keep working without changing
+		// every endpoint individually.
+		$method = strtolower((string) $request->getMethod());
+		if (in_array($method, ['post', 'put', 'patch'], true) && empty($request->getPost())) {
+			try {
+				$json_data = $request->getJSON(true);
+				if (is_array($json_data) && !empty($json_data)) {
+					$request->setGlobal('post', $json_data);
+					$_POST = array_merge($_POST ?? [], $json_data);
+				}
+			} catch (\Throwable $e) {
+				// Keep the legacy form-data/x-www-form-urlencoded behavior unchanged
+				// when the body isn't valid JSON.
+			}
+		}
+
+		// Some legacy create handlers access optional fields directly instead of
+		// using null-coalescing. Supply safe defaults only for the affected routes.
+		if ($method === 'post') {
+			$post_data = $request->getPost();
+			if ($request_path === 'api/clients' && !array_key_exists('group_ids', $post_data)) {
+				$post_data['group_ids'] = '';
+				$request->setGlobal('post', $post_data);
+				$_POST['group_ids'] = '';
+			}
+
+			if ($request_path === 'api/projects') {
+				$changed = false;
+				foreach (['labels' => '', 'price' => 0] as $key => $default) {
+					if (!array_key_exists($key, $post_data)) {
+						$post_data[$key] = $default;
+						$_POST[$key] = $default;
+						$changed = true;
+					}
+				}
+				if ($changed) {
+					$request->setGlobal('post', $post_data);
+				}
+			}
+		}
 
 		$token          = get_token();
 		$check_token    = $this->api_settings_model->check_token($token);
