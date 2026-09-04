@@ -125,7 +125,7 @@ app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
             'os_list'     => array('name' => 'os_menu_list',     'url' => 'ordemservico',          'class' => 'list'),
             'os_services' => array('name' => 'Serviços',          'url' => 'ordemservico/services', 'class' => 'tool'),
             'os_settings' => array('name' => 'os_menu_settings', 'url' => 'ordemservico/settings', 'class' => 'settings'),
-            'os_eugestor' => array('name' => 'Integração EuGestor', 'url' => 'ordemservico/eugestor_integration', 'class' => 'refresh-cw')
+            'os_eugestor' => array('name' => 'os_eugestor', 'url' => 'ordemservico/eugestor_integration', 'class' => 'refresh-cw')
         );
     }
     return $sidebar_menu;

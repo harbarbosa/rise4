@@ -1,7 +1,7 @@
 <div id="page-content" class="page-wrapper clearfix">
   <div class="card">
     <div class="page-title clearfix">
-      <h1>Integração EuGestor</h1>
+      <h1><?php echo app_lang('os_eugestor'); ?></h1>
       <div class="title-button-group">
         <button type="button" class="btn btn-default" id="eugestor-test"><i data-feather="wifi" class="icon-16"></i> Testar conexão</button>
         <button type="button" class="btn btn-primary" id="eugestor-sync"><i data-feather="refresh-cw" class="icon-16"></i> Sincronizar OS abertas</button>

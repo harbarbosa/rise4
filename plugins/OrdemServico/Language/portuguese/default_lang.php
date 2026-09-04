@@ -10,6 +10,8 @@ return [
     'os_add_reason' => 'Adicionar Motivo',
     'os_edit_type' => 'Editar Tipo',
     'os_edit_reason' => 'Editar Motivo',
+    'os_eugestor' => 'Integração EuGestor',
+    'os_title' => 'Título',
     'Serviços' => 'Serviços',
     'ordemservico_settings' => 'Ordem de Serviço',
     'ordemservico_permissions' => 'Permissões de Ordem de Serviço',

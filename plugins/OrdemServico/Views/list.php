@@ -34,7 +34,7 @@
       source: '<?php echo_uri("ordemservico/list_data") ?>',
       columns: [
         {title: 'ID', "class": "w100"},
-        {title: 'Título'},
+        {title: <?php echo json_encode(app_lang('os_title')); ?>},
         {title: '<?php echo app_lang("client") ?>'},
         {title: 'Técnico'},
         {title: '<?php echo app_lang("status") ?>'},

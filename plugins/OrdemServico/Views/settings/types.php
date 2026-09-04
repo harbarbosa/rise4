@@ -13,7 +13,7 @@
     $("#os-types-table").appTable({
       source: '<?php echo_uri("ordemservico/types_list_data") ?>',
       columns: [
-        {title: 'Título'},
+        {title: <?php echo json_encode(app_lang('os_title')); ?>},
         {title: '<i data-feather="menu" class="icon-16"></i>', "class": "text-center option w100"}
       ]
     });

@@ -10,6 +10,8 @@ return [
     'os_add_reason' => 'Add Reason',
     'os_edit_type' => 'Edit Type',
     'os_edit_reason' => 'Edit Reason',
+    'os_eugestor' => 'EuGestor Integration',
+    'os_title' => 'Title',
     'ordemservico_permissions' => 'Service Orders Permissions',
     'ordemservico_manage_permission' => 'Can access service orders'
 ];

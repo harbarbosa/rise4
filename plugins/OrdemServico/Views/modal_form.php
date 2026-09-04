@@ -5,7 +5,7 @@
 
     <div class="form-group">
       <div class="row">
-        <label for="titulo" class=" col-md-3">Título</label>
+        <label for="titulo" class=" col-md-3"><?php echo app_lang('os_title'); ?></label>
         <div class=" col-md-9">
           <?php
           echo form_input(array(
@@ -13,7 +13,7 @@
               "name" => "titulo",
               "value" => isset($model_info->titulo) ? $model_info->titulo : "",
               "class" => "form-control",
-              "placeholder" => "Título da OS",
+              "placeholder" => app_lang('os_title') . ' da OS',
           ));
           ?>
         </div>

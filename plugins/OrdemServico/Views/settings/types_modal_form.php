@@ -4,7 +4,7 @@
     <input type="hidden" name="id" value="<?php echo $model_info->id ?? '';?>" />
     <div class="form-group">
       <div class="row">
-        <label class=" col-md-3">Título</label>
+        <label class=" col-md-3"><?php echo app_lang('os_title'); ?></label>
         <div class=" col-md-9">
           <?php echo form_input(array("name"=>"title","value"=>$model_info->title ?? '',"class"=>"form-control","data-rule-required"=>true,"data-msg-required"=>app_lang("field_required"))); ?>
         </div>
