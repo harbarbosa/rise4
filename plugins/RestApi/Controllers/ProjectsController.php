@@ -314,14 +314,14 @@ class ProjectsController extends Rest_api_Controller {
 				'description'  => $posted_data['description'] ?? null,
 				'start_date'   => $posted_data['start_date'] ?? null,
 				'deadline'     => $posted_data['deadline'] ?? null,
-				'price'        => unformat_currency($posted_data['price']) ?? 0,
-				'labels'       => trim($posted_data['labels'], ',') ?? null,
+				'price'        => isset($posted_data['price']) ? unformat_currency($posted_data['price']) : 0,
+				'labels'       => isset($posted_data['labels']) ? trim((string) $posted_data['labels'], ',') : null,
 				'created_date' => date('Y-m-d'),
 				'status'       => "open",
 			];
 
-			$is_client_exists = $this->restapi_clients_model->get_details(['clients_only' => 1,'id' => $posted_data['client_id']])->getResult();
-			if (empty($is_client_exists)) {
+			$client = $this->clients_model->get_one((int) $posted_data['client_id']);
+			if (!$client || empty($client->id) || !empty($client->deleted) || !empty($client->is_lead)) {
 				$message = app_lang('client_id_invalid');
 				return $this->failValidationError($message);
 			}
@@ -463,13 +463,13 @@ class ProjectsController extends Rest_api_Controller {
 				'description' => $posted_data->description ?? $is_project_exits['description'] ?? null,
 				'start_date'  => $posted_data->start_date ?? $is_project_exits['start_date'] ?? null,
 				'deadline'    => $posted_data->deadline ?? $is_project_exits['deadline'] ?? null,
-				'price'       => unformat_currency($posted_data->price) ?? $is_project_exits['price'] ?? null,
-				'labels'      => trim($posted_data->labels, ',') ?? $is_project_exits['labels'],
+				'price'       => isset($posted_data->price) ? unformat_currency($posted_data->price) : ($is_project_exits['price'] ?? null),
+				'labels'      => isset($posted_data->labels) ? trim((string) $posted_data->labels, ',') : ($is_project_exits['labels'] ?? null),
 			];
 
 			if (isset($posted_data->client_id)) {
-				$is_client_exists = $this->restapi_clients_model->get_details(['clients_only' => 1,'id' => $posted_data->client_id])->getResult();
-				if (empty($is_client_exists)) {
+				$client = $this->clients_model->get_one((int) $posted_data->client_id);
+				if (!$client || empty($client->id) || !empty($client->deleted) || !empty($client->is_lead)) {
 					$message = app_lang('client_id_invalid');
 					return $this->failValidationError($message);
 				}
