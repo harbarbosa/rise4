@@ -20,7 +20,7 @@ class Task_materials_model extends Crud_model
         $catalog = $this->db->prefixTable("items");
 
         if (!$this->db->tableExists($table)) {
-            return $this->db->query("SELECT NULL AS id WHERE 1=0");
+            return $this->db->query("SELECT NULL AS id FROM (SELECT 1) AS empty_source WHERE 1=0");
         }
 
         $where = "";
