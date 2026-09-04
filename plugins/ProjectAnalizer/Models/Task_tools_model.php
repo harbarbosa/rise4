@@ -19,7 +19,7 @@ class Task_tools_model extends Crud_model
         $tools = $this->db->prefixTable("pa_tools");
 
         if (!$this->db->tableExists($table)) {
-            return $this->db->query("SELECT NULL AS id WHERE 1=0");
+            return $this->db->query("SELECT NULL AS id FROM (SELECT 1) AS empty_source WHERE 1=0");
         }
 
         $where = "";
