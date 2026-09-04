@@ -107,10 +107,12 @@ class AuthController extends ResourceController
 
         $apiUser = $this->apiSettingsModel->get_data_by_token($token);
         if (!empty($apiUser->id)) {
-            $this->apiSettingsModel->ci_save([
+            // ci_save receives its data argument by reference, so it must be a variable.
+            $logoutData = [
                 'token' => '',
                 'expiration_date' => date('Y-m-d H:i:s', time() - 60),
-            ], (int) $apiUser->id);
+            ];
+            $this->apiSettingsModel->ci_save($logoutData, (int) $apiUser->id);
         }
 
         return $this->respond([
