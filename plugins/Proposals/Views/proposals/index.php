@@ -14,6 +14,21 @@
     </div>
 </div>
 
+<style>
+    /* Mantem o status das propostas visivel e no mesmo padrao de badge do RISE. */
+    #proposals-table .badge.bg-secondary {
+        display: inline-block;
+        padding: 0.35em 0.65em;
+        font-size: 0.75em;
+        font-weight: 600;
+        line-height: 1;
+        color: #fff !important;
+        background-color: #6c757d !important;
+        border-radius: 0.25rem;
+        white-space: nowrap;
+    }
+</style>
+
 <script type="text/javascript">
     $(document).ready(function () {
         $("#proposals-table").appTable({
