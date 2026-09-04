@@ -11,6 +11,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
     public function __construct()
     {
         parent::__construct();
+        helper('date_time');
         $this->timesheetsModel = model('App\Models\Timesheets_model');
         $this->projectsModel = model('App\Models\Projects_model');
         $this->usersModel = model('App\Models\Users_model');
@@ -264,6 +265,12 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
 
             if ($field === 'percentage_executed') {
                 $data[$field] = (float) $value;
+                continue;
+            }
+
+            if (in_array($field, ['start_time', 'end_time'], true)) {
+                $localDateTime = is_string($value) ? trim($value) : (string) $value;
+                $data[$field] = convert_date_local_to_utc($localDateTime);
                 continue;
             }
 
