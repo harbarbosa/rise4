@@ -729,8 +729,11 @@ class ProjectAnalizer extends Security_Controller {
                 }
             }
             if ($model_info && $model_info->id) {
-                $task_materials = model("ProjectAnalizer\\Models\\Task_materials_model")->get_details(array("task_id" => $model_info->id))->getResult();
-                $task_tools = model("ProjectAnalizer\\Models\\Task_tools_model")->get_details(array("task_id" => $model_info->id))->getResult();
+                $task_materials_query = model("ProjectAnalizer\\Models\\Task_materials_model")->get_details(array("task_id" => $model_info->id));
+                $task_materials = $task_materials_query ? $task_materials_query->getResult() : array();
+
+                $task_tools_query = model("ProjectAnalizer\\Models\\Task_tools_model")->get_details(array("task_id" => $model_info->id));
+                $task_tools = $task_tools_query ? $task_tools_query->getResult() : array();
             }
             $tools_query = model("ProjectAnalizer\\Models\\Tools_model")->get_active_tools();
             $tools = $tools_query ? $tools_query->getResult() : array();
