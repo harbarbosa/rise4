@@ -1,4 +1,4 @@
-<link rel="manifest" href="<?php echo get_uri('pwa/manifest'); ?>">
+<link rel="manifest" href="<?php echo get_uri('manifest'); ?>">
 <meta id="theme-color-meta-tag" name="theme-color" content="<?php echo get_setting("pwa_theme_color") ? get_setting("pwa_theme_color") : "#1c2026"; ?>">
 
 <meta charset="utf-8">
