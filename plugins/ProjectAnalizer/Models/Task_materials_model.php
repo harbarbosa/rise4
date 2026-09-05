@@ -77,6 +77,12 @@ class Task_materials_model extends Crud_model
 
     public function upsert_task_materials($task_id, $project_id, $items)
     {
+        // This plugin can be updated before its optional database tables are installed.
+        // In that case, keep the core task save working and skip only material persistence.
+        if (!$this->db->tableExists($this->table)) {
+            return true;
+        }
+
         return $this->_upsert_rows($task_id, $project_id, $items);
     }
 
