@@ -719,17 +719,24 @@ class ProjectAnalizer extends Security_Controller {
         $tools = array();
         if ($project_id) {
             $project_info = $this->Projects_model->get_one($project_id);
+            $task_materials_model = model("ProjectAnalizer\\Models\\Task_materials_model");
+            $allocated_materials = $task_materials_model->get_allocated_quantities($project_id);
             if ($project_info && $project_info->proposal_id) {
                 $proposal_items_model = model("Proposals\\Models\\Proposal_items_model");
                 $proposal_items = $proposal_items_model->get_details(array("proposal_id" => $project_info->proposal_id, "in_memory" => 1))->getResult();
                 foreach ($proposal_items as $proposal_item) {
                     if ($proposal_item->item_type == "material" || $proposal_item->item_type == "item") {
+                        $proposal_quantity = (float) $proposal_item->qty;
+                        $allocated_quantity = (float) get_array_value($allocated_materials, (int) $proposal_item->id);
+                        $proposal_item->proposal_quantity = $proposal_quantity;
+                        $proposal_item->allocated_quantity = $allocated_quantity;
+                        $proposal_item->available_quantity = max(0, $proposal_quantity - $allocated_quantity);
                         $proposal_materials[] = $proposal_item;
                     }
                 }
             }
             if ($model_info && $model_info->id) {
-                $task_materials_query = model("ProjectAnalizer\\Models\\Task_materials_model")->get_details(array("task_id" => $model_info->id));
+                $task_materials_query = $task_materials_model->get_details(array("task_id" => $model_info->id));
                 $task_materials = $task_materials_query ? $task_materials_query->getResult() : array();
 
                 $task_tools_query = model("ProjectAnalizer\\Models\\Task_tools_model")->get_details(array("task_id" => $model_info->id));
@@ -1107,6 +1114,70 @@ class ProjectAnalizer extends Security_Controller {
         if ($data["start_date"] && $data["deadline"] && $data["deadline"] < $data["start_date"]) {
             echo json_encode(array("success" => false, 'message' => app_lang('deadline_must_be_equal_or_greater_than_start_date')));
             return;
+        }
+
+        $posted_materials = $this->request->getPost("task_materials");
+        if (is_array($posted_materials)) {
+            $project_info_for_stock = $this->Projects_model->get_one($project_id);
+            if ($project_info_for_stock && $project_info_for_stock->proposal_id) {
+                $proposal_items_model = model("Proposals\\Models\\Proposal_items_model");
+                $proposal_rows = $proposal_items_model->get_details(array(
+                    "proposal_id" => $project_info_for_stock->proposal_id,
+                    "in_memory" => 1
+                ))->getResult();
+
+                $proposal_stock = array();
+                foreach ($proposal_rows as $proposal_row) {
+                    if ($proposal_row->item_type == "material" || $proposal_row->item_type == "item") {
+                        $proposal_stock[(int) $proposal_row->id] = array(
+                            "name" => $proposal_row->item_title ?: $proposal_row->description_override ?: ("#" . $proposal_row->id),
+                            "quantity" => (float) $proposal_row->qty
+                        );
+                    }
+                }
+
+                $parse_quantity = function ($value) {
+                    $value = trim((string) $value);
+                    if (strpos($value, ",") !== false) {
+                        $value = str_replace(".", "", $value);
+                        $value = str_replace(",", ".", $value);
+                    }
+                    return is_numeric($value) ? (float) $value : 0;
+                };
+
+                $requested_by_item = array();
+                foreach ($posted_materials as $posted_material) {
+                    if (!is_array($posted_material)) {
+                        continue;
+                    }
+                    $proposal_item_id = (int) get_array_value($posted_material, "proposal_item_id");
+                    if (!$proposal_item_id || !isset($proposal_stock[$proposal_item_id])) {
+                        continue;
+                    }
+                    $requested_by_item[$proposal_item_id] = ($requested_by_item[$proposal_item_id] ?? 0)
+                        + $parse_quantity(get_array_value($posted_material, "quantity"));
+                }
+
+                $task_materials_model = model("ProjectAnalizer\\Models\\Task_materials_model");
+                $allocated_elsewhere = $task_materials_model->get_allocated_quantities($project_id, $id);
+                foreach ($requested_by_item as $proposal_item_id => $requested_quantity) {
+                    $available_quantity = max(
+                        0,
+                        $proposal_stock[$proposal_item_id]["quantity"] - (float) get_array_value($allocated_elsewhere, $proposal_item_id)
+                    );
+                    if ($requested_quantity > $available_quantity + 0.00001) {
+                        echo json_encode(array(
+                            "success" => false,
+                            "message" => sprintf(
+                                app_lang("material_quantity_exceeds_available"),
+                                $proposal_stock[$proposal_item_id]["name"],
+                                rtrim(rtrim(number_format($available_quantity, 4, ".", ""), "0"), ".")
+                            )
+                        ));
+                        return;
+                    }
+                }
+            }
         }
 
         $save_id = $this->Tasks_model->ci_save($data, $id);
