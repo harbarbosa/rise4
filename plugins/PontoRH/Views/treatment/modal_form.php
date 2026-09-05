@@ -20,7 +20,7 @@ $selected_notes = !empty($case) && !empty($case->notes) ? $case->notes : '';
             <div class="row">
                 <label for="pontorh-manual-team-member" class="col-md-3"><?php echo app_lang('pontorh_employee'); ?></label>
                 <div class="col-md-9">
-                    <?php echo form_dropdown('team_member_id', $team_members_dropdown, $selected_team_member_id, 'class="form-control" id="pontorh-manual-team-member" required'); ?>
+                    <?php echo form_dropdown('team_member_id', $team_members_dropdown, $selected_team_member_id, 'class="form-control select2 w100p" id="pontorh-manual-team-member" required'); ?>
                 </div>
             </div>
         </div>
@@ -79,6 +79,7 @@ $selected_notes = !empty($case) && !empty($case->notes) ? $case->notes : '';
 
 <script type="text/javascript">
     $(document).ready(function () {
+        $("#pontorh-manual-team-member").select2();
         setDatePicker("#pontorh-treatment-work-date");
         setTimePicker("#pontorh-treatment-work-time");
 
