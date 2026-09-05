@@ -255,12 +255,11 @@ if (!isset($contexts)) {
                 }
             });
 
-            if ($select.data("select2")) {
-                $select.select2("destroy");
-            }
-            $select.select2();
+            // The ProjectAnalizer modal already initializes these selects.
+            // Rebuilding Select2 here causes "query function not defined" on
+            // dynamically generated s2id_autogen elements.
             if (selectedValue) {
-                $select.val(selectedValue).trigger("change.select2");
+                $select.val(selectedValue).trigger("change");
             }
         }
 
