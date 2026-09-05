@@ -5,7 +5,7 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
 /*
   Plugin Name: Gestão de Frota
   Description: Controle de veículos, abastecimentos, manutenções e ocorrências da frota.
-  Version: 1.0.2
+  Version: 1.1.0
   Requires at least: 3.9.0
   Author: Alfa HP
 */
