@@ -167,7 +167,8 @@ $lang['execution_schedule_not_allocated_period'] = 'Not allocated in selected pe
 $lang['execution_schedule_unallocated_list'] = 'Unallocated technicians in the period';
 $lang['execution_schedule_no_unallocated_members'] = 'No unallocated technicians in the selected period.';
 
-return $lang;
 $lang['available'] = 'Available';
 $lang['of_total'] = 'of a total of';
 $lang['material_quantity_exceeds_available'] = 'The quantity entered for %s exceeds the available balance of %s.';
+
+return $lang;
