@@ -5,7 +5,7 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
 /*
   Plugin Name: Gestão de Frota
   Description: Controle de veículos, abastecimentos, manutenções e ocorrências da frota.
-  Version: 1.1.0
+  Version: 1.1.1
   Requires at least: 3.9.0
   Author: Alfa HP
 */
@@ -13,19 +13,7 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
 require_once __DIR__ . '/Helpers/frota_helper.php';
 require_once __DIR__ . '/install.php';
 
-$frota_language = get_setting('language') ?: 'english';
-$frota_language_file = __DIR__ . '/Language/' . $frota_language . '/default_lang.php';
-if (file_exists($frota_language_file)) {
-    require_once $frota_language_file;
-} elseif (file_exists(__DIR__ . '/Language/portuguese/default_lang.php')) {
-    require_once __DIR__ . '/Language/portuguese/default_lang.php';
-}
-
-$frota_t = function ($key, $fallback) use (&$lang) {
-    return isset($lang[$key]) && $lang[$key] !== '' ? $lang[$key] : $fallback;
-};
-
-app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) use ($frota_t) {
+app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
     $ci = new \App\Controllers\Security_Controller(false);
     $user = $ci->login_user ?? null;
     if (!frota_can_access($user)) {
@@ -33,16 +21,16 @@ app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) u
     }
 
     $sidebar_menu['frota'] = [
-        'name' => $frota_t('frota', 'Gestão de Frota'),
+        'name' => 'frota',
         'url' => 'frota',
         'class' => 'truck',
         'position' => 9,
         'submenu' => [
-            'frota_dashboard' => ['name' => $frota_t('frota_dashboard', 'Visão geral'), 'url' => 'frota', 'class' => 'bar-chart-2'],
-            'frota_veiculos' => ['name' => $frota_t('frota_vehicles', 'Veículos'), 'url' => 'frota/veiculos', 'class' => 'truck'],
-            'frota_abastecimentos' => ['name' => $frota_t('frota_fuelings', 'Abastecimentos'), 'url' => 'frota/abastecimentos', 'class' => 'droplet'],
-            'frota_manutencoes' => ['name' => $frota_t('frota_maintenances', 'Manutenções'), 'url' => 'frota/manutencoes', 'class' => 'tool'],
-            'frota_ocorrencias' => ['name' => $frota_t('frota_issues', 'Ocorrências'), 'url' => 'frota/ocorrencias', 'class' => 'alert-triangle'],
+            'frota_dashboard' => ['name' => 'frota_dashboard', 'url' => 'frota', 'class' => 'bar-chart-2'],
+            'frota_veiculos' => ['name' => 'frota_vehicles', 'url' => 'frota/veiculos', 'class' => 'truck'],
+            'frota_abastecimentos' => ['name' => 'frota_fuelings', 'url' => 'frota/abastecimentos', 'class' => 'droplet'],
+            'frota_manutencoes' => ['name' => 'frota_maintenances', 'url' => 'frota/manutencoes', 'class' => 'tool'],
+            'frota_ocorrencias' => ['name' => 'frota_issues', 'url' => 'frota/ocorrencias', 'class' => 'alert-triangle'],
         ],
         'sub_pages' => [
             'frota/index',
