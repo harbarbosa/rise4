@@ -20,7 +20,7 @@
         </div></div></div>
 
         <div class="form-group"><div class="row"><label for="odometer" class="col-md-3">KM</label><div class="col-md-9">
-            <?php echo form_input(['id' => 'odometer', 'name' => 'odometer', 'value' => $model_info->odometer ?? '', 'class' => 'form-control', 'placeholder' => 'KM']); ?>
+            <?php echo form_input(['id' => 'odometer', 'name' => 'odometer', 'value' => $model_info->odometer ?? '', 'class' => 'form-control frota-km-mask', 'placeholder' => '111.111.111', 'inputmode' => 'numeric']); ?>
         </div></div></div>
     </div>
 </div>
@@ -31,6 +31,9 @@
 <?php echo form_close(); ?>
 <script type="text/javascript">
 $(document).ready(function(){
+    if (window.FrotaUI) {
+        window.FrotaUI.prepareMasks('#frota-issue-form');
+    }
     $("#frota-issue-form").appForm({onSuccess:function(){location.reload();}});
     $("#frota-issue-form .select2").select2();
 });
