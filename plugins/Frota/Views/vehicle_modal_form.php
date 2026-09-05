@@ -19,21 +19,21 @@
                         'data-msg-required' => app_lang('field_required'),
                         'data-msg-minlength' => 'Use o formato ABC-1D23.'
                     ]); ?>
-                    <div class="text-off small mt-1">Formato Mercosul: ABC-1D23</div>
+                    <div class="text-off small mt-1">Formatos aceitos: ABC-1234 ou ABC-1D23</div>
                 </div>
             </div>
         </div>
 
         <div class="form-group">
             <div class="row">
-                <label for="prefix" class="col-md-3">Prefixo</label>
+                <label for="prefix" class="col-md-3">Cód. Interno</label>
                 <div class="col-md-9">
                     <?php echo form_input([
                         'id' => 'prefix',
                         'name' => 'prefix',
                         'value' => $model_info->prefix ?? '',
                         'class' => 'form-control',
-                        'placeholder' => 'Prefixo'
+                        'placeholder' => 'Código interno do veículo'
                     ]); ?>
                 </div>
             </div>
@@ -89,7 +89,7 @@
                         'name' => 'current_odometer',
                         'value' => $model_info->current_odometer ?? '',
                         'class' => 'form-control frota-km-mask',
-                        'placeholder' => '111.111.111',
+                        'placeholder' => 'Informe a quilometragem atual',
                         'inputmode' => 'numeric'
                     ]); ?>
                 </div>
@@ -105,7 +105,7 @@
                         'name' => 'next_service_odometer',
                         'value' => $model_info->next_service_odometer ?? '',
                         'class' => 'form-control frota-km-mask',
-                        'placeholder' => '111.111.111',
+                        'placeholder' => 'Informe a KM da próxima revisão',
                         'inputmode' => 'numeric'
                     ]); ?>
                 </div>
