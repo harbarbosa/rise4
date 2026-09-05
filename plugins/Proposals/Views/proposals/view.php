@@ -1070,8 +1070,6 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
         $materialRequestItemOptions.find("option[data-type='service']").remove();
         newRequestItemOptionsHtml = $materialRequestItemOptions.html();
 
-        $("#proposal-status-select").select2();
-
         $("#proposal-memory-send-to-quotation").on("click", function () {
             if (!window.confirm(<?php echo json_encode(app_lang('proposals_send_to_quotation_confirm')); ?>)) {
                 return;
