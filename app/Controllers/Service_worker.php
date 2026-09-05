@@ -2,7 +2,9 @@
 
 namespace App\Controllers;
 
-class Service_worker extends App_Controller
+use CodeIgniter\Controller;
+
+class Service_worker extends Controller
 {
     public function index()
     {
@@ -17,7 +19,7 @@ self.addEventListener('activate', function (event) {
 JS;
 
         return $this->response
-            ->setHeader('Content-Type', 'application/javascript; charset=UTF-8')
+            ->setContentType('application/javascript')
             ->setHeader('Service-Worker-Allowed', '/')
             ->setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
             ->setBody($javascript);
