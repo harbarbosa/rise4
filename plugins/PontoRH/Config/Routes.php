@@ -36,9 +36,9 @@ $routes->post('pontorh/tratamento/modal_form/(:num)', 'PontoRH_treatment::modal_
 $routes->get('pontorh/tratamento/modal_form/(:num)', 'PontoRH_treatment::modal_form/$1', ['namespace' => 'PontoRH\Controllers']);
 $routes->post('pontorh/tratamento/record_modal/(:num)/(:num)/(:any)', 'PontoRH_treatment::record_modal/$1/$2/$3', ['namespace' => 'PontoRH\Controllers']);
 $routes->get('pontorh/tratamento/record_modal/(:num)/(:num)/(:any)', 'PontoRH_treatment::record_modal/$1/$2/$3', ['namespace' => 'PontoRH\Controllers']);
-$routes->post('pontorh/tratamento/save_manual', 'PontoRH_treatment::save_manual', ['namespace' => 'PontoRH\Controllers']);
+$routes->post('pontorh/tratamento/save_manual', 'PontoRH_treatment_ui::save_manual', ['namespace' => 'PontoRH\Controllers']);
 $routes->post('pontorh/tratamento/record_action', 'PontoRH_treatment::record_action', ['namespace' => 'PontoRH\Controllers']);
-$routes->post('pontorh/tratamento/action', 'PontoRH_treatment::action', ['namespace' => 'PontoRH\Controllers']);
+$routes->post('pontorh/tratamento/action', 'PontoRH_treatment_ui::action', ['namespace' => 'PontoRH\Controllers']);
 
 $routes->get('pontorh/registros', 'PontoRH_records::index', ['namespace' => 'PontoRH\Controllers']);
 $routes->post('pontorh/registros/list_data', 'PontoRH_records::list_data', ['namespace' => 'PontoRH\Controllers']);
