@@ -5,7 +5,7 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
 /*
   Plugin Name: Ponto RH
   Description: Modulo de controle de ponto integrado ao RiseCRM.
-  Version: 0.1.0
+  Version: 0.2.0
   Requires at least: 3.9.0
   Author: Internal
 */
@@ -20,11 +20,24 @@ if (file_exists($pontorh_language_file)) {
 } elseif (file_exists(__DIR__ . '/Language/english/default_lang.php')) {
     require_once __DIR__ . '/Language/english/default_lang.php';
 }
+$pontorh_closing_language_file = __DIR__ . '/Language/' . $pontorh_language . '/closing_lang.php';
+if (file_exists($pontorh_closing_language_file)) {
+    require_once $pontorh_closing_language_file;
+} elseif (file_exists(__DIR__ . '/Language/english/closing_lang.php')) {
+    require_once __DIR__ . '/Language/english/closing_lang.php';
+}
 
 \PontoRH\Plugin::register();
 
+if (file_exists(__DIR__ . '/Hooks/closing_menu.php')) {
+    require_once __DIR__ . '/Hooks/closing_menu.php';
+}
+
 if (file_exists(__DIR__ . '/Config/Routes.php')) {
     require_once __DIR__ . '/Config/Routes.php';
+}
+if (file_exists(__DIR__ . '/Config/WorkflowRoutes.php')) {
+    require_once __DIR__ . '/Config/WorkflowRoutes.php';
 }
 
 register_installation_hook('PontoRH', function () {

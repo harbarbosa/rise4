@@ -24,6 +24,9 @@ $routes->post('pontorh/locais/assignment_save', 'PontoRH_locations::assignment_s
 $routes->post('pontorh/locais/assignment_delete', 'PontoRH_locations::assignment_delete', ['namespace' => 'PontoRH\Controllers']);
 $routes->post('pontorh/locais/delete', 'PontoRH_locations::delete', ['namespace' => 'PontoRH\Controllers']);
 $routes->get('pontorh/relatorios', 'PontoRH::reports', ['namespace' => 'PontoRH\Controllers']);
+$routes->get('pontorh/fechamento', 'PontoRH_closing::index', ['namespace' => 'PontoRH\Controllers']);
+$routes->post('pontorh/fechamento/fechar', 'PontoRH_closing::close_period', ['namespace' => 'PontoRH\Controllers']);
+$routes->post('pontorh/fechamento/reabrir', 'PontoRH_closing::reopen_period', ['namespace' => 'PontoRH\Controllers']);
 $routes->get('pontorh/tratamento', 'PontoRH_treatment::index', ['namespace' => 'PontoRH\Controllers']);
 $routes->post('pontorh/tratamento/list_data', 'PontoRH_treatment::list_data', ['namespace' => 'PontoRH\Controllers']);
 $routes->post('pontorh/tratamento/detalhes', 'PontoRH_treatment::details', ['namespace' => 'PontoRH\Controllers']);
