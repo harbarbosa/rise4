@@ -31,13 +31,7 @@ class PontoRH_closing extends PontoRH_Base_Controller
 
         $start = sprintf('%04d-%02d-01', $year, $month);
         $end = date('Y-m-t', strtotime($start));
-        $issues = $this->treatment_cases_model->build_cases(array(
-            'scope' => $scope,
-            'current_user_id' => (int) $this->login_user->id,
-            'team_member_ids' => $this->accessibleTeamMemberIds($scope),
-            'date_from' => $start,
-            'date_to' => min($end, get_my_local_time('Y-m-d')),
-        ));
+        $issues = $this->unresolvedIssues($scope, $start, min($end, get_my_local_time('Y-m-d')));
 
         return $this->template->rander('PontoRH\\Views\\closing\\index', array(
             'rows' => $rows,
@@ -63,19 +57,15 @@ class PontoRH_closing extends PontoRH_Base_Controller
 
         $scope = $this->currentDataScope();
         $member_ids = $this->resolveMemberIds($scope);
-        $issues = $this->treatment_cases_model->build_cases(array(
-            'scope' => $scope,
-            'current_user_id' => (int) $this->login_user->id,
-            'team_member_ids' => $this->accessibleTeamMemberIds($scope),
-            'date_from' => $start,
-            'date_to' => $end,
-        ));
+        $issues = $this->unresolvedIssues($scope, $start, $end);
         if ($issues) {
-            return $this->json(false, 'Existem ' . count($issues) . ' pendência(s) no período. Trate todas antes de fechar.');
+            return $this->json(false, 'Existem ' . count($issues) . ' pendência(s) abertas no período. Trate todas antes de fechar.');
         }
 
         foreach ($member_ids as $member_id) {
-            $this->period_service->setStatus($member_id, $year, $month, 'closed', (int) $this->login_user->id);
+            if (!$this->period_service->setStatus($member_id, $year, $month, 'closed', (int) $this->login_user->id)) {
+                return $this->json(false, 'Não foi possível concluir o fechamento para todos os funcionários.');
+            }
         }
         $this->logAudit('pontorh_closing', 0, 'close_period', 'Período de ponto fechado', array('year' => $year, 'month' => $month, 'members' => $member_ids));
         return $this->json(true, 'Período fechado com sucesso. As marcações deste mês estão bloqueadas.');
@@ -94,6 +84,20 @@ class PontoRH_closing extends PontoRH_Base_Controller
         }
         $this->logAudit('pontorh_closing', 0, 'reopen_period', 'Período de ponto reaberto', array('year' => $year, 'month' => $month, 'members' => $member_ids));
         return $this->json(true, 'Período reaberto. Alterações voltaram a ser permitidas.');
+    }
+
+    protected function unresolvedIssues(string $scope, string $start, string $end): array
+    {
+        $cases = $this->treatment_cases_model->sync_cases(array(
+            'scope' => $scope,
+            'current_user_id' => (int) $this->login_user->id,
+            'team_member_ids' => $this->accessibleTeamMemberIds($scope),
+            'date_from' => $start,
+            'date_to' => $end,
+        ));
+        return array_values(array_filter($cases, static function ($case) {
+            return !in_array((string) ($case['status'] ?? ''), array('complete', 'closed', 'treated_manual'), true);
+        }));
     }
 
     protected function resolveMemberIds(string $scope): array
