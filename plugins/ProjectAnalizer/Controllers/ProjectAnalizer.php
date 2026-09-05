@@ -1164,13 +1164,26 @@ class ProjectAnalizer extends Security_Controller {
                 ))->getResult();
 
                 $proposal_stock = array();
+                $proposal_item_group_map = array();
                 foreach ($proposal_rows as $proposal_row) {
-                    if ($proposal_row->item_type == "material" || $proposal_row->item_type == "item") {
-                        $proposal_stock[(int) $proposal_row->id] = array(
+                    if ($proposal_row->item_type != "material" && $proposal_row->item_type != "item") {
+                        continue;
+                    }
+
+                    $description_key = mb_strtolower(trim((string) ($proposal_row->description_override ?: $proposal_row->item_title)));
+                    $group_key = (int) $proposal_row->item_id
+                        ? "item:" . (int) $proposal_row->item_id
+                        : "description:" . ($description_key ?: (int) $proposal_row->id);
+
+                    if (!isset($proposal_stock[$group_key])) {
+                        $proposal_stock[$group_key] = array(
+                            "id" => (int) $proposal_row->id,
                             "name" => $proposal_row->item_title ?: $proposal_row->description_override ?: ("#" . $proposal_row->id),
-                            "quantity" => (float) $proposal_row->qty
+                            "quantity" => 0
                         );
                     }
+                    $proposal_stock[$group_key]["quantity"] += (float) $proposal_row->qty;
+                    $proposal_item_group_map[(int) $proposal_row->id] = $group_key;
                 }
 
                 $parse_quantity = function ($value) {
@@ -1182,37 +1195,47 @@ class ProjectAnalizer extends Security_Controller {
                     return is_numeric($value) ? (float) $value : 0;
                 };
 
-                $requested_by_item = array();
+                $requested_by_group = array();
                 foreach ($posted_materials as $posted_material) {
                     if (!is_array($posted_material)) {
                         continue;
                     }
                     $proposal_item_id = (int) get_array_value($posted_material, "proposal_item_id");
-                    if (!$proposal_item_id || !isset($proposal_stock[$proposal_item_id])) {
+                    $group_key = get_array_value($proposal_item_group_map, $proposal_item_id);
+                    if (!$proposal_item_id || !$group_key || !isset($proposal_stock[$group_key])) {
                         continue;
                     }
-                    $requested_by_item[$proposal_item_id] = ($requested_by_item[$proposal_item_id] ?? 0)
+                    $requested_by_group[$group_key] = ($requested_by_group[$group_key] ?? 0)
                         + $parse_quantity(get_array_value($posted_material, "quantity"));
                 }
 
                 $task_materials_model = model("ProjectAnalizer\\Models\\Task_materials_model");
                 $allocated_elsewhere = $task_materials_model->get_allocated_quantities($project_id, $id);
-                foreach ($requested_by_item as $proposal_item_id => $requested_quantity) {
+                $allocated_by_group = array();
+                foreach ($allocated_elsewhere as $proposal_item_id => $allocated_quantity) {
+                    $group_key = get_array_value($proposal_item_group_map, (int) $proposal_item_id);
+                    if ($group_key) {
+                        $allocated_by_group[$group_key] = ($allocated_by_group[$group_key] ?? 0) + (float) $allocated_quantity;
+                    }
+                }
+
+                foreach ($requested_by_group as $group_key => $requested_quantity) {
                     $available_quantity = max(
                         0,
-                        $proposal_stock[$proposal_item_id]["quantity"] - (float) get_array_value($allocated_elsewhere, $proposal_item_id)
+                        $proposal_stock[$group_key]["quantity"] - (float) get_array_value($allocated_by_group, $group_key)
                     );
                     if ($requested_quantity > $available_quantity + 0.00001) {
                         echo json_encode(array(
                             "success" => false,
                             "message" => sprintf(
                                 app_lang("material_quantity_exceeds_available"),
-                                $proposal_stock[$proposal_item_id]["name"],
+                                $proposal_stock[$group_key]["name"],
                                 rtrim(rtrim(number_format($available_quantity, 4, ".", ""), "0"), ".")
                             )
                         ));
                         return;
                     }
+                }
                 }
             }
         }
