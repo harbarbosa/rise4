@@ -2,14 +2,16 @@
 
 namespace App\Controllers;
 
-class Manifest extends App_Controller
+use CodeIgniter\Controller;
+
+class Manifest extends Controller
 {
     public function index()
     {
         $manifest = array(
             'name' => 'Intranet AlfaHP',
             'short_name' => 'AlfaHP',
-            'start_url' => '/',
+            'start_url' => '/index.php',
             'scope' => '/',
             'display' => 'standalone',
             'background_color' => '#ffffff',
@@ -17,7 +19,8 @@ class Manifest extends App_Controller
         );
 
         return $this->response
-            ->setHeader('Content-Type', 'application/manifest+json; charset=UTF-8')
+            ->setContentType('application/manifest+json')
+            ->setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
             ->setBody(json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     }
 }
