@@ -22,15 +22,19 @@ $routes->post('frota/veiculos/(:num)/excluir', 'Vehicles::delete/$1', $frota);
 $routes->post('frota/abastecimentos/list_data', 'Frota::abastecimentosListData', $frota);
 $routes->post('frota/abastecimentos/modal_form', 'Frota::abastecimentoModalForm', $frota);
 $routes->post('frota/abastecimentos/salvar', 'Frota::salvarAbastecimento', $frota);
+$routes->post('frota/abastecimentos/(:num)/excluir', 'Records::deleteFueling/$1', $frota);
 
 $routes->post('frota/manutencoes/list_data', 'Frota::manutencoesListData', $frota);
 $routes->post('frota/manutencoes/modal_form', 'Frota::manutencaoModalForm', $frota);
 $routes->post('frota/manutencoes/salvar', 'Frota::salvarManutencao', $frota);
+$routes->post('frota/manutencoes/(:num)/excluir', 'Records::deleteMaintenance/$1', $frota);
 
-$routes->post('frota/ocorrencias/list_data', 'Frota::ocorrenciasListData', $frota);
+$routes->post('frota/ocorrencias/list_data', 'Records::issuesListData', $frota);
 $routes->post('frota/ocorrencias/modal_form', 'Frota::ocorrenciaModalForm', $frota);
 $routes->post('frota/ocorrencias/salvar', 'Frota::salvarOcorrencia', $frota);
 $routes->post('frota/ocorrencias/fotos/upload', 'IssuePhotos::upload', $frota);
+$routes->get('frota/ocorrencias/autor/(:num)', 'Records::issueReporter/$1', $frota);
+$routes->post('frota/ocorrencias/(:num)/excluir', 'Records::deleteIssue/$1', $frota);
 $routes->post('frota/ocorrencias/resolve_modal_form', 'Frota::resolverOcorrenciaModalForm', $frota);
 $routes->post('frota/ocorrencias/(:num)/resolver', 'Frota::resolverOcorrencia/$1', $frota);
 
