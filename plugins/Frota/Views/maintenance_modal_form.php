@@ -19,11 +19,21 @@
             <?php echo form_textarea(['id' => 'description', 'name' => 'description', 'value' => $model_info->description ?? '', 'class' => 'form-control', 'placeholder' => app_lang('description'), 'rows' => 4, 'data-rule-required' => true, 'data-msg-required' => app_lang('field_required')]); ?>
         </div></div></div>
 
-        <?php foreach ([['supplier','Fornecedor',$model_info->supplier ?? ''],['odometer','KM',$model_info->odometer ?? ''],['cost','Custo',$model_info->cost ?? ''],['next_service_odometer','Próxima revisão (km)',$model_info->next_service_odometer ?? '']] as $field) { ?>
-            <div class="form-group"><div class="row"><label for="<?php echo $field[0]; ?>" class="col-md-3"><?php echo $field[1]; ?></label><div class="col-md-9">
-                <?php echo form_input(['id' => $field[0], 'name' => $field[0], 'value' => $field[2], 'class' => 'form-control', 'placeholder' => $field[1]]); ?>
-            </div></div></div>
-        <?php } ?>
+        <div class="form-group"><div class="row"><label for="supplier" class="col-md-3">Fornecedor</label><div class="col-md-9">
+            <?php echo form_input(['id' => 'supplier', 'name' => 'supplier', 'value' => $model_info->supplier ?? '', 'class' => 'form-control', 'placeholder' => 'Fornecedor']); ?>
+        </div></div></div>
+
+        <div class="form-group"><div class="row"><label for="odometer" class="col-md-3">KM</label><div class="col-md-9">
+            <?php echo form_input(['id' => 'odometer', 'name' => 'odometer', 'value' => $model_info->odometer ?? '', 'class' => 'form-control frota-km-mask', 'placeholder' => '111.111.111', 'inputmode' => 'numeric']); ?>
+        </div></div></div>
+
+        <div class="form-group"><div class="row"><label for="cost" class="col-md-3">Custo</label><div class="col-md-9">
+            <?php echo form_input(['id' => 'cost', 'name' => 'cost', 'value' => $model_info->cost ?? '', 'class' => 'form-control', 'placeholder' => 'Custo']); ?>
+        </div></div></div>
+
+        <div class="form-group"><div class="row"><label for="next_service_odometer" class="col-md-3">Próxima revisão (km)</label><div class="col-md-9">
+            <?php echo form_input(['id' => 'next_service_odometer', 'name' => 'next_service_odometer', 'value' => $model_info->next_service_odometer ?? '', 'class' => 'form-control frota-km-mask', 'placeholder' => '111.111.111', 'inputmode' => 'numeric']); ?>
+        </div></div></div>
 
         <div class="form-group"><div class="row"><label for="next_service_date" class="col-md-3">Próxima revisão</label><div class="col-md-9">
             <?php echo form_input(['id' => 'next_service_date', 'name' => 'next_service_date', 'value' => $model_info->next_service_date ?? '', 'class' => 'form-control', 'placeholder' => 'Próxima revisão', 'autocomplete' => 'off']); ?>
@@ -41,6 +51,9 @@
 <?php echo form_close(); ?>
 <script type="text/javascript">
 $(document).ready(function(){
+    if (window.FrotaUI) {
+        window.FrotaUI.prepareMasks('#frota-maintenance-form');
+    }
     $("#frota-maintenance-form").appForm({onSuccess:function(){location.reload();}});
     $("#frota-maintenance-form .select2").select2();
     setDatePicker("#service_date, #next_service_date");
