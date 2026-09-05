@@ -37,7 +37,7 @@
             ],
             columns: [
                 {title: 'Placa', class: 'all w100'},
-                {title: 'Prefixo', class: 'w100'},
+                {title: 'Cód. Interno', class: 'w100'},
                 {title: 'Veículo', class: 'all'},
                 {title: 'Ano', class: 'w75'},
                 {title: 'KM atual', class: 'w100 text-right'},
