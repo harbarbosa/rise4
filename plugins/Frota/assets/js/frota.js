@@ -61,7 +61,7 @@
             value: raw
         });
 
-        $input.removeAttr('name');
+        $input.attr('name', fieldName + '_formatted');
         $input.attr({
             inputmode: 'numeric',
             autocomplete: 'off',
@@ -178,9 +178,7 @@
         function setManualBrand(name) {
             if (!name) return;
             var value = 'manual:' + name;
-            if (!$brand.find('option[value="' + value.replace(/"/g, '\\"') + '"]').length) {
-                $brand.append(new Option(name, value, true, true));
-            }
+            $brand.append(new Option(name, value, true, true));
             $brand.val(value).trigger('change.select2');
             $makeHidden.val(name);
         }
