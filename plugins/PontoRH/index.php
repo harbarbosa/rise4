@@ -29,7 +29,9 @@ if (file_exists($pontorh_closing_language_file)) {
 
 \PontoRH\Plugin::register();
 
-load_js(array('plugins/PontoRH/assets/js/status_badges.js'));
+app_hooks()->add_action('app_hook_head_extension', function () {
+    load_js(array('plugins/PontoRH/assets/js/status_badges.js'));
+});
 
 if (file_exists(__DIR__ . '/Hooks/closing_menu.php')) {
     require_once __DIR__ . '/Hooks/closing_menu.php';
