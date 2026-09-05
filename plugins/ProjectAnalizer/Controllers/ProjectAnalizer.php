@@ -1236,7 +1236,6 @@ class ProjectAnalizer extends Security_Controller {
                         return;
                     }
                 }
-                }
             }
         }
 
