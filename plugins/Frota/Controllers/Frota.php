@@ -26,13 +26,19 @@ class Frota extends Security_Controller
         }
     }
 
-    protected function rows(string $table, array $where = []): array
+    protected function rows(string $table, array $where = [], ?string $orderBy = 'id DESC'): array
     {
         $builder = $this->db->table($this->db->prefixTable($table))->where('deleted', 0);
         foreach ($where as $key => $value) {
-            $builder->where($key, $value);
+            if ($value !== '' && $value !== null) {
+                $builder->where($key, $value);
+            }
         }
-        return $builder->orderBy('id', 'DESC')->get()->getResultArray();
+        if ($orderBy) {
+            [$field, $direction] = array_pad(explode(' ', $orderBy, 2), 2, 'DESC');
+            $builder->orderBy($field, $direction);
+        }
+        return $builder->get()->getResultArray();
     }
 
     protected function vehicles(): array
@@ -41,17 +47,27 @@ class Frota extends Security_Controller
             ->where('deleted', 0)->orderBy('plate', 'ASC')->get()->getResultArray();
     }
 
-    protected function render(string $section)
+    protected function commonData(): array
+    {
+        $vehicles = $this->vehicles();
+        $vehicleMap = [];
+        $vehicleOptions = ['' => '- Todos -'];
+        foreach ($vehicles as $vehicle) {
+            $label = trim($vehicle['plate'] . ' - ' . $vehicle['model']);
+            $vehicleMap[$vehicle['id']] = $label;
+            $vehicleOptions[$vehicle['id']] = $label;
+        }
+        return compact('vehicles', 'vehicleMap', 'vehicleOptions');
+    }
+
+    public function index()
     {
         $this->requireAccess();
-        $vehicles = $this->vehicles();
+        $data = $this->commonData();
         $fuelings = $this->rows('frota_fuelings');
         $maintenances = $this->rows('frota_maintenances');
         $issues = $this->rows('frota_issues');
-        $vehicleMap = [];
-        foreach ($vehicles as $vehicle) {
-            $vehicleMap[$vehicle['id']] = trim($vehicle['plate'] . ' - ' . $vehicle['model']);
-        }
+
         $fuelMonth = 0;
         $maintenanceMonth = 0;
         foreach ($fuelings as $row) {
@@ -62,17 +78,81 @@ class Frota extends Security_Controller
         }
         $openIssues = count(array_filter($issues, fn($r) => $r['status'] !== 'resolved'));
         $maintenanceDue = 0;
-        foreach ($vehicles as $vehicle) {
-            if ((!empty($vehicle['next_service_date']) && $vehicle['next_service_date'] <= date('Y-m-d', strtotime('+30 days'))) || (!empty($vehicle['next_service_odometer']) && (float)$vehicle['current_odometer'] >= (float)$vehicle['next_service_odometer'])) $maintenanceDue++;
+        foreach ($data['vehicles'] as $vehicle) {
+            if ((!empty($vehicle['next_service_date']) && $vehicle['next_service_date'] <= date('Y-m-d', strtotime('+30 days'))) || (!empty($vehicle['next_service_odometer']) && (float)$vehicle['current_odometer'] >= (float)$vehicle['next_service_odometer'])) {
+                $maintenanceDue++;
+            }
         }
-        return $this->template->rander('Frota\\Views\\index', compact('section','vehicles','fuelings','maintenances','issues','vehicleMap','fuelMonth','maintenanceMonth','openIssues','maintenanceDue'));
+        $data += compact('fuelMonth', 'maintenanceMonth', 'openIssues', 'maintenanceDue', 'issues', 'maintenances');
+        return $this->template->rander('Frota\\Views\\dashboard', $data);
     }
 
-    public function index() { return $this->render('dashboard'); }
-    public function veiculos() { return $this->render('vehicles'); }
-    public function abastecimentos() { return $this->render('fuelings'); }
-    public function manutencoes() { return $this->render('maintenances'); }
-    public function ocorrencias() { return $this->render('issues'); }
+    public function veiculos()
+    {
+        $this->requireAccess();
+        $data = $this->commonData();
+        $status = (string)$this->request->getGet('status');
+        $search = trim((string)$this->request->getGet('search'));
+        $vehicles = $data['vehicles'];
+        if ($status !== '') $vehicles = array_values(array_filter($vehicles, fn($v) => ($v['status'] ?? '') === $status));
+        if ($search !== '') {
+            $needle = mb_strtolower($search);
+            $vehicles = array_values(array_filter($vehicles, function ($v) use ($needle) {
+                return str_contains(mb_strtolower(($v['plate'] ?? '').' '.($v['prefix'] ?? '').' '.($v['make'] ?? '').' '.($v['model'] ?? '')), $needle);
+            }));
+        }
+        $data += compact('status', 'search');
+        $data['vehicles'] = $vehicles;
+        return $this->template->rander('Frota\\Views\\vehicles', $data);
+    }
+
+    public function abastecimentos()
+    {
+        $this->requireAccess();
+        $data = $this->commonData();
+        $vehicleId = (string)$this->request->getGet('vehicle_id');
+        $dateFrom = (string)$this->request->getGet('date_from');
+        $dateTo = (string)$this->request->getGet('date_to');
+        $builder = $this->db->table($this->db->prefixTable('frota_fuelings'))->where('deleted', 0);
+        if ($vehicleId !== '') $builder->where('vehicle_id', (int)$vehicleId);
+        if ($dateFrom !== '') $builder->where('DATE(fueling_at) >=', $dateFrom);
+        if ($dateTo !== '') $builder->where('DATE(fueling_at) <=', $dateTo);
+        $data['fuelings'] = $builder->orderBy('fueling_at', 'DESC')->get()->getResultArray();
+        $data += compact('vehicleId', 'dateFrom', 'dateTo');
+        return $this->template->rander('Frota\\Views\\fuelings', $data);
+    }
+
+    public function manutencoes()
+    {
+        $this->requireAccess();
+        $data = $this->commonData();
+        $vehicleId = (string)$this->request->getGet('vehicle_id');
+        $status = (string)$this->request->getGet('status');
+        $type = (string)$this->request->getGet('type');
+        $where = [];
+        if ($vehicleId !== '') $where['vehicle_id'] = (int)$vehicleId;
+        if ($status !== '') $where['status'] = $status;
+        if ($type !== '') $where['type'] = $type;
+        $data['maintenances'] = $this->rows('frota_maintenances', $where, 'service_date DESC');
+        $data += compact('vehicleId', 'status', 'type');
+        return $this->template->rander('Frota\\Views\\maintenances', $data);
+    }
+
+    public function ocorrencias()
+    {
+        $this->requireAccess();
+        $data = $this->commonData();
+        $vehicleId = (string)$this->request->getGet('vehicle_id');
+        $status = (string)$this->request->getGet('status');
+        $severity = (string)$this->request->getGet('severity');
+        $where = [];
+        if ($vehicleId !== '') $where['vehicle_id'] = (int)$vehicleId;
+        if ($status !== '') $where['status'] = $status;
+        if ($severity !== '') $where['severity'] = $severity;
+        $data['issues'] = $this->rows('frota_issues', $where, 'reported_at DESC');
+        $data += compact('vehicleId', 'status', 'severity');
+        return $this->template->rander('Frota\\Views\\issues', $data);
+    }
 
     protected function posted(array $allowed): array
     {
