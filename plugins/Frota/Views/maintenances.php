@@ -1,21 +1,63 @@
-<div class="page-title clearfix">
-    <h1>Manutenções</h1>
-    <div class="title-button-group"><button class="btn btn-default" data-bs-toggle="modal" data-bs-target="#maintenanceModal"><i data-feather="plus-circle" class="icon-16"></i> Nova manutenção</button></div>
+<?php
+$vehicle_filter_options = [['id' => '', 'text' => 'Veículo']];
+foreach ($vehicleOptions as $id => $text) {
+    if ($id !== '') {
+        $vehicle_filter_options[] = ['id' => (string)$id, 'text' => $text];
+    }
+}
+?>
+<div id="page-content" class="page-wrapper clearfix">
+    <div class="card grid-button">
+        <div class="page-title clearfix">
+            <h1><?php echo app_lang('frota_maintenances'); ?></h1>
+            <div class="title-button-group">
+                <?php
+                echo modal_anchor(
+                    get_uri('frota/manutencoes/modal_form'),
+                    "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('frota_new_maintenance'),
+                    ['class' => 'btn btn-default', 'title' => app_lang('frota_new_maintenance')]
+                );
+                ?>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table id="frota-maintenances-table" class="display" cellspacing="0" width="100%"></table>
+        </div>
+    </div>
 </div>
-<div class="card"><div class="card-body"><form method="get" action="<?= get_uri('frota/manutencoes') ?>" class="row g-2 align-items-end">
-<div class="col-md-4"><label>Veículo</label><?= form_dropdown('vehicle_id',$vehicleOptions,$vehicleId,'class="form-control"') ?></div>
-<div class="col-md-3"><label>Tipo</label><select name="type" class="form-control"><option value="">Todos</option><option value="preventive" <?= $type==='preventive'?'selected':'' ?>>Preventiva</option><option value="corrective" <?= $type==='corrective'?'selected':'' ?>>Corretiva</option></select></div>
-<div class="col-md-3"><label>Status</label><select name="status" class="form-control"><option value="">Todos</option><option value="scheduled" <?= $status==='scheduled'?'selected':'' ?>>Agendada</option><option value="in_progress" <?= $status==='in_progress'?'selected':'' ?>>Em andamento</option><option value="completed" <?= $status==='completed'?'selected':'' ?>>Concluída</option><option value="cancelled" <?= $status==='cancelled'?'selected':'' ?>>Cancelada</option></select></div>
-<div class="col-md-2"><button class="btn btn-primary"><i data-feather="filter" class="icon-16"></i> Filtrar</button></div>
-</form></div></div>
-<div class="card mt-3"><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Data</th><th>Veículo</th><th>Tipo</th><th>Descrição</th><th>Fornecedor</th><th>Custo</th><th>Status</th></tr></thead><tbody>
-<?php foreach($maintenances as $r): ?><tr><td><?= esc($r['service_date']) ?></td><td><?= esc($vehicleMap[$r['vehicle_id']] ?? '#'.$r['vehicle_id']) ?></td><td><?= $r['type']==='preventive'?'Preventiva':'Corretiva' ?></td><td><?= esc($r['description']) ?></td><td><?= esc($r['supplier'] ?: '-') ?></td><td><?= frota_money($r['cost']) ?></td><td><?= frota_status_badge($r['status']) ?></td></tr><?php endforeach; ?>
-</tbody></table></div></div>
-<div class="modal fade" id="maintenanceModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><form method="post" action="<?= get_uri('frota/manutencoes/salvar') ?>">
-<div class="modal-header"><h5 class="modal-title">Nova manutenção</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
-<div class="row"><div class="col-md-6 mb-3"><label>Veículo *</label><?= form_dropdown('vehicle_id',$vehicleOptions,'','class="form-control" required') ?></div><div class="col-md-3 mb-3"><label>Tipo</label><select name="type" class="form-control"><option value="preventive">Preventiva</option><option value="corrective">Corretiva</option></select></div><div class="col-md-3 mb-3"><label>Data *</label><input type="date" name="service_date" value="<?= date('Y-m-d') ?>" class="form-control" required></div></div>
-<div class="mb-3"><label>Descrição *</label><textarea name="description" class="form-control" rows="3" required></textarea></div>
-<div class="row"><div class="col-md-4 mb-3"><label>Fornecedor</label><input name="supplier" class="form-control"></div><div class="col-md-4 mb-3"><label>KM</label><input type="number" step="0.1" name="odometer" class="form-control"></div><div class="col-md-4 mb-3"><label>Custo</label><input type="number" step="0.01" name="cost" class="form-control"></div></div>
-<div class="row"><div class="col-md-4 mb-3"><label>Status</label><select name="status" class="form-control"><option value="scheduled">Agendada</option><option value="in_progress">Em andamento</option><option value="completed">Concluída</option></select></div><div class="col-md-4 mb-3"><label>Próxima revisão (km)</label><input type="number" step="0.1" name="next_service_odometer" class="form-control"></div><div class="col-md-4 mb-3"><label>Próxima revisão</label><input type="date" name="next_service_date" class="form-control"></div></div>
-</div><div class="modal-footer"><button type="button" class="btn btn-default" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary">Salvar</button></div></form></div></div></div>
-<script>if(window.feather) feather.replace();</script>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $("#frota-maintenances-table").appTable({
+            source: '<?php echo_uri('frota/manutencoes/list_data'); ?>',
+            order: [[0, 'desc']],
+            filterDropdown: [
+                {name: 'vehicle_id', class: 'w250', options: <?php echo json_encode($vehicle_filter_options); ?>},
+                {name: 'type', class: 'w180', options: [
+                    {id: '', text: 'Tipo'},
+                    {id: 'preventive', text: 'Preventiva'},
+                    {id: 'corrective', text: 'Corretiva'}
+                ]},
+                {name: 'status', class: 'w180', options: [
+                    {id: '', text: '<?php echo app_lang('status'); ?>'},
+                    {id: 'scheduled', text: 'Agendada'},
+                    {id: 'in_progress', text: 'Em andamento'},
+                    {id: 'completed', text: 'Concluída'},
+                    {id: 'cancelled', text: 'Cancelada'}
+                ]}
+            ],
+            columns: [
+                {title: 'Data', class: 'all w100'},
+                {title: 'Veículo', class: 'all'},
+                {title: 'Tipo', class: 'w110'},
+                {title: 'Descrição', class: 'all'},
+                {title: 'Fornecedor', class: 'w180'},
+                {title: 'Custo', class: 'w100 text-right'},
+                {title: '<?php echo app_lang('status'); ?>', class: 'w120'},
+                {title: '<i data-feather="menu" class="icon-16"></i>', class: 'text-center option w100'}
+            ],
+            printColumns: [0, 1, 2, 3, 4, 5, 6],
+            xlsColumns: [0, 1, 2, 3, 4, 5, 6]
+        });
+    });
+</script>
