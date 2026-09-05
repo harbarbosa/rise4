@@ -25,9 +25,26 @@
             </div>
         </div>
 
+        <div class="form-group">
+            <div class="row">
+                <label for="odometer" class="col-md-3">KM</label>
+                <div class="col-md-9">
+                    <?php echo form_input([
+                        'id' => 'odometer',
+                        'name' => 'odometer',
+                        'value' => $model_info->odometer ?? '',
+                        'class' => 'form-control frota-km-mask',
+                        'placeholder' => '111.111.111',
+                        'inputmode' => 'numeric',
+                        'data-rule-required' => true,
+                        'data-msg-required' => app_lang('field_required')
+                    ]); ?>
+                </div>
+            </div>
+        </div>
+
         <?php
         $fields = [
-            ['odometer', 'KM', $model_info->odometer ?? '', true],
             ['liters', 'Litros', $model_info->liters ?? '', true],
             ['unit_price', 'Preço por litro', $model_info->unit_price ?? '', false],
             ['total_amount', 'Valor total', $model_info->total_amount ?? '', true],
@@ -72,6 +89,9 @@
 
 <script type="text/javascript">
     $(document).ready(function () {
+        if (window.FrotaUI) {
+            window.FrotaUI.prepareMasks('#frota-fueling-form');
+        }
         $("#frota-fueling-form").appForm({
             onSuccess: function () { location.reload(); }
         });
