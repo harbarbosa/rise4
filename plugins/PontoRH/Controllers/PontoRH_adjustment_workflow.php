@@ -31,58 +31,76 @@ class PontoRH_adjustment_workflow extends PontoRH_Base_Controller
         $before = clone $adjustment;
         $now = get_current_utc_time();
         $record_id = (int) ($adjustment->record_id ?? 0);
+        $db = db_connect('default');
+        $db->transBegin();
 
-        if ($decision === 'approved' && !$record_id) {
-            $punch_time = (string) ($adjustment->requested_time ?? '');
-            $punch_type = (string) ($adjustment->adjustment_type ?? '');
-            if (!$punch_time || !in_array($punch_type, array('in', 'lunch_out', 'lunch_return', 'out'), true)) {
-                return $this->respond(false, 'O ajuste não possui horário ou tipo de marcação válido.');
+        try {
+            if ($decision === 'approved' && !$record_id) {
+                $punch_time = (string) ($adjustment->requested_time ?? '');
+                $punch_type = (string) ($adjustment->adjustment_type ?? '');
+                if (!$punch_time || !in_array($punch_type, array('in', 'lunch_out', 'lunch_return', 'out'), true)) {
+                    $db->transRollback();
+                    return $this->respond(false, 'O ajuste não possui horário ou tipo de marcação válido.');
+                }
+
+                if ((string) ($adjustment->source ?? '') !== 'mobile_app' && function_exists('convert_date_local_to_utc')) {
+                    $punch_time = convert_date_local_to_utc($punch_time);
+                }
+
+                $record_data = array(
+                    'team_member_id' => (int) $adjustment->team_member_id,
+                    'user_id' => (int) $this->login_user->id,
+                    'work_schedule_id' => null,
+                    'device_id' => null,
+                    'location_id' => null,
+                    'date' => (string) $adjustment->request_date,
+                    'punch_time' => $punch_time,
+                    'punch_type' => $punch_type,
+                    'latitude' => 0,
+                    'longitude' => 0,
+                    'ip_address' => $this->request->getIPAddress(),
+                    'source' => 'adjustment',
+                    'status' => 'adjusted',
+                    'hash' => hash('sha256', implode('|', array('adjustment', $id, $adjustment->team_member_id, $adjustment->request_date, $punch_time, $punch_type))),
+                    'work_date' => (string) $adjustment->request_date,
+                    'check_in' => in_array($punch_type, array('in', 'lunch_return'), true) ? $punch_time : null,
+                    'check_out' => in_array($punch_type, array('lunch_out', 'out'), true) ? $punch_time : null,
+                    'break_minutes' => 0,
+                    'minutes_worked' => 0,
+                    'notes' => 'Ajuste aprovado #' . $id . ': ' . (string) ($adjustment->reason ?? ''),
+                    'created_by' => (int) $this->login_user->id,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                    'deleted' => 0,
+                );
+                $record_id = (int) $this->records_model->ci_save($record_data);
+                if (!$record_id) {
+                    $db->transRollback();
+                    return $this->respond(false, 'Não foi possível criar a marcação do ajuste.');
+                }
             }
 
-            $record_data = array(
-                'team_member_id' => (int) $adjustment->team_member_id,
-                'user_id' => (int) $this->login_user->id,
-                'work_schedule_id' => null,
-                'device_id' => null,
-                'location_id' => null,
-                'date' => (string) $adjustment->request_date,
-                'punch_time' => $punch_time,
-                'punch_type' => $punch_type,
-                'latitude' => 0,
-                'longitude' => 0,
-                'ip_address' => $this->request->getIPAddress(),
-                'source' => 'adjustment',
-                'status' => 'adjusted',
-                'hash' => hash('sha256', implode('|', array('adjustment', $id, $adjustment->team_member_id, $adjustment->request_date, $punch_time, $punch_type))),
-                'work_date' => (string) $adjustment->request_date,
-                'check_in' => in_array($punch_type, array('in', 'lunch_return'), true) ? $punch_time : null,
-                'check_out' => in_array($punch_type, array('lunch_out', 'out'), true) ? $punch_time : null,
-                'break_minutes' => 0,
-                'minutes_worked' => 0,
-                'notes' => 'Ajuste aprovado #' . $id . ': ' . (string) ($adjustment->reason ?? ''),
-                'created_by' => (int) $this->login_user->id,
-                'created_at' => $now,
+            $update = array(
+                'status' => $decision,
+                'record_id' => $record_id ?: null,
+                'reviewed_by' => (int) $this->login_user->id,
+                'reviewed_at' => $now,
                 'updated_at' => $now,
-                'deleted' => 0,
             );
-            $record_id = (int) $this->records_model->ci_save($record_data);
-            if (!$record_id) {
-                return $this->respond(false, 'Não foi possível criar a marcação do ajuste.');
+            if (!$this->adjustments_model->ci_save($update, $id)) {
+                $db->transRollback();
+                return $this->respond(false, app_lang('error_occurred'));
             }
-            $this->logAudit('pontorh_records', $record_id, 'create_from_adjustment', 'Marcação criada a partir de ajuste aprovado', array('adjustment_id' => $id, 'record' => $record_data), (int) $adjustment->team_member_id);
-        }
-
-        $update = array(
-            'status' => $decision,
-            'record_id' => $record_id ?: null,
-            'reviewed_by' => (int) $this->login_user->id,
-            'reviewed_at' => $now,
-            'updated_at' => $now,
-        );
-        if (!$this->adjustments_model->ci_save($update, $id)) {
+            $db->transCommit();
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            log_message('error', '[PontoRH] Adjustment workflow failed: ' . $e->getMessage());
             return $this->respond(false, app_lang('error_occurred'));
         }
 
+        if ($decision === 'approved' && $record_id) {
+            $this->logAudit('pontorh_records', $record_id, 'create_from_adjustment', 'Marcação vinculada a ajuste aprovado', array('adjustment_id' => $id), (int) $adjustment->team_member_id);
+        }
         $after = $this->adjustments_model->get_one_with_details($id, array('scope' => 'all', 'current_user_id' => (int) $this->login_user->id));
         $this->logAudit('pontorh_adjustment_requests', $id, $decision, $decision === 'approved' ? 'Ajuste aprovado e aplicado ao ponto' : 'Ajuste rejeitado', array('before' => $before, 'after' => $after), (int) $adjustment->team_member_id);
         try {
