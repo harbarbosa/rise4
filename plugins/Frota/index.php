@@ -5,7 +5,7 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
 /*
   Plugin Name: Gestão de Frota
   Description: Controle de veículos, abastecimentos, manutenções e ocorrências da frota.
-  Version: 1.3.0
+  Version: 1.4.1
   Requires at least: 3.9.0
   Author: Alfa HP
 */
@@ -14,7 +14,10 @@ require_once __DIR__ . '/Helpers/frota_helper.php';
 require_once __DIR__ . '/install.php';
 
 app_hooks()->add_action('app_hook_head_extension', function () {
-    load_js(['plugins/Frota/assets/js/frota.js']);
+    load_js([
+        'plugins/Frota/assets/js/frota.js',
+        'plugins/Frota/assets/js/frota_dates.js'
+    ]);
 });
 
 app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
