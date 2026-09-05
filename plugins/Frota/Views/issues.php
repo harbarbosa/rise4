@@ -34,30 +34,24 @@ foreach ($vehicleOptions as $id => $text) {
             filterDropdown: [
                 {name: 'vehicle_id', class: 'w250', options: <?php echo json_encode($vehicle_filter_options); ?>},
                 {name: 'severity', class: 'w160', options: [
-                    {id: '', text: 'Gravidade'},
-                    {id: 'low', text: 'Baixa'},
-                    {id: 'medium', text: 'Média'},
-                    {id: 'high', text: 'Alta'},
-                    {id: 'critical', text: 'Crítica'}
+                    {id: '', text: 'Gravidade'}, {id: 'low', text: 'Baixa'}, {id: 'medium', text: 'Média'}, {id: 'high', text: 'Alta'}, {id: 'critical', text: 'Crítica'}
                 ]},
                 {name: 'status', class: 'w160', options: [
-                    {id: '', text: '<?php echo app_lang('status'); ?>'},
-                    {id: 'open', text: 'Aberta'},
-                    {id: 'in_progress', text: 'Em andamento'},
-                    {id: 'resolved', text: 'Resolvida'}
+                    {id: '', text: '<?php echo app_lang('status'); ?>'}, {id: 'open', text: 'Aberta'}, {id: 'in_progress', text: 'Em andamento'}, {id: 'resolved', text: 'Resolvida'}
                 ]}
             ],
             columns: [
                 {title: 'Data', class: 'all w150'},
                 {title: 'Veículo', class: 'all'},
                 {title: 'Ocorrência', class: 'all'},
+                {title: 'Registrado por', class: 'w160'},
                 {title: 'Gravidade', class: 'w100'},
                 {title: 'KM', class: 'w100 text-right'},
                 {title: '<?php echo app_lang('status'); ?>', class: 'w120'},
                 {title: '<i data-feather="menu" class="icon-16"></i>', class: 'text-center option w100'}
             ],
-            printColumns: [0, 1, 2, 3, 4, 5],
-            xlsColumns: [0, 1, 2, 3, 4, 5]
+            printColumns: [0, 1, 2, 3, 4, 5, 6],
+            xlsColumns: [0, 1, 2, 3, 4, 5, 6]
         });
     });
 </script>
