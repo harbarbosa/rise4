@@ -1030,11 +1030,20 @@
         var laborIndex = $("#labor-profiles-rows tr").length;
         var laborTemplate = $("#labor-profile-row-template").html();
 
+        function initTaskResourceSelect2($elements) {
+            $elements.each(function () {
+                var $select = $(this);
+                if (!$select.data("select2") && !$select.hasClass("select2-hidden-accessible")) {
+                    $select.select2();
+                }
+            });
+        }
+
         function addLaborRow() {
             var rowHtml = laborTemplate.replace(/__INDEX__/g, laborIndex);
             var $row = $(rowHtml);
             $("#labor-profiles-rows").append($row);
-            $row.find(".labor-profile-select").select2();
+            initTaskResourceSelect2($row.find(".labor-profile-select"));
             laborIndex++;
         }
 
@@ -1051,18 +1060,18 @@
         $("#add-task-material").on("click", function () {
             var html = $("#task-material-row-template").html().replace(/__INDEX__/g, materialIndex++);
             $("#task-materials-rows").append(html);
-            $("#task-materials-rows tr:last .material-select").select2();
+            initTaskResourceSelect2($("#task-materials-rows tr:last .material-select"));
         });
         $("#add-task-tool").on("click", function () {
             var html = $("#task-tool-row-template").html().replace(/__INDEX__/g, toolIndex++);
             $("#task-tools-rows").append(html);
-            $("#task-tools-rows tr:last .tool-select").select2();
+            initTaskResourceSelect2($("#task-tools-rows tr:last .tool-select"));
         });
         $(document).on("click", ".js-remove-resource", function () { $(this).closest("tr").remove(); });
-        $(".tool-select").select2();
-        $(".material-select").select2();
+        initTaskResourceSelect2($(".tool-select"));
+        initTaskResourceSelect2($(".material-select"));
 
-        $(".labor-profile-select").select2();
+        initTaskResourceSelect2($(".labor-profile-select"));
 
         $(document).on("change", "#milestone_id", function () {
             window.loadMilestonePercentageSummary($(this).val());
