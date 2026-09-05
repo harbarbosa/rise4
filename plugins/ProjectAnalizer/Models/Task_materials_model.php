@@ -75,6 +75,30 @@ class Task_materials_model extends Crud_model
         );
     }
 
+    public function get_allocated_quantities($project_id, $exclude_task_id = 0)
+    {
+        if (!$this->db->tableExists($this->table)) {
+            return array();
+        }
+
+        $builder = $this->db->table($this->table)
+            ->select("proposal_item_id, SUM(quantity) AS allocated_quantity")
+            ->where("project_id", (int) $project_id)
+            ->where("deleted", 0);
+
+        if ((int) $exclude_task_id) {
+            $builder->where("task_id !=", (int) $exclude_task_id);
+        }
+
+        $rows = $builder->groupBy("proposal_item_id")->get()->getResult();
+        $allocated = array();
+        foreach ($rows as $row) {
+            $allocated[(int) $row->proposal_item_id] = (float) $row->allocated_quantity;
+        }
+
+        return $allocated;
+    }
+
     public function upsert_task_materials($task_id, $project_id, $items)
     {
         // This plugin can be updated before its optional database tables are installed.
