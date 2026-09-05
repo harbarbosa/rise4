@@ -66,7 +66,9 @@ class Atualizar extends Controller
                 }
 
                 try {
-                    $install_result = include $install_file;
+                    $install_result = (static function ($file) {
+                        return include $file;
+                    })($install_file);
                     $install_success = is_array($install_result) && !empty($install_result['success']);
                     $result['steps'][] = [
                         'step' => $plugin_name . ' install.php',
