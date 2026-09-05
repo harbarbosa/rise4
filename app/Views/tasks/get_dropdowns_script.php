@@ -27,7 +27,7 @@ if (!isset($contexts)) {
                 if (selectedContext === context) {
                     $element.removeClass("hide");
                     $element.find(".task-context-options").addClass("validate-hidden").attr("data-rule-required", true);
-                    if (context !== "project") { //define the project differntly since there is a change event. Define only once.
+                    if (context !== "project") {
 
                         $dropdownElement.appDropdown({
                             list_data: relatedToDropdowns[context]
@@ -35,7 +35,7 @@ if (!isset($contexts)) {
 
                     }
                 } else {
-                    $dropdownElement.val(""); //reset selected value
+                    $dropdownElement.val("");
                     $element.addClass("hide");
                     $element.find(".task-context-options").removeClass("validate-hidden").removeAttr("data-rule-required");
                 }
@@ -130,7 +130,6 @@ if (!isset($contexts)) {
                 $("#milestone_id").show().val("");
 
 
-                //check if the new dropdown has same value, if so, keep it
                 var assigned_to = "";
                 if (result.assign_to_dropdown.some(item => item.id === $("#assigned_to").val())) {
                     assigned_to = $("#assigned_to").val();
@@ -194,7 +193,6 @@ if (!isset($contexts)) {
         }
 
         if ($("#project_id").length) {
-            // initialize project dropdown if there is only project dropdown available and context dropdown is not available
             $('#project_id').appDropdown({
                 list_data: relatedToDropdowns[context],
                 onChangeCallback: function(value, instance) {
@@ -211,6 +209,70 @@ if (!isset($contexts)) {
         if ((taskId && selectedContext === "project") || (showOnlyProjects && selectedContext === "project" && !projectId)) {
             showRelatedDropdowns("project", true, true);
         }
+
+        // ProjectAnalizer can receive the same proposal material from multiple stages.
+        // Keep only one option per material label while preserving the option already
+        // selected on existing task rows, so saved task-material links are not lost.
+        function deduplicateTaskMaterialSelect($select) {
+            if (!$select.length) {
+                return;
+            }
+
+            var selectedValue = String($select.val() || "");
+            var seen = {};
+            var selectedKeys = {};
+
+            $select.find("option").each(function() {
+                var $option = $(this);
+                var value = String($option.val() || "");
+                if (!value) {
+                    return;
+                }
+                var key = $.trim($option.text()).toLocaleLowerCase();
+                if (value === selectedValue) {
+                    selectedKeys[key] = true;
+                }
+            });
+
+            $select.find("option").each(function() {
+                var $option = $(this);
+                var value = String($option.val() || "");
+                if (!value) {
+                    return;
+                }
+
+                var key = $.trim($option.text()).toLocaleLowerCase();
+                if (!seen[key]) {
+                    seen[key] = $option;
+                    return;
+                }
+
+                if (value === selectedValue) {
+                    seen[key].remove();
+                    seen[key] = $option;
+                } else {
+                    $option.remove();
+                }
+            });
+
+            if ($select.data("select2")) {
+                $select.select2("destroy");
+            }
+            $select.select2();
+            if (selectedValue) {
+                $select.val(selectedValue).trigger("change.select2");
+            }
+        }
+
+        $(".material-select").each(function() {
+            deduplicateTaskMaterialSelect($(this));
+        });
+
+        $("#add-task-material").on("click.projectanalizerDeduplicate", function() {
+            setTimeout(function() {
+                deduplicateTaskMaterialSelect($("#task-materials-rows tr:last .material-select"));
+            }, 0);
+        });
 
     });
 </script>
