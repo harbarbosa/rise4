@@ -210,7 +210,8 @@ $lang["execution_schedule_not_allocated_period"] = "Sem alocacao no periodo";
 $lang["execution_schedule_unallocated_list"] = "Tecnicos nao alocados no periodo";
 $lang["execution_schedule_no_unallocated_members"] = "Nenhum tecnico sem alocacao no periodo informado.";
 
-return $lang;
 $lang["available"] = "Disponível";
 $lang["of_total"] = "de um total de";
 $lang["material_quantity_exceeds_available"] = "A quantidade informada para %s excede o saldo disponível de %s.";
+
+return $lang;
