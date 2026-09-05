@@ -4,6 +4,7 @@
 defined('PLUGINPATH') or exit('No direct script access allowed');
 
 require_once __DIR__.'/vendor/autoload.php';
+require_once __DIR__.'/Config/FrotaRoutes.php';
 
 use RestApi\Libraries\Apiinit;
 
