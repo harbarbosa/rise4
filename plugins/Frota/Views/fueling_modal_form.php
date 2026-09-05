@@ -25,122 +25,57 @@
             </div>
         </div>
 
-        <div class="form-group">
-            <div class="row">
-                <label for="odometer" class="col-md-3">KM</label>
-                <div class="col-md-9">
-                    <?php echo form_input([
-                        'id' => 'odometer',
-                        'name' => 'odometer',
-                        'value' => $model_info->odometer ?? '',
-                        'class' => 'form-control frota-km-mask',
-                        'placeholder' => 'Informe a quilometragem atual',
-                        'inputmode' => 'numeric',
-                        'data-rule-required' => true,
-                        'data-msg-required' => app_lang('field_required')
-                    ]); ?>
-                </div>
-            </div>
-        </div>
+        <div class="form-group"><div class="row"><label for="odometer" class="col-md-3">KM</label><div class="col-md-9">
+            <?php echo form_input(['id'=>'odometer','name'=>'odometer','value'=>$model_info->odometer ?? '','class'=>'form-control frota-km-mask','placeholder'=>'Informe a quilometragem atual','inputmode'=>'numeric','data-rule-required'=>true,'data-msg-required'=>app_lang('field_required')]); ?>
+        </div></div></div>
 
-        <div class="form-group">
-            <div class="row">
-                <label for="liters" class="col-md-3">Litros</label>
-                <div class="col-md-9">
-                    <?php echo form_input([
-                        'id' => 'liters',
-                        'name' => 'liters',
-                        'value' => $model_info->liters ?? '',
-                        'class' => 'form-control frota-decimal-mask',
-                        'data-decimals' => 3,
-                        'placeholder' => 'Informe a quantidade abastecida',
-                        'inputmode' => 'decimal',
-                        'data-rule-required' => true,
-                        'data-msg-required' => app_lang('field_required')
-                    ]); ?>
-                </div>
-            </div>
-        </div>
+        <div class="form-group"><div class="row"><label for="liters" class="col-md-3">Litros</label><div class="col-md-9">
+            <?php echo form_input(['id'=>'liters','name'=>'liters','value'=>$model_info->liters ?? '','class'=>'form-control frota-decimal-mask','data-decimals'=>3,'placeholder'=>'Informe a quantidade abastecida','inputmode'=>'decimal','data-rule-required'=>true,'data-msg-required'=>app_lang('field_required')]); ?>
+        </div></div></div>
 
-        <div class="form-group">
-            <div class="row">
-                <label for="unit_price" class="col-md-3">Preço por litro</label>
-                <div class="col-md-9">
-                    <?php echo form_input([
-                        'id' => 'unit_price',
-                        'name' => 'unit_price',
-                        'value' => $model_info->unit_price ?? '',
-                        'class' => 'form-control frota-money-mask',
-                        'data-decimals' => 3,
-                        'placeholder' => 'Informe o preço por litro',
-                        'inputmode' => 'decimal',
-                        'data-rule-required' => true,
-                        'data-msg-required' => app_lang('field_required')
-                    ]); ?>
-                </div>
-            </div>
-        </div>
+        <div class="form-group"><div class="row"><label for="unit_price" class="col-md-3">Preço por litro</label><div class="col-md-9">
+            <?php echo form_input(['id'=>'unit_price','name'=>'unit_price','value'=>$model_info->unit_price ?? '','class'=>'form-control frota-money-mask','data-decimals'=>3,'placeholder'=>'Informe o preço por litro','inputmode'=>'decimal','data-rule-required'=>true,'data-msg-required'=>app_lang('field_required')]); ?>
+        </div></div></div>
 
-        <div class="form-group">
-            <div class="row">
-                <label for="total_amount" class="col-md-3">Valor total</label>
-                <div class="col-md-9">
-                    <?php echo form_input([
-                        'id' => 'total_amount',
-                        'name' => 'total_amount',
-                        'value' => $model_info->total_amount ?? '',
-                        'class' => 'form-control frota-money-mask',
-                        'data-decimals' => 2,
-                        'placeholder' => 'Calculado automaticamente',
-                        'readonly' => true,
-                        'data-rule-required' => true,
-                        'data-msg-required' => app_lang('field_required')
-                    ]); ?>
-                    <div class="text-off small mt-1">Calculado automaticamente: litros × preço por litro.</div>
-                </div>
-            </div>
-        </div>
+        <div class="form-group"><div class="row"><label for="total_amount" class="col-md-3">Valor total</label><div class="col-md-9">
+            <?php echo form_input(['id'=>'total_amount','name'=>'total_amount','value'=>$model_info->total_amount ?? '','class'=>'form-control frota-money-mask','data-decimals'=>2,'placeholder'=>'Calculado automaticamente','readonly'=>true,'data-rule-required'=>true,'data-msg-required'=>app_lang('field_required')]); ?>
+            <div class="text-off small mt-1">Calculado automaticamente: litros × preço por litro.</div>
+        </div></div></div>
 
-        <div class="form-group">
-            <div class="row">
-                <label for="station" class="col-md-3">Posto</label>
-                <div class="col-md-9">
-                    <?php echo form_input([
-                        'id' => 'station',
-                        'name' => 'station',
-                        'value' => $model_info->station ?? '',
-                        'class' => 'form-control',
-                        'placeholder' => 'Posto'
-                    ]); ?>
-                </div>
-            </div>
-        </div>
+        <div class="form-group"><div class="row"><label for="station" class="col-md-3">Posto</label><div class="col-md-9">
+            <?php echo form_input(['id'=>'station','name'=>'station','value'=>$model_info->station ?? '','class'=>'form-control','placeholder'=>'Posto']); ?>
+        </div></div></div>
 
-        <div class="form-group">
-            <div class="row">
-                <label for="notes" class="col-md-3">Observações</label>
-                <div class="col-md-9">
-                    <?php echo form_textarea(['id' => 'notes', 'name' => 'notes', 'value' => $model_info->notes ?? '', 'class' => 'form-control', 'placeholder' => 'Observações', 'rows' => 4]); ?>
-                </div>
-            </div>
-        </div>
+        <div class="form-group"><div class="row"><label for="notes" class="col-md-3">Observações</label><div class="col-md-9">
+            <?php echo form_textarea(['id'=>'notes','name'=>'notes','value'=>$model_info->notes ?? '','class'=>'form-control','placeholder'=>'Observações','rows'=>4]); ?>
+        </div></div></div>
     </div>
 </div>
 <div class="modal-footer">
+    <?php if (!empty($model_info->id)) { ?>
+        <button type="button" id="frota-delete-fueling" class="btn btn-danger me-auto"><span data-feather="trash-2" class="icon-16"></span> Excluir abastecimento</button>
+    <?php } ?>
     <button type="button" class="btn btn-default" data-bs-dismiss="modal"><span data-feather="x" class="icon-16"></span> <?php echo app_lang('close'); ?></button>
     <button type="submit" class="btn btn-primary"><span data-feather="check-circle" class="icon-16"></span> <?php echo app_lang('save'); ?></button>
 </div>
 <?php echo form_close(); ?>
 
 <script type="text/javascript">
-    $(document).ready(function () {
-        if (window.FrotaUI) {
-            window.FrotaUI.prepareMasks('#frota-fueling-form');
-            window.FrotaUI.initFuelingCalculation('#frota-fueling-form');
-        }
-        $("#frota-fueling-form").appForm({
-            onSuccess: function () { location.reload(); }
-        });
-        $("#frota-fueling-form .select2").select2();
+$(document).ready(function () {
+    var fuelingId = <?php echo (int)($model_info->id ?? 0); ?>;
+    if (window.FrotaUI) {
+        window.FrotaUI.prepareMasks('#frota-fueling-form');
+        window.FrotaUI.initFuelingCalculation('#frota-fueling-form');
+    }
+    $("#frota-fueling-form").appForm({onSuccess:function(){location.reload();}});
+    $("#frota-fueling-form .select2").select2();
+
+    $('#frota-delete-fueling').on('click', function(){
+        if (!fuelingId || !window.confirm('Excluir este abastecimento?')) return;
+        var $button = $(this).prop('disabled', true);
+        $.ajax({url:<?php echo json_encode(get_uri('frota/abastecimentos/' . (int)($model_info->id ?? 0) . '/excluir')); ?>, type:'POST', dataType:'json'})
+        .done(function(response){ if (response && response.success) location.reload(); else { alert((response && response.message) || 'Não foi possível excluir o abastecimento.'); $button.prop('disabled', false); } })
+        .fail(function(xhr){ alert((xhr.responseJSON && xhr.responseJSON.message) || 'Não foi possível excluir o abastecimento.'); $button.prop('disabled', false); });
     });
+});
 </script>
