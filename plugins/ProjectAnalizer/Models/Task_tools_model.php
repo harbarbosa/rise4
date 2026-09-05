@@ -43,6 +43,20 @@ class Task_tools_model extends Crud_model
         );
     }
 
+    private function _parse_quantity($value)
+    {
+        $value = trim((string) $value);
+        if ($value === "") {
+            return 1;
+        }
+        if (strpos($value, ",") !== false) {
+            $value = str_replace(".", "", $value);
+            $value = str_replace(",", ".", $value);
+        }
+
+        return is_numeric($value) ? (float) $value : 0;
+    }
+
     public function upsert_task_tools($task_id, $project_id, $items)
     {
         // This plugin can be updated before its optional database tables are installed.
@@ -63,7 +77,7 @@ class Task_tools_model extends Crud_model
             $tool_id = (int) get_array_value($item, "tool_id");
             if (!$tool_id) { $tool_id = $tools_model->find_or_create(get_array_value($item, "tool_name")); }
             if (!$tool_id) { continue; }
-            $qty = is_numeric(get_array_value($item, "quantity")) ? (float) get_array_value($item, "quantity") : 1;
+            $qty = $this->_parse_quantity(get_array_value($item, "quantity"));
             if ($qty <= 0) { continue; }
             $data = array("project_id" => $project_id, "task_id" => $task_id, "tool_id" => $tool_id, "quantity" => $qty, "requirement" => clean_data(get_array_value($item, "requirement")));
             $id = (int) get_array_value($item, "id");
