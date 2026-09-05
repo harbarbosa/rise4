@@ -2,6 +2,7 @@
 
 namespace RestApi\Controllers;
 
+use Config\Database;
 use ProjectAnalizer\Models\Task_materials_model;
 use ProjectAnalizer\Models\Task_tools_model;
 
@@ -9,10 +10,12 @@ class TaskResourcesController extends ModuleApiController
 {
     protected Task_materials_model $taskMaterialsModel;
     protected Task_tools_model $taskToolsModel;
+    protected $db;
 
     public function __construct()
     {
         parent::__construct();
+        $this->db = Database::connect('default');
         $this->taskMaterialsModel = model('ProjectAnalizer\\Models\\Task_materials_model');
         $this->taskToolsModel = model('ProjectAnalizer\\Models\\Task_tools_model');
     }
