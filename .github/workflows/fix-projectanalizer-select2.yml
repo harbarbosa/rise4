@@ -1,0 +1,34 @@
+name: Fix ProjectAnalizer Select2
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix Select2 initialization
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('plugins/ProjectAnalizer/Views/tasks/modal_form.php')
+          s = p.read_text(encoding='utf-8-sig')
+          s = s.replace("class='select2 js_app_dropdown'", "class='select2'")
+          s = s.replace('$("#task-form .js_app_dropdown").appDropdown();', '$("#task-form select.select2").each(function () { if (!$(this).data("select2")) { $(this).select2({width: "100%"}); } });')
+          s = s.replace('$row.find(".labor-profile-select").select2();', 'ProjectAnalizerTaskResourceSelect.init($row.find(".labor-profile-select"));')
+          s = s.replace('$("#task-materials-rows tr:last .material-select").select2();', 'ProjectAnalizerTaskResourceSelect.init($("#task-materials-rows tr:last .material-select"));')
+          s = s.replace('$("#task-tools-rows tr:last .tool-select").select2();', 'ProjectAnalizerTaskResourceSelect.init($("#task-tools-rows tr:last .tool-select"));')
+          s = s.replace('$(".tool-select").select2();\n        $(".material-select").select2();\n\n        $(".labor-profile-select").select2();', 'ProjectAnalizerTaskResourceSelect.initAll($("#task-form"));')
+          marker = '<script type="text/javascript">\n    $(document).ready(function() {'
+          helper = '<?php echo view("ProjectAnalizer\\\\Views\\\\tasks\\\\select2_fix"); ?>\n\n'
+          if helper not in s:
+              s = s.replace(marker, helper + marker, 1)
+          p.write_text(s, encoding='utf-8')
+      - name: Commit correction
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add plugins/ProjectAnalizer/Views/tasks/modal_form.php
+          git diff --cached --quiet || git commit -m "fix(ProjectAnalizer): correct Select2 initialization in task modal"
+          git push
