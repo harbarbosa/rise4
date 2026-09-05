@@ -233,7 +233,8 @@ class PontoRH_treatment_ui extends PontoRH_treatment
                 'updated_at' => get_current_utc_time(),
             );
             $this->treatment_cases_model->save_action($case_id, $save);
-            $this->treatment_cases_model->ci_save(array('hash' => $state['signature']), $case_id);
+            $hashSave = array('hash' => $state['signature']);
+            $this->treatment_cases_model->ci_save($hashSave, $case_id);
             $after = $this->treatment_cases_model->get_one_with_details($case_id);
             $this->logTreatmentHistory($after, 'approve_day', $justification, $before, $after);
             $this->logAudit('pontorh_treatment', $case_id, 'approve_day', 'Dia aprovado após conferência', array('justification' => $justification), (int) $case->team_member_id);
