@@ -52,17 +52,39 @@ class Atualizar extends Controller
                 'output' => implode("\n", $output)
             ];
 
-            // Passo 3: Executar install.php do plugin Proposals se existir
-            $proposals_install = ROOTPATH . 'plugins/Proposals/install.php';
-            if (file_exists($proposals_install)) {
-                $output = [];
-                exec('php ' . $proposals_install . ' 2>&1', $output, $return_var);
-                
-                $result['steps'][] = [
-                    'step' => 'Proposals install.php',
-                    'success' => $return_var === 0,
-                    'output' => implode("\n", $output)
-                ];
+            // Passo 3: Executar instaladores dentro do CodeIgniter já inicializado.
+            // Os arquivos usam db_connect() e helpers da aplicação, portanto não
+            // podem ser executados corretamente como scripts PHP isolados.
+            $plugin_installers = [
+                'Proposals' => ROOTPATH . 'plugins/Proposals/install.php',
+                'ProjectAnalizer' => ROOTPATH . 'plugins/ProjectAnalizer/install.php'
+            ];
+
+            foreach ($plugin_installers as $plugin_name => $install_file) {
+                if (!file_exists($install_file)) {
+                    continue;
+                }
+
+                try {
+                    $install_result = include $install_file;
+                    $install_success = is_array($install_result) && !empty($install_result['success']);
+                    $result['steps'][] = [
+                        'step' => $plugin_name . ' install.php',
+                        'success' => $install_success,
+                        'output' => json_encode($install_result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                    ];
+
+                    if (!$install_success) {
+                        $result['success'] = false;
+                    }
+                } catch (\Throwable $e) {
+                    $result['success'] = false;
+                    $result['steps'][] = [
+                        'step' => $plugin_name . ' install.php',
+                        'success' => false,
+                        'output' => $e->getMessage()
+                    ];
+                }
             }
         }
 
