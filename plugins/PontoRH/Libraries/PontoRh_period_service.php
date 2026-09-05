@@ -30,8 +30,12 @@ class PontoRh_period_service
     public function calculate(int $team_member_id, int $year, int $month, int $user_id): array
     {
         $start = sprintf('%04d-%02d-01', $year, $month);
-        $end = date('Y-m-t', strtotime($start));
-        $records = $this->records->get_details(array('team_member_id' => $team_member_id, 'date_from' => $start, 'date_to' => $end))->getResult();
+        $month_end = date('Y-m-t', strtotime($start));
+        $today = get_my_local_time('Y-m-d');
+        $effective_end = $month_end < $today ? $month_end : $today;
+        $has_started = $start <= $today;
+
+        $records = $has_started ? $this->records->get_details(array('team_member_id' => $team_member_id, 'date_from' => $start, 'date_to' => $effective_end))->getResult() : array();
         $grouped = array();
         foreach ($records as $record) {
             $grouped[(string) $record->date][] = $record;
@@ -43,24 +47,25 @@ class PontoRh_period_service
         $late = 0;
         $absence = 0;
         $overtime = 0;
-        $days = (int) date('t', strtotime($start));
 
-        for ($day = 1; $day <= $days; $day++) {
-            $date = sprintf('%04d-%02d-%02d', $year, $month, $day);
-            if (!$this->isWorkday($date, $team_member_id, $schedule)) {
-                continue;
+        if ($has_started) {
+            for ($ts = strtotime($start); $ts <= strtotime($effective_end); $ts = strtotime('+1 day', $ts)) {
+                $date = date('Y-m-d', $ts);
+                if (!$this->isWorkday($date, $team_member_id, $schedule)) {
+                    continue;
+                }
+                $daily_expected = $this->scheduleMinutes($schedule);
+                $expected += $daily_expected;
+                $day_records = $grouped[$date] ?? array();
+                if (!$day_records) {
+                    $absence += $daily_expected;
+                    continue;
+                }
+                $summary = $this->summarizeDay($date, $day_records, $schedule);
+                $worked += $summary['worked'];
+                $late += $summary['late'];
+                $overtime += max(0, $summary['worked'] - $daily_expected - (int) ($schedule->extra_tolerance_minutes ?? 0));
             }
-            $daily_expected = $this->scheduleMinutes($schedule);
-            $expected += $daily_expected;
-            $day_records = $grouped[$date] ?? array();
-            if (!$day_records) {
-                $absence += $daily_expected;
-                continue;
-            }
-            $summary = $this->summarizeDay($date, $day_records, $schedule);
-            $worked += $summary['worked'];
-            $late += $summary['late'];
-            $overtime += max(0, $summary['worked'] - $daily_expected - (int) ($schedule->extra_tolerance_minutes ?? 0));
         }
 
         $existing = $this->summaries->get_by_member_month($team_member_id, $year, $month);
@@ -91,7 +96,7 @@ class PontoRh_period_service
 
     public function setStatus(int $team_member_id, int $year, int $month, string $status, int $user_id): bool
     {
-        $summary = $this->calculate($team_member_id, $year, $month, $user_id);
+        $this->calculate($team_member_id, $year, $month, $user_id);
         $existing = $this->summaries->get_by_member_month($team_member_id, $year, $month);
         if (!$existing || empty($existing->id)) {
             return false;
