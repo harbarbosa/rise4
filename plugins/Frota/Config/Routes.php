@@ -26,7 +26,8 @@ $routes->post('frota/abastecimentos/(:num)/excluir', 'Records::deleteFueling/$1'
 
 $routes->post('frota/manutencoes/list_data', 'Frota::manutencoesListData', $frota);
 $routes->post('frota/manutencoes/modal_form', 'Frota::manutencaoModalForm', $frota);
-$routes->post('frota/manutencoes/salvar', 'Frota::salvarManutencao', $frota);
+$routes->get('frota/manutencoes/ocorrencias/veiculo/(:num)', 'MaintenanceWorkflow::issuesByVehicle/$1', $frota);
+$routes->post('frota/manutencoes/salvar', 'MaintenanceWorkflow::save', $frota);
 $routes->post('frota/manutencoes/(:num)/excluir', 'Records::deleteMaintenance/$1', $frota);
 
 $routes->post('frota/ocorrencias/list_data', 'Records::issuesListData', $frota);
