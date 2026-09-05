@@ -32,7 +32,7 @@ if ($login_user_id) {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 //service worker for app
-                navigator.serviceWorker.register("<?php echo get_uri('pwa/service_worker'); ?>", {
+                navigator.serviceWorker.register("<?php echo get_uri('service_worker'); ?>", {
                     scope: '/'
                 }).then(registration => {
 
