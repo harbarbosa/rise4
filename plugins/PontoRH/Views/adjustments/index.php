@@ -1,50 +1,52 @@
-<div id="page-content" class="page-wrapper clearfix">
+<style>
+    .pontorh-adjustments-index .filter-label {font-size:12px;color:#69727d;margin-bottom:5px;}
+    .pontorh-adjustments-index #pontorh-adjustments-table td {vertical-align:middle;}
+    .pontorh-adjustments-index #pontorh-adjustments-table td:nth-child(1),
+    .pontorh-adjustments-index #pontorh-adjustments-table td:nth-child(2),
+    .pontorh-adjustments-index #pontorh-adjustments-table td:nth-child(3),
+    .pontorh-adjustments-index #pontorh-adjustments-table td:nth-child(6),
+    .pontorh-adjustments-index #pontorh-adjustments-table td:nth-child(7) {white-space:nowrap;}
+</style>
+
+<div id="page-content" class="page-wrapper clearfix pontorh-adjustments-index">
     <div class="card">
         <div class="page-title clearfix">
-            <h1><?php echo app_lang('pontorh_adjustments'); ?></h1>
+            <div>
+                <h1>Ajustes de Ponto</h1>
+                <div class="text-muted">Solicitações de correção de marcações e respectivas aprovações.</div>
+            </div>
             <div class="title-button-group">
                 <?php if ($can_request) { ?>
-                    <?php echo modal_anchor(get_uri('pontorh/ajustes/modal_form'), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('pontorh_adjustment_request'), array('class' => 'btn btn-primary', 'title' => app_lang('pontorh_adjustment_request'), 'data-modal-lg' => '1')); ?>
+                    <?php echo modal_anchor(get_uri('pontorh/ajustes/modal_form'), "<i data-feather='plus' class='icon-16'></i> Solicitar ajuste", array('class' => 'btn btn-primary', 'title' => 'Solicitar ajuste', 'data-modal-lg' => '1')); ?>
                 <?php } ?>
             </div>
         </div>
 
         <div class="card-body border-bottom">
-            <div class="text-muted small mb-2"><?php echo app_lang('pontorh_adjustment_details'); ?></div>
-            <div class="row g-2 align-items-end">
-                <div class="col-md-3 col-sm-6">
-                    <label class="form-label"><?php echo app_lang('pontorh_employee'); ?></label>
+            <div class="row align-items-end">
+                <div class="col-lg-3 col-md-6">
+                    <label class="filter-label">Funcionário</label>
                     <?php echo form_dropdown('team_member_id', $team_members_dropdown, '', 'class="form-control select2 w100p" id="pontorh-adjustment-filter-member"'); ?>
                 </div>
-                <div class="col-md-3 col-sm-6">
-                    <label class="form-label"><?php echo app_lang('pontorh_adjustment_date'); ?></label>
-                    <div class="input-daterange input-group">
-                        <?php echo form_input(array(
-                            'id' => 'pontorh-adjustment-date-from',
-                            'class' => 'form-control datepicker',
-                            'autocomplete' => 'off',
-                            'placeholder' => app_lang('from_date'),
-                        )); ?>
-                        <span class="input-group-text">-</span>
-                        <?php echo form_input(array(
-                            'id' => 'pontorh-adjustment-date-to',
-                            'class' => 'form-control datepicker',
-                            'autocomplete' => 'off',
-                            'placeholder' => app_lang('to_date'),
-                        )); ?>
-                    </div>
+                <div class="col-lg-2 col-md-6">
+                    <label class="filter-label">Data inicial</label>
+                    <?php echo form_input(array('id' => 'pontorh-adjustment-date-from','class' => 'form-control datepicker','autocomplete' => 'off')); ?>
                 </div>
-                <div class="col-md-2 col-sm-6">
-                    <label class="form-label"><?php echo app_lang('pontorh_type'); ?></label>
+                <div class="col-lg-2 col-md-6">
+                    <label class="filter-label">Data final</label>
+                    <?php echo form_input(array('id' => 'pontorh-adjustment-date-to','class' => 'form-control datepicker','autocomplete' => 'off')); ?>
+                </div>
+                <div class="col-lg-2 col-md-6">
+                    <label class="filter-label">Tipo</label>
                     <?php echo form_dropdown('adjustment_type', $adjustment_type_dropdown, '', 'class="form-control select2 w100p" id="pontorh-adjustment-filter-type"'); ?>
                 </div>
-                <div class="col-md-2 col-sm-6">
-                    <label class="form-label"><?php echo app_lang('pontorh_status'); ?></label>
+                <div class="col-lg-3 col-md-6">
+                    <label class="filter-label">Situação</label>
                     <?php echo form_dropdown('status', $status_dropdown, '', 'class="form-control select2 w100p" id="pontorh-adjustment-filter-status"'); ?>
                 </div>
-                <div class="col-md-2 col-sm-6">
-                    <button type="button" id="pontorh-adjustment-filter-btn" class="btn btn-primary btn-sm me-2"><?php echo app_lang('filter'); ?></button>
-                    <button type="button" id="pontorh-adjustment-clear-btn" class="btn btn-default btn-sm"><?php echo app_lang('clear'); ?></button>
+                <div class="col-12 mt-3">
+                    <button type="button" id="pontorh-adjustment-filter-btn" class="btn btn-primary"><i data-feather="filter" class="icon-16"></i> Filtrar</button>
+                    <button type="button" id="pontorh-adjustment-clear-btn" class="btn btn-default">Limpar</button>
                 </div>
             </div>
         </div>
@@ -83,20 +85,17 @@
             filterParams: $.extend({datatable: true}, pontorhAdjustmentFilters()),
             order: [[1, "desc"]],
             columns: [
-                {title: "<?php echo app_lang('pontorh_employee'); ?>"},
-                {title: "<?php echo app_lang('pontorh_work_date'); ?>"},
-                {title: "<?php echo app_lang('pontorh_adjustment_time'); ?>"},
-                {title: "<?php echo app_lang('pontorh_type'); ?>"},
-                {title: "<?php echo app_lang('pontorh_adjustment_justification'); ?>"},
-                {title: "<?php echo app_lang('pontorh_status'); ?>"},
-                {title: "<i data-feather='menu' class='icon-16'></i>", "class": "text-center option w120"}
+                {title: "Funcionário"},
+                {title: "Data", "class": "w100"},
+                {title: "Hora", "class": "w90"},
+                {title: "Tipo"},
+                {title: "Justificativa"},
+                {title: "Situação"},
+                {title: "<i data-feather='menu' class='icon-16'></i>", "class": "text-center option w100"}
             ]
         });
 
-        $("#pontorh-adjustment-filter-btn").on("click", function () {
-            reloadPontorhAdjustmentsTable();
-        });
-
+        $("#pontorh-adjustment-filter-btn").on("click", reloadPontorhAdjustmentsTable);
         $("#pontorh-adjustment-clear-btn").on("click", function () {
             $("#pontorh-adjustment-filter-member, #pontorh-adjustment-filter-type, #pontorh-adjustment-filter-status").val("").trigger("change");
             $("#pontorh-adjustment-date-from, #pontorh-adjustment-date-to").val("");
