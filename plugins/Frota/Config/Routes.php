@@ -38,15 +38,3 @@ $routes->get('frota/ocorrencias/autor/(:num)', 'Records::issueReporter/$1', $fro
 $routes->post('frota/ocorrencias/(:num)/excluir', 'Records::deleteIssue/$1', $frota);
 $routes->post('frota/ocorrencias/resolve_modal_form', 'Frota::resolverOcorrenciaModalForm', $frota);
 $routes->post('frota/ocorrencias/(:num)/resolver', 'Frota::resolverOcorrencia/$1', $frota);
-
-$api = ['namespace' => 'RestApi\\Controllers'];
-$routes->group('api/frota', $api, function ($routes) {
-    $routes->get('dashboard', 'FrotaController::dashboard');
-    $routes->get('vehicles', 'FrotaController::vehicles');
-    $routes->get('vehicles/(:num)', 'FrotaController::vehicle/$1');
-    $routes->get('fuelings', 'FrotaController::fuelings');
-    $routes->post('fuelings', 'FrotaController::createFueling');
-    $routes->get('issues', 'FrotaController::issues');
-    $routes->post('issues', 'FrotaController::createIssue');
-    $routes->get('maintenances', 'FrotaController::maintenances');
-});
