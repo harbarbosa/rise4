@@ -29,6 +29,7 @@ $routes->post('frota/manutencoes/salvar', 'Frota::salvarManutencao', $frota);
 $routes->post('frota/ocorrencias/list_data', 'Frota::ocorrenciasListData', $frota);
 $routes->post('frota/ocorrencias/modal_form', 'Frota::ocorrenciaModalForm', $frota);
 $routes->post('frota/ocorrencias/salvar', 'Frota::salvarOcorrencia', $frota);
+$routes->post('frota/ocorrencias/fotos/upload', 'IssuePhotos::upload', $frota);
 $routes->post('frota/ocorrencias/resolve_modal_form', 'Frota::resolverOcorrenciaModalForm', $frota);
 $routes->post('frota/ocorrencias/(:num)/resolver', 'Frota::resolverOcorrencia/$1', $frota);
 
