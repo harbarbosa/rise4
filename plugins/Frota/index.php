@@ -5,7 +5,7 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
 /*
   Plugin Name: Gestão de Frota
   Description: Controle de veículos, abastecimentos, manutenções e ocorrências da frota.
-  Version: 1.0.1
+  Version: 1.0.2
   Requires at least: 3.9.0
   Author: Alfa HP
 */
@@ -34,16 +34,22 @@ app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) u
 
     $sidebar_menu['frota'] = [
         'name' => $frota_t('frota', 'Gestão de Frota'),
-        'url' => get_uri('frota'),
+        'url' => 'frota',
         'class' => 'truck',
         'position' => 9,
-        'is_custom_menu_item' => true,
         'submenu' => [
-            'frota_dashboard' => ['name' => $frota_t('frota_dashboard', 'Visão geral'), 'url' => get_uri('frota'), 'class' => 'bar-chart-2'],
-            'frota_veiculos' => ['name' => $frota_t('frota_vehicles', 'Veículos'), 'url' => get_uri('frota/veiculos'), 'class' => 'truck'],
-            'frota_abastecimentos' => ['name' => $frota_t('frota_fuelings', 'Abastecimentos'), 'url' => get_uri('frota/abastecimentos'), 'class' => 'droplet'],
-            'frota_manutencoes' => ['name' => $frota_t('frota_maintenances', 'Manutenções'), 'url' => get_uri('frota/manutencoes'), 'class' => 'tool'],
-            'frota_ocorrencias' => ['name' => $frota_t('frota_issues', 'Ocorrências'), 'url' => get_uri('frota/ocorrencias'), 'class' => 'alert-triangle'],
+            'frota_dashboard' => ['name' => $frota_t('frota_dashboard', 'Visão geral'), 'url' => 'frota', 'class' => 'bar-chart-2'],
+            'frota_veiculos' => ['name' => $frota_t('frota_vehicles', 'Veículos'), 'url' => 'frota/veiculos', 'class' => 'truck'],
+            'frota_abastecimentos' => ['name' => $frota_t('frota_fuelings', 'Abastecimentos'), 'url' => 'frota/abastecimentos', 'class' => 'droplet'],
+            'frota_manutencoes' => ['name' => $frota_t('frota_maintenances', 'Manutenções'), 'url' => 'frota/manutencoes', 'class' => 'tool'],
+            'frota_ocorrencias' => ['name' => $frota_t('frota_issues', 'Ocorrências'), 'url' => 'frota/ocorrencias', 'class' => 'alert-triangle'],
+        ],
+        'sub_pages' => [
+            'frota/index',
+            'frota/veiculos',
+            'frota/abastecimentos',
+            'frota/manutencoes',
+            'frota/ocorrencias',
         ],
     ];
     return $sidebar_menu;
