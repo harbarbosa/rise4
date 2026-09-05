@@ -86,6 +86,17 @@ class Task_materials_model extends Crud_model
         return $this->_upsert_rows($task_id, $project_id, $items);
     }
 
+    private function _parse_quantity($value)
+    {
+        $value = trim((string) $value);
+        if (strpos($value, ",") !== false) {
+            $value = str_replace(".", "", $value);
+            $value = str_replace(",", ".", $value);
+        }
+
+        return is_numeric($value) ? (float) $value : 0;
+    }
+
     private function _upsert_rows($task_id, $project_id, $items)
     {
         $task_id = (int) $task_id;
@@ -102,7 +113,7 @@ class Task_materials_model extends Crud_model
                 "project_id" => $project_id,
                 "task_id" => $task_id,
                 "proposal_item_id" => (int) get_array_value($item, "proposal_item_id"),
-                "quantity" => is_numeric(get_array_value($item, "quantity")) ? (float) get_array_value($item, "quantity") : 0,
+                "quantity" => $this->_parse_quantity(get_array_value($item, "quantity")),
                 "notes" => clean_data(get_array_value($item, "notes"))
             );
             if ($data["quantity"] <= 0) { continue; }
