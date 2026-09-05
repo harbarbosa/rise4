@@ -15,9 +15,9 @@
                         'placeholder' => 'ABC-1D23',
                         'maxlength' => 8,
                         'data-rule-required' => true,
-                        'data-rule-pattern' => '^[A-Z]{3}-[0-9][A-Z][0-9]{2}$',
+                        'data-rule-minlength' => 8,
                         'data-msg-required' => app_lang('field_required'),
-                        'data-msg-pattern' => 'Use o formato ABC-1D23.'
+                        'data-msg-minlength' => 'Use o formato ABC-1D23.'
                     ]); ?>
                     <div class="text-off small mt-1">Formato Mercosul: ABC-1D23</div>
                 </div>
