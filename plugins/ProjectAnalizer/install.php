@@ -68,11 +68,15 @@ foreach ($statements as $statement) {
 }
 
 foreach (array("pa_tools", "pa_task_materials", "pa_task_tools") as $table) {
-    if ($db->tableExists($dbprefix . $table)) {
-        $result["tables"][] = $dbprefix . $table;
+    $full_table = $dbprefix . $table;
+    // Query the database directly because tableExists() can keep a cached list
+    // populated by a previously executed plugin installer in the same request.
+    $table_query = $db->query("SHOW TABLES LIKE ?", array($full_table));
+    if ($table_query && $table_query->getNumRows() > 0) {
+        $result["tables"][] = $full_table;
     } else {
         $result["success"] = false;
-        $result["errors"][] = "Table not available: " . $dbprefix . $table;
+        $result["errors"][] = "Table not available: " . $full_table;
     }
 }
 
