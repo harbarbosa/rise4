@@ -82,6 +82,17 @@ function frota_install(): void
       PRIMARY KEY (`id`), KEY `vehicle_id` (`vehicle_id`), KEY `status` (`status`), KEY `severity` (`severity`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
+    $queries[] = "CREATE TABLE IF NOT EXISTS `{$prefix}frota_maintenance_issue_links` (
+      `id` int unsigned NOT NULL AUTO_INCREMENT,
+      `maintenance_id` int unsigned NOT NULL,
+      `issue_id` int unsigned NOT NULL,
+      `created_at` datetime DEFAULT NULL,
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `maintenance_issue_unique` (`maintenance_id`,`issue_id`),
+      KEY `maintenance_id` (`maintenance_id`),
+      KEY `issue_id` (`issue_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+
     foreach ($queries as $sql) {
         $db->query($sql);
     }
