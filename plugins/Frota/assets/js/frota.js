@@ -20,21 +20,27 @@
 
     function formatPlate(value) {
         var chars = String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').split('');
-        var expected = ['L', 'L', 'L', 'N', 'L', 'N', 'N'];
         var accepted = [];
-        var pos = 0;
 
-        chars.forEach(function (ch) {
-            if (pos >= expected.length) return;
-            var ok = expected[pos] === 'L' ? /[A-Z]/.test(ch) : /[0-9]/.test(ch);
-            if (ok) {
-                accepted.push(ch);
-                pos++;
+        // Aceita os dois padrões brasileiros:
+        // antigo:   LLL-NNNN (ABC-1234)
+        // Mercosul: LLL-NLNN (ABC-1D23)
+        chars.forEach(function (ch, index) {
+            if (index >= 7) return;
+            var ok;
+            if (index < 3) {
+                ok = /[A-Z]/.test(ch);
+            } else if (index === 3 || index === 5 || index === 6) {
+                ok = /[0-9]/.test(ch);
+            } else {
+                // 5º caractere pode ser número (placa antiga) ou letra (Mercosul).
+                ok = /[A-Z0-9]/.test(ch);
             }
+            if (ok) accepted.push(ch);
         });
 
         var out = accepted.slice(0, 3).join('');
-        if (accepted.length > 3) out += '-' + accepted.slice(3).join('');
+        if (accepted.length > 3) out += '-' + accepted.slice(3, 7).join('');
         return out;
     }
 
