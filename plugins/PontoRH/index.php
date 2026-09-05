@@ -30,6 +30,9 @@ if (file_exists(__DIR__ . '/Hooks/closing_menu.php')) {
 if (file_exists(__DIR__ . '/Config/Routes.php')) {
     require_once __DIR__ . '/Config/Routes.php';
 }
+if (file_exists(__DIR__ . '/Config/WorkflowRoutes.php')) {
+    require_once __DIR__ . '/Config/WorkflowRoutes.php';
+}
 
 register_installation_hook('PontoRH', function () {
     require_once __DIR__ . '/install.php';
