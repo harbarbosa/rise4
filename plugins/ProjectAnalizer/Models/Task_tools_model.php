@@ -45,6 +45,12 @@ class Task_tools_model extends Crud_model
 
     public function upsert_task_tools($task_id, $project_id, $items)
     {
+        // This plugin can be updated before its optional database tables are installed.
+        // In that case, keep the core task save working and skip only tool persistence.
+        if (!$this->db->tableExists($this->table)) {
+            return true;
+        }
+
         $task_id = (int) $task_id;
         $project_id = (int) $project_id;
         $tools_model = model("ProjectAnalizer\\Models\\Tools_model");
