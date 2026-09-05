@@ -63,6 +63,65 @@
         if (hiddenId) $('#' + hiddenId).val(raw);
     }
 
+    function numberFromValue(value) {
+        var text = String(value == null ? '' : value).trim();
+        if (!text) return 0;
+        text = text.replace(/R\$\s?/g, '').replace(/\s/g, '');
+        if (text.indexOf(',') >= 0) {
+            text = text.replace(/\./g, '').replace(',', '.');
+        }
+        var number = parseFloat(text);
+        return isNaN(number) ? 0 : number;
+    }
+
+    function formatDecimal(value, decimals) {
+        var number = typeof value === 'number' ? value : numberFromValue(value);
+        if (!isFinite(number)) number = 0;
+        return number.toLocaleString('pt-BR', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+
+    function prepareDecimalInput($input, decimals, money) {
+        if ($input.data('frota-decimal-ready')) return;
+        var fieldName = $input.attr('name');
+        if (!fieldName) return;
+
+        var rawNumber = numberFromValue($input.val());
+        var hiddenId = ($input.attr('id') || fieldName) + '_raw';
+        var $hidden = $('<input>', {
+            type: 'hidden',
+            id: hiddenId,
+            name: fieldName,
+            value: rawNumber ? rawNumber.toFixed(decimals) : ''
+        });
+
+        $input.attr('name', fieldName + '_formatted');
+        $input.attr({inputmode: 'decimal', autocomplete: 'off'});
+        if ($input.val() !== '') {
+            $input.val((money ? 'R$ ' : '') + formatDecimal(rawNumber, decimals));
+        }
+        $input.after($hidden);
+        $input.data('frota-decimal-ready', true);
+        $input.data('frota-hidden-id', hiddenId);
+        $input.data('frota-decimals', decimals);
+        $input.data('frota-money', money ? 1 : 0);
+    }
+
+    function syncDecimalInput($input) {
+        var decimals = parseInt($input.data('frota-decimals'), 10);
+        if (isNaN(decimals)) decimals = 2;
+        var money = !!$input.data('frota-money');
+        var digits = onlyDigits($input.val());
+        var divisor = Math.pow(10, decimals);
+        var number = digits ? parseInt(digits, 10) / divisor : 0;
+        var hiddenId = $input.data('frota-hidden-id');
+
+        $input.val(digits ? (money ? 'R$ ' : '') + formatDecimal(number, decimals) : '');
+        if (hiddenId) $('#' + hiddenId).val(digits ? number.toFixed(decimals) : '');
+    }
+
     function prepareMasks(context) {
         var $context = context ? $(context) : $(document);
 
@@ -82,6 +141,16 @@
             prepareKmInput($(this));
         });
 
+        $context.find('.frota-decimal-mask').each(function () {
+            var decimals = parseInt($(this).data('decimals'), 10);
+            prepareDecimalInput($(this), isNaN(decimals) ? 3 : decimals, false);
+        });
+
+        $context.find('.frota-money-mask').each(function () {
+            var decimals = parseInt($(this).data('decimals'), 10);
+            prepareDecimalInput($(this), isNaN(decimals) ? 2 : decimals, true);
+        });
+
         $context.find('.frota-number-mask').each(function () {
             var $input = $(this);
             $input.attr({inputmode: 'numeric', autocomplete: 'off'});
@@ -99,6 +168,10 @@
 
     $(document).on('input', '.frota-km-mask', function () {
         syncKmInput($(this));
+    });
+
+    $(document).on('input', '.frota-decimal-mask, .frota-money-mask', function () {
+        syncDecimalInput($(this));
     });
 
     $(document).on('input', '.frota-number-mask', function () {
@@ -131,6 +204,33 @@
     window.FrotaUI = window.FrotaUI || {};
     window.FrotaUI.prepareMasks = prepareMasks;
 
+    window.FrotaUI.initFuelingCalculation = function (formSelector) {
+        var $form = $(formSelector || '#frota-fueling-form');
+        var $liters = $form.find('#liters');
+        var $unitPrice = $form.find('#unit_price');
+        var $total = $form.find('#total_amount');
+        if (!$liters.length || !$unitPrice.length || !$total.length) return;
+
+        function calculate() {
+            var litersRawId = $liters.data('frota-hidden-id');
+            var priceRawId = $unitPrice.data('frota-hidden-id');
+            var totalRawId = $total.data('frota-hidden-id');
+            var liters = litersRawId ? parseFloat($('#' + litersRawId).val()) || 0 : numberFromValue($liters.val());
+            var price = priceRawId ? parseFloat($('#' + priceRawId).val()) || 0 : numberFromValue($unitPrice.val());
+            var total = liters * price;
+
+            $total.val(total > 0 ? 'R$ ' + formatDecimal(total, 2) : '');
+            if (totalRawId) $('#' + totalRawId).val(total > 0 ? total.toFixed(2) : '');
+        }
+
+        $form.off('input.frotaFueling', '#liters, #unit_price')
+            .on('input.frotaFueling', '#liters, #unit_price', function () {
+                window.setTimeout(calculate, 0);
+            });
+
+        calculate();
+    };
+
     window.FrotaUI.initVehicleFipe = function (options) {
         options = options || {};
         var $brand = $(options.brandSelector || '#make_code');
@@ -142,7 +242,6 @@
 
         if (!$brand.length || !$model.length || !options.brandsUrl || !options.modelsUrl) return;
 
-        // RISE 3.9.5 usa uma versão do Select2 que não permite tags em <select>.
         $brand.select2({width: '100%', placeholder: 'Selecione a marca', allowClear: true});
         $model.select2({width: '100%', placeholder: 'Selecione o modelo', allowClear: true});
 
