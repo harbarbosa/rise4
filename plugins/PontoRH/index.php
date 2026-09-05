@@ -20,6 +20,12 @@ if (file_exists($pontorh_language_file)) {
 } elseif (file_exists(__DIR__ . '/Language/english/default_lang.php')) {
     require_once __DIR__ . '/Language/english/default_lang.php';
 }
+$pontorh_closing_language_file = __DIR__ . '/Language/' . $pontorh_language . '/closing_lang.php';
+if (file_exists($pontorh_closing_language_file)) {
+    require_once $pontorh_closing_language_file;
+} elseif (file_exists(__DIR__ . '/Language/english/closing_lang.php')) {
+    require_once __DIR__ . '/Language/english/closing_lang.php';
+}
 
 \PontoRH\Plugin::register();
 
