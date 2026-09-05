@@ -88,6 +88,29 @@ $pending_type_dropdown = $pending_type_dropdown ?? array();
 </div>
 
 <script type="text/javascript">
+    (function () {
+        if (window.pontorhTreatmentDetailsCaptureBound) {
+            return;
+        }
+        window.pontorhTreatmentDetailsCaptureBound = true;
+        document.addEventListener('click', function (event) {
+            var target = event.target && event.target.closest ? event.target.closest('#pontorh-treatment-table tbody tr td.option a.action-icon:first-child') : null;
+            if (!target) {
+                return;
+            }
+            var caseId = target.getAttribute('data-post-id') || (target.dataset ? target.dataset.postId : '');
+            if (!caseId) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            if (event.stopImmediatePropagation) {
+                event.stopImmediatePropagation();
+            }
+            window.location.href = <?php echo json_encode(get_uri('pontorh/tratamento/detalhes/')); ?> + caseId;
+        }, true);
+    })();
+
     $(document).ready(function () {
         $(".page-wrapper .select2").select2();
         setDatePicker("#pontorh-treatment-date-from", {});
