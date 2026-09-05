@@ -287,27 +287,37 @@
             $task_materials = isset($task_materials) && is_array($task_materials) ? $task_materials : array();
             $tools = isset($tools) && is_array($tools) ? $tools : array();
             $task_tools = isset($task_tools) && is_array($task_tools) ? $task_tools : array();
+            $format_resource_quantity = function ($value) {
+                return rtrim(rtrim(number_format((float) $value, 4, ".", ""), "0"), ".");
+            };
             $material_options = "<option value=''>" . app_lang("select_proposal_material") . "</option>";
             foreach ($proposal_materials as $material) {
                 $label = ($material->item_title ?: $material->description_override ?: ("#" . $material->item_id));
                 if ($material->item_unit) { $label .= " (" . $material->item_unit . ")"; }
-                $material_options .= "<option value='" . esc($material->id) . "'>" . esc($label) . "</option>";
+                $available_quantity = $format_resource_quantity($material->available_quantity ?? 0);
+                $proposal_quantity = $format_resource_quantity($material->proposal_quantity ?? $material->qty ?? 0);
+                $option_label = $label . " — " . app_lang("available") . ": " . $available_quantity;
+                $material_options .= "<option value='" . esc($material->id)
+                    . "' data-available='" . esc($available_quantity)
+                    . "' data-total='" . esc($proposal_quantity)
+                    . "' data-unit='" . esc($material->item_unit ?? "")
+                    . "'>" . esc($option_label) . "</option>";
             }
             $tool_options = "<option value=''>" . app_lang("select_tool") . "</option>";
             foreach ($tools as $tool) { $tool_options .= "<option value='" . esc($tool->id) . "'>" . esc($tool->name) . "</option>"; }
             ?>
 
-            <div class="form-group">
+            <div class="form-group task-resource-section">
                 <div class="row">
                     <label class="col-md-3"><?php echo app_lang("task_materials"); ?></label>
                     <div class="col-md-9">
                         <input type="hidden" name="task_materials_present" value="1" />
                         <?php if (!$proposal_materials) { ?><div class="alert alert-warning"><?php echo app_lang("no_proposal_materials"); ?></div><?php } ?>
-                        <div class="table-responsive"><table class="table table-bordered"><thead><tr>
+                        <div class="table-responsive task-resource-table-wrap"><table class="table table-bordered task-resource-table"><thead><tr>
                             <th><?php echo app_lang("material"); ?></th><th style="width:140px"><?php echo app_lang("quantity"); ?></th><th><?php echo app_lang("notes"); ?></th><th style="width:1%"></th>
                         </tr></thead><tbody id="task-materials-rows">
                         <?php foreach ($task_materials as $index => $row) { $options = str_replace("value='" . esc($row->proposal_item_id) . "'", "value='" . esc($row->proposal_item_id) . "' selected", $material_options); $quantity_value = rtrim(rtrim(number_format((float) $row->quantity, 4, ".", ""), "0"), "."); ?>
-                            <tr><td><input type="hidden" name="task_materials[<?php echo $index; ?>][id]" value="<?php echo esc($row->id); ?>" /><select name="task_materials[<?php echo $index; ?>][proposal_item_id]" class="form-control material-select"><?php echo $options; ?></select></td>
+                            <tr><td><input type="hidden" name="task_materials[<?php echo $index; ?>][id]" value="<?php echo esc($row->id); ?>" /><select name="task_materials[<?php echo $index; ?>][proposal_item_id]" class="form-control material-select"><?php echo $options; ?></select><div class="material-availability text-off mt5"></div></td>
                             <td><input type="text" inputmode="decimal" name="task_materials[<?php echo $index; ?>][quantity]" value="<?php echo esc($quantity_value); ?>" class="form-control" /></td>
                             <td><input type="text" name="task_materials[<?php echo $index; ?>][notes]" value="<?php echo esc($row->notes); ?>" class="form-control" /></td>
                             <td><button type="button" class="btn btn-default btn-sm js-remove-resource"><i data-feather="x" class="icon-16"></i></button></td></tr>
@@ -317,10 +327,10 @@
                 </div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group task-resource-section">
                 <div class="row"><label class="col-md-3"><?php echo app_lang("task_tools"); ?></label><div class="col-md-9">
                     <input type="hidden" name="task_tools_present" value="1" />
-                    <div class="table-responsive"><table class="table table-bordered"><thead><tr><th><?php echo app_lang("tool"); ?></th><th style="width:120px"><?php echo app_lang("quantity"); ?></th><th><?php echo app_lang("specific_tool_need"); ?></th><th style="width:1%"></th></tr></thead><tbody id="task-tools-rows">
+                    <div class="table-responsive task-resource-table-wrap"><table class="table table-bordered task-resource-table"><thead><tr><th><?php echo app_lang("tool"); ?></th><th style="width:120px"><?php echo app_lang("quantity"); ?></th><th><?php echo app_lang("specific_tool_need"); ?></th><th style="width:1%"></th></tr></thead><tbody id="task-tools-rows">
                     <?php foreach ($task_tools as $index => $row) { $options = str_replace("value='" . esc($row->tool_id) . "'", "value='" . esc($row->tool_id) . "' selected", $tool_options); $quantity_value = rtrim(rtrim(number_format((float) $row->quantity, 4, ".", ""), "0"), "."); ?><tr><td><input type="hidden" name="task_tools[<?php echo $index; ?>][id]" value="<?php echo esc($row->id); ?>" /><select name="task_tools[<?php echo $index; ?>][tool_id]" class="form-control tool-select"><?php echo $options; ?></select><input type="text" name="task_tools[<?php echo $index; ?>][tool_name]" class="form-control mt5" placeholder="<?php echo app_lang("new_tool_name"); ?>" /></td><td><input type="text" inputmode="decimal" name="task_tools[<?php echo $index; ?>][quantity]" value="<?php echo esc($quantity_value); ?>" class="form-control" /></td><td><input type="text" name="task_tools[<?php echo $index; ?>][requirement]" value="<?php echo esc($row->requirement); ?>" class="form-control" /></td><td><button type="button" class="btn btn-default btn-sm js-remove-resource"><i data-feather="x" class="icon-16"></i></button></td></tr><?php } ?></tbody></table></div>
                     <button type="button" class="btn btn-default btn-sm" id="add-task-tool"><i data-feather="plus-circle" class="icon-16"></i> <?php echo app_lang("add_tool"); ?></button>
                 </div></div>
@@ -653,6 +663,40 @@
     </div>
 </div>
 <?php echo form_close(); ?>
+
+<style type="text/css">
+    #task-form .task-resource-section {
+        border-top: 1px solid #e5e9ec;
+        margin-top: 18px;
+        padding-top: 18px;
+    }
+    #task-form .task-resource-table {
+        table-layout: fixed;
+        width: 100%;
+    }
+    #task-form .task-resource-table-wrap {
+        overflow-x: visible;
+    }
+    #task-form .material-select + .select2-container,
+    #task-form .tool-select + .select2-container {
+        max-width: 100%;
+        width: 100% !important;
+    }
+    #task-form .material-select + .select2-container .select2-choice,
+    #task-form .material-select + .select2-container .select2-chosen,
+    #task-form .tool-select + .select2-container .select2-choice,
+    #task-form .tool-select + .select2-container .select2-chosen {
+        height: auto;
+        min-height: 34px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        line-height: 20px;
+    }
+    #task-form .material-availability {
+        font-size: 12px;
+        line-height: 18px;
+    }
+</style>
 
 <script type="text/javascript">
     $(document).ready(function() {
@@ -1030,6 +1074,32 @@
         var laborIndex = $("#labor-profiles-rows tr").length;
         var laborTemplate = $("#labor-profile-row-template").html();
 
+        function formatResourceQuantity(value) {
+            var number = parseFloat(value || 0);
+            return Number.isFinite(number)
+                ? number.toFixed(4).replace(/\\.?0+$/, "")
+                : "0";
+        }
+
+        function updateMaterialAvailability($select) {
+            var $option = $select.find("option:selected");
+            var $info = $select.closest("td").find(".material-availability");
+            if (!$select.val() || !$option.length) {
+                $info.empty().hide();
+                return;
+            }
+
+            var available = formatResourceQuantity($option.attr("data-available"));
+            var total = formatResourceQuantity($option.attr("data-total"));
+            var unit = $option.attr("data-unit") || "";
+            $info.html(
+                "<strong><?php echo addslashes(app_lang("available")); ?>:</strong> " + available +
+                (unit ? " " + unit : "") +
+                " <span class='text-muted'><?php echo addslashes(app_lang("of_total")); ?> " + total +
+                (unit ? " " + unit : "") + "</span>"
+            ).show();
+        }
+
         function initTaskResourceSelect2($elements) {
             $elements.each(function () {
                 var $select = $(this);
@@ -1070,6 +1140,11 @@
         $(document).on("click", ".js-remove-resource", function () { $(this).closest("tr").remove(); });
         initTaskResourceSelect2($(".tool-select"));
         initTaskResourceSelect2($(".material-select"));
+        $(".material-select").each(function () { updateMaterialAvailability($(this)); });
+        $(document).off("change.projectanalizerAvailability", ".material-select")
+            .on("change.projectanalizerAvailability", ".material-select", function () {
+                updateMaterialAvailability($(this));
+            });
 
         initTaskResourceSelect2($(".labor-profile-select"));
 
@@ -1085,7 +1160,7 @@
 </script>
 
 <script type="text/template" id="task-material-row-template">
-    <tr><td><select name="task_materials[__INDEX__][proposal_item_id]" class="form-control material-select"><?php echo $material_options; ?></select></td><td><input type="text" inputmode="decimal" name="task_materials[__INDEX__][quantity]" value="1" class="form-control" /></td><td><input type="text" name="task_materials[__INDEX__][notes]" class="form-control" /></td><td><button type="button" class="btn btn-default btn-sm js-remove-resource"><i data-feather="x" class="icon-16"></i></button></td></tr>
+    <tr><td><select name="task_materials[__INDEX__][proposal_item_id]" class="form-control material-select"><?php echo $material_options; ?></select><div class="material-availability text-off mt5"></div></td><td><input type="text" inputmode="decimal" name="task_materials[__INDEX__][quantity]" value="1" class="form-control" /></td><td><input type="text" name="task_materials[__INDEX__][notes]" class="form-control" /></td><td><button type="button" class="btn btn-default btn-sm js-remove-resource"><i data-feather="x" class="icon-16"></i></button></td></tr>
 </script>
 
 <script type="text/template" id="task-tool-row-template">
