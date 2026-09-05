@@ -9,6 +9,9 @@ $routes = Services::routes();
 // O controller herda Rest_api_Controller e mantém a mesma autenticação por authtoken.
 $routes->post('api/projectanalizer/timelogs/(:num)/photos', 'TimelogPhotosController::upload/$1', ['namespace' => 'RestApi\Controllers']);
 
+// API: materiais e ferramentas vinculados a uma tarefa do ProjectAnalizer.
+$routes->get('api/projectanalizer/tasks/(:num)/(:num)/resources', 'TaskResourcesController::show/$1/$2', ['namespace' => 'RestApi\Controllers']);
+
 $routes->get('projectanalizer', 'ProjectAnalizer::index', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/execution_schedule/(:num)', 'ProjectAnalizer::execution_schedule/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/evolution_project/(:num)', 'Tasks::evolution_project/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
