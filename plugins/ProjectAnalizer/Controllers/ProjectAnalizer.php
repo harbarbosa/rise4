@@ -721,23 +721,60 @@ class ProjectAnalizer extends Security_Controller {
             $project_info = $this->Projects_model->get_one($project_id);
             $task_materials_model = model("ProjectAnalizer\\Models\\Task_materials_model");
             $allocated_materials = $task_materials_model->get_allocated_quantities($project_id);
+            $proposal_item_group_map = array();
             if ($project_info && $project_info->proposal_id) {
                 $proposal_items_model = model("Proposals\\Models\\Proposal_items_model");
                 $proposal_items = $proposal_items_model->get_details(array("proposal_id" => $project_info->proposal_id, "in_memory" => 1))->getResult();
+                $proposal_material_groups = array();
                 foreach ($proposal_items as $proposal_item) {
-                    if ($proposal_item->item_type == "material" || $proposal_item->item_type == "item") {
-                        $proposal_quantity = (float) $proposal_item->qty;
-                        $allocated_quantity = (float) get_array_value($allocated_materials, (int) $proposal_item->id);
-                        $proposal_item->proposal_quantity = $proposal_quantity;
-                        $proposal_item->allocated_quantity = $allocated_quantity;
-                        $proposal_item->available_quantity = max(0, $proposal_quantity - $allocated_quantity);
-                        $proposal_materials[] = $proposal_item;
+                    if ($proposal_item->item_type != "material" && $proposal_item->item_type != "item") {
+                        continue;
                     }
+
+                    $description_key = mb_strtolower(trim((string) ($proposal_item->description_override ?: $proposal_item->item_title)));
+                    $group_key = (int) $proposal_item->item_id
+                        ? "item:" . (int) $proposal_item->item_id
+                        : "description:" . ($description_key ?: (int) $proposal_item->id);
+
+                    if (!isset($proposal_material_groups[$group_key])) {
+                        $proposal_item->proposal_quantity = 0;
+                        $proposal_item->allocated_quantity = 0;
+                        $proposal_item->source_proposal_item_ids = array();
+                        $proposal_material_groups[$group_key] = $proposal_item;
+                    }
+
+                    $group = $proposal_material_groups[$group_key];
+                    $group->proposal_quantity += (float) $proposal_item->qty;
+                    $group->allocated_quantity += (float) get_array_value($allocated_materials, (int) $proposal_item->id);
+                    $group->source_proposal_item_ids[] = (int) $proposal_item->id;
+                    $proposal_item_group_map[(int) $proposal_item->id] = (int) $group->id;
+                }
+
+                foreach ($proposal_material_groups as $group) {
+                    $group->available_quantity = max(0, $group->proposal_quantity - $group->allocated_quantity);
+                    $proposal_materials[] = $group;
                 }
             }
             if ($model_info && $model_info->id) {
                 $task_materials_query = $task_materials_model->get_details(array("task_id" => $model_info->id));
-                $task_materials = $task_materials_query ? $task_materials_query->getResult() : array();
+                $task_material_rows = $task_materials_query ? $task_materials_query->getResult() : array();
+                $grouped_task_materials = array();
+                foreach ($task_material_rows as $task_material_row) {
+                    $canonical_id = (int) get_array_value($proposal_item_group_map, (int) $task_material_row->proposal_item_id);
+                    if (!$canonical_id) {
+                        $canonical_id = (int) $task_material_row->proposal_item_id;
+                    }
+                    $task_material_row->proposal_item_id = $canonical_id;
+                    if (!isset($grouped_task_materials[$canonical_id])) {
+                        $grouped_task_materials[$canonical_id] = $task_material_row;
+                    } else {
+                        $grouped_task_materials[$canonical_id]->quantity += (float) $task_material_row->quantity;
+                        if ($task_material_row->notes && strpos((string) $grouped_task_materials[$canonical_id]->notes, (string) $task_material_row->notes) === false) {
+                            $grouped_task_materials[$canonical_id]->notes = trim($grouped_task_materials[$canonical_id]->notes . " | " . $task_material_row->notes, " |");
+                        }
+                    }
+                }
+                $task_materials = array_values($grouped_task_materials);
 
                 $task_tools_query = model("ProjectAnalizer\\Models\\Task_tools_model")->get_details(array("task_id" => $model_info->id));
                 $task_tools = $task_tools_query ? $task_tools_query->getResult() : array();
