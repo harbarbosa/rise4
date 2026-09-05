@@ -4,7 +4,7 @@ namespace PontoRH\Controllers;
 
 use PontoRH\Libraries\PontoRh_period_service;
 
-class PontoRH_treatment_guarded extends PontoRH_treatment
+class PontoRH_treatment_guarded extends PontoRH_treatment_ui
 {
     public function save_manual()
     {
