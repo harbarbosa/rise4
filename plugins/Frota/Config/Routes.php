@@ -11,6 +11,9 @@ $routes->get('frota/abastecimentos', 'Frota::abastecimentos', $frota);
 $routes->get('frota/manutencoes', 'Frota::manutencoes', $frota);
 $routes->get('frota/ocorrencias', 'Frota::ocorrencias', $frota);
 
+$routes->get('frota/fipe/marcas', 'Fipe::marcas', $frota);
+$routes->get('frota/fipe/modelos', 'Fipe::modelos', $frota);
+
 $routes->post('frota/veiculos/list_data', 'Frota::veiculosListData', $frota);
 $routes->post('frota/veiculos/modal_form', 'Frota::veiculoModalForm', $frota);
 $routes->post('frota/veiculos/salvar', 'Frota::salvarVeiculo', $frota);
