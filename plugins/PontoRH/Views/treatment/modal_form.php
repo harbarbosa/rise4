@@ -18,16 +18,16 @@ $selected_notes = !empty($case) && !empty($case->notes) ? $case->notes : '';
 
         <div class="form-group">
             <div class="row">
-                <label for="team_member_id" class="col-md-3"><?php echo app_lang('pontorh_employee'); ?></label>
+                <label for="pontorh-manual-team-member" class="col-md-3"><?php echo app_lang('pontorh_employee'); ?></label>
                 <div class="col-md-9">
-                    <?php echo form_dropdown('team_member_id', $team_members_dropdown, $selected_team_member_id, 'class="form-control select2 w100p" id="team_member_id" required'); ?>
+                    <?php echo form_dropdown('team_member_id', $team_members_dropdown, $selected_team_member_id, 'class="form-control" id="pontorh-manual-team-member" required'); ?>
                 </div>
             </div>
         </div>
 
         <div class="form-group">
             <div class="row">
-                <label for="work_date" class="col-md-3"><?php echo app_lang('pontorh_work_date'); ?></label>
+                <label for="pontorh-treatment-work-date" class="col-md-3"><?php echo app_lang('pontorh_work_date'); ?></label>
                 <div class="col-md-9">
                     <input type="text" name="work_date" id="pontorh-treatment-work-date" class="form-control datepicker" value="<?php echo esc($selected_work_date); ?>" autocomplete="off" required />
                 </div>
@@ -45,27 +45,27 @@ $selected_notes = !empty($case) && !empty($case->notes) ? $case->notes : '';
 
         <div class="form-group">
             <div class="row">
-                <label for="punch_type" class="col-md-3"><?php echo app_lang('pontorh_type'); ?></label>
+                <label for="pontorh-manual-punch-type" class="col-md-3"><?php echo app_lang('pontorh_type'); ?></label>
                 <div class="col-md-9">
-                    <?php echo form_dropdown('punch_type', $punch_type_dropdown, $selected_punch_type, 'class="form-control select2 w100p" id="punch_type" required'); ?>
+                    <?php echo form_dropdown('punch_type', $punch_type_dropdown, $selected_punch_type, 'class="form-control" id="pontorh-manual-punch-type" required'); ?>
                 </div>
             </div>
         </div>
 
         <div class="form-group">
             <div class="row">
-                <label for="justification" class="col-md-3"><?php echo app_lang('pontorh_reason'); ?></label>
+                <label for="pontorh-manual-justification" class="col-md-3"><?php echo app_lang('pontorh_reason'); ?></label>
                 <div class="col-md-9">
-                    <textarea name="justification" id="justification" class="form-control" rows="3" required><?php echo esc($selected_justification); ?></textarea>
+                    <textarea name="justification" id="pontorh-manual-justification" class="form-control" rows="3" required><?php echo esc($selected_justification); ?></textarea>
                 </div>
             </div>
         </div>
 
         <div class="form-group">
             <div class="row">
-                <label for="notes" class="col-md-3"><?php echo app_lang('notes'); ?></label>
+                <label for="pontorh-manual-notes" class="col-md-3"><?php echo app_lang('notes'); ?></label>
                 <div class="col-md-9">
-                    <textarea name="notes" id="notes" class="form-control" rows="3"><?php echo esc($selected_notes); ?></textarea>
+                    <textarea name="notes" id="pontorh-manual-notes" class="form-control" rows="3"><?php echo esc($selected_notes); ?></textarea>
                 </div>
             </div>
         </div>
@@ -79,7 +79,6 @@ $selected_notes = !empty($case) && !empty($case->notes) ? $case->notes : '';
 
 <script type="text/javascript">
     $(document).ready(function () {
-        $("#pontorh-treatment-manual-form .select2").select2();
         setDatePicker("#pontorh-treatment-work-date");
         setTimePicker("#pontorh-treatment-work-time");
 
