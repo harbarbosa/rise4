@@ -25,9 +25,7 @@
         var pos = 0;
 
         chars.forEach(function (ch) {
-            if (pos >= expected.length) {
-                return;
-            }
+            if (pos >= expected.length) return;
             var ok = expected[pos] === 'L' ? /[A-Z]/.test(ch) : /[0-9]/.test(ch);
             if (ok) {
                 accepted.push(ch);
@@ -36,37 +34,21 @@
         });
 
         var out = accepted.slice(0, 3).join('');
-        if (accepted.length > 3) {
-            out += '-' + accepted.slice(3).join('');
-        }
+        if (accepted.length > 3) out += '-' + accepted.slice(3).join('');
         return out;
     }
 
     function prepareKmInput($input) {
-        if ($input.data('frota-mask-ready')) {
-            return;
-        }
-
+        if ($input.data('frota-mask-ready')) return;
         var fieldName = $input.attr('name');
-        if (!fieldName) {
-            return;
-        }
+        if (!fieldName) return;
 
         var raw = rawKmFromStored($input.val());
         var hiddenId = ($input.attr('id') || fieldName) + '_raw';
-        var $hidden = $('<input>', {
-            type: 'hidden',
-            id: hiddenId,
-            name: fieldName,
-            value: raw
-        });
+        var $hidden = $('<input>', {type: 'hidden', id: hiddenId, name: fieldName, value: raw});
 
         $input.attr('name', fieldName + '_formatted');
-        $input.attr({
-            inputmode: 'numeric',
-            autocomplete: 'off',
-            maxlength: 15
-        });
+        $input.attr({inputmode: 'numeric', autocomplete: 'off', maxlength: 15});
         $input.val(formatThousands(raw));
         $input.after($hidden);
         $input.data('frota-mask-ready', true);
@@ -78,9 +60,7 @@
         var raw = onlyDigits($input.val());
         var hiddenId = $input.data('frota-hidden-id');
         $input.val(formatThousands(raw));
-        if (hiddenId) {
-            $('#' + hiddenId).val(raw);
-        }
+        if (hiddenId) $('#' + hiddenId).val(raw);
     }
 
     function prepareMasks(context) {
@@ -110,11 +90,7 @@
     }
 
     $(document).on('input', '.frota-plate-mask', function () {
-        var cursor = this.selectionStart;
-        var oldLength = this.value.length;
         this.value = formatPlate(this.value);
-        var diff = this.value.length - oldLength;
-        try { this.setSelectionRange(cursor + diff, cursor + diff); } catch (e) {}
     });
 
     $(document).on('input', '.frota-year-mask', function () {
@@ -139,10 +115,17 @@
     }
 
     function normalizeResponse(response) {
-        if (response && response.data && $.isArray(response.data)) {
-            return response.data;
-        }
-        return [];
+        return response && response.data && $.isArray(response.data) ? response.data : [];
+    }
+
+    function ensureOption($select, value, text, selected) {
+        value = String(value || '');
+        if (!value) return;
+        var exists = false;
+        $select.find('option').each(function () {
+            if (String($(this).val()) === value) exists = true;
+        });
+        if (!exists) $select.append(new Option(text || value, value, !!selected, !!selected));
     }
 
     window.FrotaUI = window.FrotaUI || {};
@@ -157,48 +140,33 @@
         var currentModel = String(options.currentModel || $model.val() || '').trim();
         var type = options.type || 'carros';
 
-        if (!$brand.length || !$model.length || !options.brandsUrl || !options.modelsUrl) {
-            return;
-        }
+        if (!$brand.length || !$model.length || !options.brandsUrl || !options.modelsUrl) return;
 
-        $brand.select2({
-            width: '100%',
-            placeholder: 'Selecione ou digite a marca',
-            allowClear: true,
-            tags: true
-        });
+        // RISE 3.9.5 usa uma versão do Select2 que não permite tags em <select>.
+        $brand.select2({width: '100%', placeholder: 'Selecione a marca', allowClear: true});
+        $model.select2({width: '100%', placeholder: 'Selecione o modelo', allowClear: true});
 
-        $model.select2({
-            width: '100%',
-            placeholder: 'Selecione ou digite o modelo',
-            allowClear: true,
-            tags: true
-        });
-
-        function setManualBrand(name) {
+        function setStoredBrand(name) {
             if (!name) return;
-            var value = 'manual:' + name;
-            $brand.append(new Option(name, value, true, true));
+            var value = 'stored:' + name;
+            ensureOption($brand, value, name, true);
             $brand.val(value).trigger('change.select2');
             $makeHidden.val(name);
         }
 
         function loadModels(brandCode, selectedModel) {
+            var current = selectedModel || '';
             $model.prop('disabled', true);
-            showFipeMessage($model, brandCode ? 'Carregando modelos...' : 'Digite o modelo manualmente.');
-
-            var current = selectedModel || $model.val() || '';
             $model.empty().append(new Option('', '', false, false));
-            if (current) {
-                $model.append(new Option(current, current, true, true));
-            }
+            if (current) ensureOption($model, current, current, true);
 
-            if (!brandCode || String(brandCode).indexOf('manual:') === 0) {
+            if (!brandCode || String(brandCode).indexOf('stored:') === 0) {
                 $model.prop('disabled', false).trigger('change.select2');
-                showFipeMessage($model, 'Marca sem código FIPE. Você pode digitar o modelo manualmente.');
+                if (current) showFipeMessage($model, 'Modelo preservado do cadastro atual.');
                 return;
             }
 
+            showFipeMessage($model, 'Carregando modelos...');
             $.ajax({
                 url: options.modelsUrl,
                 type: 'GET',
@@ -207,17 +175,17 @@
             }).done(function (response) {
                 var rows = normalizeResponse(response);
                 rows.forEach(function (item) {
-                    var text = item.text || item.id;
-                    if (text && !$model.find('option').filter(function(){ return $(this).val() === String(item.id); }).length) {
-                        $model.append(new Option(text, item.id, false, false));
-                    }
+                    var value = String(item.id || item.text || '');
+                    var text = String(item.text || item.id || '');
+                    if (value && text) ensureOption($model, value, text, false);
                 });
                 if (current) {
+                    ensureOption($model, current, current, true);
                     $model.val(current);
                 }
-                showFipeMessage($model, rows.length ? '' : 'Nenhum modelo retornado. Você pode digitar manualmente.');
+                showFipeMessage($model, rows.length ? '' : 'Nenhum modelo encontrado para esta marca.');
             }).fail(function (xhr) {
-                var message = 'Não foi possível carregar os modelos. Você pode digitar manualmente.';
+                var message = 'Não foi possível carregar os modelos agora.';
                 if (xhr.responseJSON && xhr.responseJSON.message) message = xhr.responseJSON.message;
                 showFipeMessage($model, message);
             }).always(function () {
@@ -240,10 +208,8 @@
                 var code = String(item.id || '');
                 var text = String(item.text || '');
                 if (!code || !text) return;
-                $brand.append(new Option(text, code, false, false));
-                if (currentMake && text.toLowerCase() === currentMake.toLowerCase()) {
-                    matchedCode = code;
-                }
+                ensureOption($brand, code, text, false);
+                if (currentMake && text.toLowerCase() === currentMake.toLowerCase()) matchedCode = code;
             });
 
             if (currentMake) {
@@ -252,23 +218,22 @@
                     $makeHidden.val(currentMake);
                     loadModels(matchedCode, currentModel);
                 } else {
-                    setManualBrand(currentMake);
+                    setStoredBrand(currentMake);
                     loadModels('', currentModel);
                 }
             }
-            showFipeMessage($brand, rows.length ? '' : 'Nenhuma marca retornada. Você pode digitar manualmente.');
+            showFipeMessage($brand, rows.length ? '' : 'Nenhuma marca retornada pela FIPE.');
         }).fail(function (xhr) {
-            setManualBrand(currentMake);
-            var message = 'Não foi possível carregar as marcas. Você pode digitar manualmente.';
+            if (currentMake) setStoredBrand(currentMake);
+            var message = 'Não foi possível carregar as marcas agora.';
             if (xhr.responseJSON && xhr.responseJSON.message) message = xhr.responseJSON.message;
             showFipeMessage($brand, message);
         });
 
-        $brand.on('change.frotaFipe', function () {
+        $brand.off('change.frotaFipe').on('change.frotaFipe', function () {
             var value = String($(this).val() || '');
-            var text = value.indexOf('manual:') === 0
-                ? value.substring(7)
-                : ($brand.find('option:selected').text() || '');
+            var text = $brand.find('option:selected').text() || '';
+            if (value.indexOf('stored:') === 0) text = value.substring(7);
             $makeHidden.val(text);
             loadModels(value, '');
         });
