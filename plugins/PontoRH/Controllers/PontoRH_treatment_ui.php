@@ -311,7 +311,13 @@ class PontoRH_treatment_ui extends PontoRH_treatment
         $types = array();
         $diagnostics = array();
         $classification = array();
-        $signatureParts = array();
+        // O hash da tabela é único. Inclua a identidade do caso para que dias sem
+        // marcações não produzam todos o SHA-256 da string vazia.
+        $signatureParts = array(
+            'case:' . (int) ($case->id ?? 0),
+            'team_member:' . (int) ($case->team_member_id ?? 0),
+            'work_date:' . (string) ($case->work_date ?? ''),
+        );
         $outside = false;
 
         foreach ($records as $record) {
