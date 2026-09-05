@@ -1,20 +1,63 @@
-<div class="page-title clearfix">
-    <h1>Ocorrências</h1>
-    <div class="title-button-group"><button class="btn btn-default" data-bs-toggle="modal" data-bs-target="#issueModal"><i data-feather="plus-circle" class="icon-16"></i> Nova ocorrência</button></div>
+<?php
+$vehicle_filter_options = [['id' => '', 'text' => 'Veículo']];
+foreach ($vehicleOptions as $id => $text) {
+    if ($id !== '') {
+        $vehicle_filter_options[] = ['id' => (string)$id, 'text' => $text];
+    }
+}
+?>
+<div id="page-content" class="page-wrapper clearfix">
+    <div class="card grid-button">
+        <div class="page-title clearfix">
+            <h1><?php echo app_lang('frota_issues'); ?></h1>
+            <div class="title-button-group">
+                <?php
+                echo modal_anchor(
+                    get_uri('frota/ocorrencias/modal_form'),
+                    "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('frota_register_issue'),
+                    ['class' => 'btn btn-default', 'title' => app_lang('frota_register_issue')]
+                );
+                ?>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table id="frota-issues-table" class="display" cellspacing="0" width="100%"></table>
+        </div>
+    </div>
 </div>
-<div class="card"><div class="card-body"><form method="get" action="<?= get_uri('frota/ocorrencias') ?>" class="row g-2 align-items-end">
-<div class="col-md-4"><label>Veículo</label><?= form_dropdown('vehicle_id',$vehicleOptions,$vehicleId,'class="form-control"') ?></div>
-<div class="col-md-3"><label>Gravidade</label><select name="severity" class="form-control"><option value="">Todas</option><option value="low" <?= $severity==='low'?'selected':'' ?>>Baixa</option><option value="medium" <?= $severity==='medium'?'selected':'' ?>>Média</option><option value="high" <?= $severity==='high'?'selected':'' ?>>Alta</option><option value="critical" <?= $severity==='critical'?'selected':'' ?>>Crítica</option></select></div>
-<div class="col-md-3"><label>Status</label><select name="status" class="form-control"><option value="">Todos</option><option value="open" <?= $status==='open'?'selected':'' ?>>Aberta</option><option value="in_progress" <?= $status==='in_progress'?'selected':'' ?>>Em andamento</option><option value="resolved" <?= $status==='resolved'?'selected':'' ?>>Resolvida</option></select></div>
-<div class="col-md-2"><button class="btn btn-primary"><i data-feather="filter" class="icon-16"></i> Filtrar</button></div>
-</form></div></div>
-<div class="card mt-3"><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Data</th><th>Veículo</th><th>Problema</th><th>Gravidade</th><th>KM</th><th>Status</th><th class="text-center">Ações</th></tr></thead><tbody>
-<?php foreach($issues as $r): ?><tr><td><?= esc($r['reported_at']) ?></td><td><?= esc($vehicleMap[$r['vehicle_id']] ?? '#'.$r['vehicle_id']) ?></td><td><strong><?= esc($r['title']) ?></strong><div class="text-muted small"><?= esc($r['description']) ?></div></td><td><?= esc(ucfirst($r['severity'])) ?></td><td><?= $r['odometer'] ? number_format((float)$r['odometer'],0,',','.').' km' : '-' ?></td><td><?= frota_status_badge($r['status']) ?></td><td class="text-center"><?php if($r['status'] !== 'resolved'): ?><button class="btn btn-sm btn-default resolve-issue" data-bs-toggle="modal" data-bs-target="#resolveModal" data-id="<?= (int)$r['id'] ?>"><i data-feather="check-circle" class="icon-14"></i></button><?php endif; ?></td></tr><?php endforeach; ?>
-</tbody></table></div></div>
-<div class="modal fade" id="issueModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><form method="post" action="<?= get_uri('frota/ocorrencias/salvar') ?>">
-<div class="modal-header"><h5 class="modal-title">Nova ocorrência</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
-<div class="mb-3"><label>Veículo *</label><?= form_dropdown('vehicle_id',$vehicleOptions,'','class="form-control" required') ?></div><div class="mb-3"><label>Título *</label><input name="title" class="form-control" required></div><div class="mb-3"><label>Descrição *</label><textarea name="description" class="form-control" rows="4" required></textarea></div>
-<div class="row"><div class="col-md-6 mb-3"><label>Gravidade</label><select name="severity" class="form-control"><option value="low">Baixa</option><option value="medium" selected>Média</option><option value="high">Alta</option><option value="critical">Crítica</option></select></div><div class="col-md-6 mb-3"><label>KM</label><input type="number" step="0.1" name="odometer" class="form-control"></div></div>
-</div><div class="modal-footer"><button type="button" class="btn btn-default" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary">Salvar</button></div></form></div></div></div>
-<div class="modal fade" id="resolveModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><form method="post" id="resolveForm"><div class="modal-header"><h5 class="modal-title">Resolver ocorrência</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><label>Solução / observação</label><textarea name="resolution" class="form-control" rows="4" required></textarea></div><div class="modal-footer"><button type="button" class="btn btn-default" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary">Marcar como resolvida</button></div></form></div></div></div>
-<script>$(document).on('click','.resolve-issue',function(){ $('#resolveForm').attr('action','<?= get_uri('frota/ocorrencias') ?>/'+$(this).data('id')+'/resolver'); }); if(window.feather) feather.replace();</script>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $("#frota-issues-table").appTable({
+            source: '<?php echo_uri('frota/ocorrencias/list_data'); ?>',
+            order: [[0, 'desc']],
+            filterDropdown: [
+                {name: 'vehicle_id', class: 'w250', options: <?php echo json_encode($vehicle_filter_options); ?>},
+                {name: 'severity', class: 'w160', options: [
+                    {id: '', text: 'Gravidade'},
+                    {id: 'low', text: 'Baixa'},
+                    {id: 'medium', text: 'Média'},
+                    {id: 'high', text: 'Alta'},
+                    {id: 'critical', text: 'Crítica'}
+                ]},
+                {name: 'status', class: 'w160', options: [
+                    {id: '', text: '<?php echo app_lang('status'); ?>'},
+                    {id: 'open', text: 'Aberta'},
+                    {id: 'in_progress', text: 'Em andamento'},
+                    {id: 'resolved', text: 'Resolvida'}
+                ]}
+            ],
+            columns: [
+                {title: 'Data', class: 'all w150'},
+                {title: 'Veículo', class: 'all'},
+                {title: 'Ocorrência', class: 'all'},
+                {title: 'Gravidade', class: 'w100'},
+                {title: 'KM', class: 'w100 text-right'},
+                {title: '<?php echo app_lang('status'); ?>', class: 'w120'},
+                {title: '<i data-feather="menu" class="icon-16"></i>', class: 'text-center option w100'}
+            ],
+            printColumns: [0, 1, 2, 3, 4, 5],
+            xlsColumns: [0, 1, 2, 3, 4, 5]
+        });
+    });
+</script>
