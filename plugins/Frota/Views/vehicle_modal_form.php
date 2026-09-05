@@ -1,3 +1,9 @@
+<?php
+$nextServiceDate = trim((string)($model_info->next_service_date ?? ''));
+if ($nextServiceDate === '0000-00-00' || preg_match('/^(0000|1900)-/', $nextServiceDate)) {
+    $nextServiceDate = '';
+}
+?>
 <?php echo form_open(get_uri('frota/veiculos/salvar'), ['id' => 'frota-vehicle-form', 'class' => 'general-form', 'role' => 'form']); ?>
 <div class="modal-body clearfix">
     <div class="container-fluid">
@@ -17,7 +23,7 @@
                         'data-rule-required' => true,
                         'data-rule-minlength' => 8,
                         'data-msg-required' => app_lang('field_required'),
-                        'data-msg-minlength' => 'Use o formato ABC-1D23.'
+                        'data-msg-minlength' => 'Use o formato ABC-1234 ou ABC-1D23.'
                     ]); ?>
                     <div class="text-off small mt-1">Formatos aceitos: ABC-1234 ou ABC-1D23</div>
                 </div>
@@ -134,7 +140,14 @@
             <div class="row">
                 <label for="next_service_date" class="col-md-3">Próxima revisão</label>
                 <div class="col-md-9">
-                    <?php echo form_input(['id' => 'next_service_date', 'name' => 'next_service_date', 'value' => $model_info->next_service_date ?? '', 'class' => 'form-control', 'placeholder' => 'Próxima revisão', 'autocomplete' => 'off']); ?>
+                    <?php echo form_input([
+                        'id' => 'next_service_date',
+                        'name' => 'next_service_date',
+                        'value' => $nextServiceDate,
+                        'class' => 'form-control',
+                        'placeholder' => 'Informe a data da próxima revisão',
+                        'autocomplete' => 'off'
+                    ]); ?>
                 </div>
             </div>
         </div>
@@ -150,6 +163,11 @@
     </div>
 </div>
 <div class="modal-footer">
+    <?php if (!empty($model_info->id)) { ?>
+        <button type="button" id="frota-delete-vehicle" class="btn btn-danger me-auto">
+            <span data-feather="trash-2" class="icon-16"></span> Excluir veículo
+        </button>
+    <?php } ?>
     <button type="button" class="btn btn-default" data-bs-dismiss="modal"><span data-feather="x" class="icon-16"></span> <?php echo app_lang('close'); ?></button>
     <button type="submit" class="btn btn-primary"><span data-feather="check-circle" class="icon-16"></span> <?php echo app_lang('save'); ?></button>
 </div>
@@ -176,5 +194,34 @@
         });
         $("#frota-vehicle-form .select2").select2();
         setDatePicker("#next_service_date");
+
+        $("#frota-delete-vehicle").on("click", function () {
+            var vehicleId = <?php echo (int)($model_info->id ?? 0); ?>;
+            if (!vehicleId) return;
+
+            var warning = "Excluir este veículo? Todos os abastecimentos, manutenções, ocorrências e fotos vinculadas a ele serão apagados definitivamente.";
+            if (!window.confirm(warning)) return;
+
+            var $button = $(this);
+            $button.prop("disabled", true);
+
+            $.ajax({
+                url: <?php echo json_encode(get_uri('frota/veiculos/' . (int)($model_info->id ?? 0) . '/excluir')); ?>,
+                type: "POST",
+                dataType: "json"
+            }).done(function (response) {
+                if (response && response.success) {
+                    location.reload();
+                    return;
+                }
+                alert((response && response.message) || "Não foi possível excluir o veículo.");
+                $button.prop("disabled", false);
+            }).fail(function (xhr) {
+                var message = "Não foi possível excluir o veículo.";
+                if (xhr.responseJSON && xhr.responseJSON.message) message = xhr.responseJSON.message;
+                alert(message);
+                $button.prop("disabled", false);
+            });
+        });
     });
 </script>
