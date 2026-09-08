@@ -10,6 +10,23 @@
         <input type="hidden" name="id" value="<?php echo $model_info->id; ?>" />
         <input type="hidden" name="project_id" value="<?php echo $project_id; ?>" />
 
+        <?php $cannot_add_activity = empty($model_info->id) && !empty($project_id) && empty($has_project_members); ?>
+        <div id="no-project-members-warning" class="alert alert-warning"<?php echo $cannot_add_activity ? "" : " style='display:none;'"; ?>>
+            <strong>Este projeto não possui membros cadastrados.</strong><br>
+            Cadastre pelo menos um membro no projeto antes de lançar uma atividade.
+            <?php if ($cannot_add_activity) {
+                echo modal_anchor(
+                    get_uri("projects/project_member_modal_form"),
+                    "<i data-feather='user-plus' class='icon-16'></i> Cadastrar membro",
+                    array(
+                        "class" => "btn btn-warning btn-sm mt10",
+                        "title" => "Cadastrar membro no projeto",
+                        "data-post-project_id" => $project_id
+                    )
+                );
+            } ?>
+        </div>
+
         <?php if (!$project_id) { ?>
             <div class="form-group">
                 <div class="row">
@@ -535,7 +552,7 @@
 
 <div class="modal-footer">
     <button type="button" class="btn btn-default" data-bs-dismiss="modal"><span data-feather="x" class="icon-16"></span> <?php echo app_lang('close'); ?></button>
-    <button type="submit" class="btn btn-primary"><span data-feather="check-circle" class="icon-16"></span> <?php echo app_lang('save'); ?></button>
+    <button type="submit" id="save-timelog-button" class="btn btn-primary"<?php echo !empty($cannot_add_activity) ? " disabled='disabled'" : ""; ?>><span data-feather="check-circle" class="icon-16"></span> <?php echo app_lang('save'); ?></button>
 </div>
 <?php echo form_close(); ?>
 
@@ -591,8 +608,10 @@
                     url: "<?php echo get_uri('projectanalizer/get_all_related_data_of_selected_project_for_timelog') ?>" + "/" + projectId,
                     dataType: "json",
                     success: function (result) {
+                        var projectMembers = result.project_members_dropdown || [];
                         $("#user_id").show().val("");
-                        $('#user_id').select2({data: result.project_members_dropdown});
+                        $('#user_id').select2({data: projectMembers});
+                        updateProjectMembersState(projectMembers);
                         $("#task_id").show().val("");
                         $('#task_id').select2({data: result.tasks_dropdown});
                         togglePercentageExecuted();
@@ -602,8 +621,20 @@
             }
         });
 
+        function updateProjectMembersState(projectMembers) {
+            var hasMembers = Array.isArray(projectMembers) && projectMembers.some(function (member) {
+                return member && member.id;
+            });
+
+            $("#no-project-members-warning").toggle(!hasMembers);
+            $("#save-timelog-button").prop("disabled", !hasMembers);
+        }
+
         //intialized select2 dropdown for first time
         $("#user_id").select2({data: <?php echo json_encode($project_members_dropdown); ?>});
+        <?php if (empty($model_info->id) && !empty($project_id)) { ?>
+        updateProjectMembersState(<?php echo json_encode($project_members_dropdown); ?>);
+        <?php } ?>
         $("#task_id").select2({data: <?php echo $tasks_dropdown; ?>});
 
         function escapeTaskText(text) {
