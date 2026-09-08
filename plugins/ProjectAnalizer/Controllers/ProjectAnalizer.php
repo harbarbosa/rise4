@@ -2832,6 +2832,7 @@ class ProjectAnalizer extends Security_Controller {
         $show_porject_members_dropdown = get_array_value($related_data, "show_porject_members_dropdown");
         $view_data["tasks_dropdown"] = get_array_value($related_data, "tasks_dropdown");
         $view_data["project_members_dropdown"] = get_array_value($related_data, "project_members_dropdown");
+        $view_data["has_project_members"] = !empty($view_data["project_members_dropdown"]);
         $view_data["add_type"] = "";
         $view_data["photos"] = [];
 
@@ -3101,6 +3102,28 @@ class ProjectAnalizer extends Security_Controller {
         $collaborators = $this->request->getPost('user_id');
 
         $project_id = $this->request->getPost('project_id');
+
+        if (!$id && $project_id) {
+            $members_query = $this->Project_members_model->get_project_members_dropdown_list($project_id, array(), false, true);
+            $project_members = $members_query ? $members_query->getResult() : array();
+
+            if (empty($project_members)) {
+                echo json_encode(array(
+                    "success" => false,
+                    "message" => "Este projeto não possui membros cadastrados. Cadastre pelo menos um membro no projeto antes de lançar uma atividade."
+                ));
+                return false;
+            }
+        }
+
+        if (!$id && empty($collaborators)) {
+            echo json_encode(array(
+                "success" => false,
+                "message" => "Selecione pelo menos um membro do projeto para lançar a atividade."
+            ));
+            return false;
+        }
+
         $data = array(
             "user_id"=> $collaborators,
             "project_id" => $project_id,
@@ -3841,8 +3864,9 @@ class ProjectAnalizer extends Security_Controller {
 
     private function _get_project_members_dropdown_list_for_filter($project_id)
     {
-
-        $project_members = $this->Project_members_model->get_project_members_dropdown_list($project_id, array(), false, true)->getResult();
+        $project_members_dropdown = array();
+        $members_query = $this->Project_members_model->get_project_members_dropdown_list($project_id, array(), false, true);
+        $project_members = $members_query ? $members_query->getResult() : array();
         
         
         foreach ($project_members as $member) {
