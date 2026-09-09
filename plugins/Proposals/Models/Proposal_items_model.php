@@ -3,6 +3,7 @@
 namespace Proposals\Models;
 
 use App\Models\Crud_model;
+use Proposals\Libraries\Product_composition;
 
 class Proposal_items_model extends Crud_model
 {
@@ -53,8 +54,12 @@ class Proposal_items_model extends Crud_model
             ? "CASE WHEN $table.item_type='service' THEN $services_table.descricao ELSE $items_table.title END AS item_title"
             : "$items_table.title AS item_title";
         $select_unit = "CASE WHEN $table.item_type='service' THEN '' ELSE $items_table.unit_type END AS item_unit";
+        $components_table = $this->db->prefixTable('item_components_custom');
+        $select_kit = $this->_table_exists($components_table)
+            ? ", CASE WHEN $table.item_type!='service' AND EXISTS(SELECT 1 FROM $components_table ic WHERE ic.parent_item_id=$table.item_id AND ic.deleted=0) THEN 1 ELSE 0 END AS is_kit"
+            : ", 0 AS is_kit";
 
-        $sql = "SELECT $table.*, $select_title, $select_unit
+        $sql = "SELECT $table.*, $select_title, $select_unit $select_kit
         FROM $table
         LEFT JOIN $items_table ON $items_table.id=$table.item_id";
 
@@ -66,6 +71,21 @@ class Proposal_items_model extends Crud_model
         ORDER BY $table.sort ASC, $table.id ASC";
 
         return $this->db->query($sql);
+    }
+
+    public function ci_save(&$data = array(), $id = 0)
+    {
+        $result = parent::ci_save($data, $id);
+        if ($result) {
+            $proposal_item_id = $id ? (int)$id : (int)$result;
+            try {
+                $composition = new Product_composition();
+                $composition->sync_proposal_item($proposal_item_id);
+            } catch (\Throwable $e) {
+                log_message('error', '[Proposals] Falha ao sincronizar composição do item da proposta: ' . $e->getMessage());
+            }
+        }
+        return $result;
     }
 
     private function _table_exists($table)
@@ -93,6 +113,19 @@ class Proposal_items_model extends Crud_model
 
     public function delete($id = 0, $undo = false)
     {
-        return parent::delete($id, $undo);
+        $result = parent::delete($id, $undo);
+        if ($result) {
+            try {
+                $composition = new Product_composition();
+                if ($undo) {
+                    $composition->sync_proposal_item((int)$id);
+                } else {
+                    $composition->clear_proposal_item((int)$id);
+                }
+            } catch (\Throwable $e) {
+                log_message('error', '[Proposals] Falha ao limpar composição do item da proposta: ' . $e->getMessage());
+            }
+        }
+        return $result;
     }
 }
