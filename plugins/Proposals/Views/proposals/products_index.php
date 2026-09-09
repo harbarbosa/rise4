@@ -22,7 +22,8 @@
             source: '<?php echo_uri("propostas/products_list_data"); ?>',
             order: [[0, 'asc']],
             columns: [
-                {title: "<?php echo app_lang('title'); ?>", "class": "w30p all"},
+                {title: "<?php echo app_lang('title'); ?>", "class": "w25p all"},
+                {title: "Tipo", "class": "w10p"},
                 {title: "<?php echo app_lang('proposals_ca_code'); ?>", "class": "w15p"},
                 {title: "<?php echo app_lang('proposals_unit'); ?>", "class": "w10p"},
                 {title: "<?php echo app_lang('proposals_cost'); ?>", "class": "text-right w10p"},
