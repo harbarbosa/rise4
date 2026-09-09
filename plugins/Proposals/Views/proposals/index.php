@@ -269,6 +269,18 @@
 </script>
 
 <style type="text/css">
+    /* Status da listagem: garante contraste mesmo quando o tema do RISE sobrescreve bg-secondary. */
+    #proposals-table .badge.bg-secondary {
+        display: inline-block;
+        padding: 0.35em 0.65em;
+        font-size: 0.75em;
+        font-weight: 600;
+        line-height: 1;
+        color: #fff !important;
+        background-color: #6c757d !important;
+        border-radius: 0.25rem;
+        white-space: nowrap;
+    }
     .kanban-wrapper {
         padding: 15px;
         overflow-x: auto;
