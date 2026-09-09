@@ -95,11 +95,13 @@ class Product_composition
             );
         }
 
+        if (!$normalized) {
+            return array('success' => false, 'message' => 'Adicione ao menos um componente válido ao kit.');
+        }
+
         $this->db->transStart();
         $this->db->table($this->components_table)->where('parent_item_id', $parent_item_id)->delete();
-        if ($normalized) {
-            $this->db->table($this->components_table)->insertBatch($normalized);
-        }
+        $this->db->table($this->components_table)->insertBatch($normalized);
         $this->db->transComplete();
 
         return array('success' => $this->db->transStatus(), 'message' => $this->db->transStatus() ? '' : 'Não foi possível salvar a composição.');
@@ -141,10 +143,12 @@ class Product_composition
             return;
         }
 
+        $has_cost = $this->db->fieldExists('cost', $this->items_table);
+        $select = $has_cost ? 'id, title, unit_type, rate, cost' : 'id, title, unit_type, rate';
         $rows = array();
         foreach ($expanded as $component_id => $quantity) {
             $item = $this->db->table($this->items_table)
-                ->select('id, title, unit_type, rate, cost')
+                ->select($select)
                 ->where('id', (int)$component_id)
                 ->where('deleted', 0)
                 ->get()
@@ -152,7 +156,7 @@ class Product_composition
             if (!$item) {
                 continue;
             }
-            $unit_cost = isset($item->cost) && is_numeric($item->cost) ? (float)$item->cost : (float)$item->rate;
+            $unit_cost = $has_cost && isset($item->cost) && is_numeric($item->cost) ? (float)$item->cost : (float)$item->rate;
             $rows[] = array(
                 'proposal_id' => (int)$proposal_item->proposal_id,
                 'proposal_item_id' => $proposal_item_id,
@@ -178,6 +182,24 @@ class Product_composition
         if ($this->db->tableExists($this->proposal_components_table)) {
             $this->db->table($this->proposal_components_table)->where('proposal_item_id', (int)$proposal_item_id)->delete();
         }
+    }
+
+    public function get_proposal_requirements($proposal_id)
+    {
+        if (!$this->is_available()) {
+            return array();
+        }
+
+        return $this->db->table($this->proposal_components_table . ' pc')
+            ->select('pc.component_item_id, pc.component_title, pc.unit_type, SUM(pc.calculated_qty) AS calculated_qty, MAX(pc.unit_cost) AS unit_cost, SUM(pc.total_cost) AS total_cost')
+            ->join($this->proposal_items_table . ' pi', 'pi.id=pc.proposal_item_id', 'inner')
+            ->where('pc.proposal_id', (int)$proposal_id)
+            ->where('pc.deleted', 0)
+            ->where('pi.deleted', 0)
+            ->groupBy('pc.component_item_id, pc.component_title, pc.unit_type')
+            ->orderBy('pc.component_title', 'ASC')
+            ->get()
+            ->getResult();
     }
 
     private function expand_item($item_id, $quantity, array &$result, array $stack)
