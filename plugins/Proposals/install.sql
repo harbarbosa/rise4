@@ -123,3 +123,41 @@ CREATE TABLE IF NOT EXISTS `{{DB_PREFIX}}proposal_reminder_links_custom` (
     KEY `proposal_id` (`proposal_id`),
     KEY `event_id` (`event_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `{{DB_PREFIX}}item_components_custom` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `parent_item_id` INT(11) NOT NULL,
+    `component_item_id` INT(11) NOT NULL,
+    `qty_per_unit` DECIMAL(18,6) NOT NULL DEFAULT 1,
+    `reference_unit` VARCHAR(50) NULL,
+    `loss_percent` DECIMAL(8,4) NOT NULL DEFAULT 0,
+    `round_up` TINYINT(1) NOT NULL DEFAULT 0,
+    `sort` INT(11) NOT NULL DEFAULT 0,
+    `created_at` DATETIME NULL,
+    `updated_at` DATETIME NULL,
+    `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `parent_component` (`parent_item_id`,`component_item_id`),
+    KEY `parent_item_id` (`parent_item_id`),
+    KEY `component_item_id` (`component_item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `{{DB_PREFIX}}proposal_item_components_custom` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `proposal_id` INT(11) NOT NULL,
+    `proposal_item_id` INT(11) NOT NULL,
+    `source_item_id` INT(11) NOT NULL,
+    `component_item_id` INT(11) NOT NULL,
+    `component_title` VARCHAR(255) NULL,
+    `unit_type` VARCHAR(50) NULL,
+    `calculated_qty` DECIMAL(18,6) NOT NULL DEFAULT 0,
+    `unit_cost` DECIMAL(16,4) NOT NULL DEFAULT 0,
+    `total_cost` DECIMAL(16,4) NOT NULL DEFAULT 0,
+    `created_at` DATETIME NULL,
+    `updated_at` DATETIME NULL,
+    `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `proposal_id` (`proposal_id`),
+    KEY `proposal_item_id` (`proposal_item_id`),
+    KEY `component_item_id` (`component_item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
