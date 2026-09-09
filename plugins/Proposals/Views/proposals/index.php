@@ -86,6 +86,29 @@
             printColumns: [0, 1, 2, 3, 4, 5],
             xlsColumns: [0, 1, 2, 3, 4, 5]
         });
+
+        function applyProposalStatusColors() {
+            var levantamentoLabel = <?php echo json_encode(app_lang('proposals_status_levantamento')); ?>;
+            var propostaLabel = <?php echo json_encode(app_lang('proposals_status_proposta')); ?>;
+
+            $('#proposals-table tbody .badge').each(function () {
+                var $badge = $(this);
+                var label = $.trim($badge.text());
+
+                $badge.removeClass('proposal-status-levantamento proposal-status-proposta');
+
+                if (label === levantamentoLabel) {
+                    $badge.addClass('proposal-status-levantamento');
+                } else if (label === propostaLabel) {
+                    $badge.addClass('proposal-status-proposta');
+                }
+            });
+        }
+
+        $('#proposals-table').on('draw.dt', function () {
+            applyProposalStatusColors();
+        });
+        window.setTimeout(applyProposalStatusColors, 250);
         
         // Carregar o Kanban no primeiro clique. O layout usa Bootstrap 4/5
         // em instalações diferentes, por isso não dependemos apenas de
@@ -269,17 +292,27 @@
 </script>
 
 <style type="text/css">
-    /* Status da listagem: garante contraste mesmo quando o tema do RISE sobrescreve bg-secondary. */
-    #proposals-table .badge.bg-secondary {
+    /* Status da listagem: garante contraste mesmo quando o tema do RISE sobrescreve estilos. */
+    #proposals-table .badge {
         display: inline-block;
         padding: 0.35em 0.65em;
         font-size: 0.75em;
         font-weight: 600;
         line-height: 1;
-        color: #fff !important;
-        background-color: #6c757d !important;
         border-radius: 0.25rem;
         white-space: nowrap;
+    }
+    #proposals-table .badge.bg-secondary {
+        color: #fff !important;
+        background-color: #6c757d !important;
+    }
+    #proposals-table .badge.proposal-status-levantamento {
+        color: #212529 !important;
+        background-color: #ffc107 !important;
+    }
+    #proposals-table .badge.proposal-status-proposta {
+        color: #fff !important;
+        background-color: #0d6efd !important;
     }
     .kanban-wrapper {
         padding: 15px;
