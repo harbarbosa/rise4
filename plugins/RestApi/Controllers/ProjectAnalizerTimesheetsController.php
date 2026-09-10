@@ -275,7 +275,18 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
 
             if (in_array($field, ['start_time', 'end_time'], true)) {
                 $localDateTime = is_string($value) ? trim($value) : (string) $value;
-                $data[$field] = convert_date_local_to_utc($localDateTime);
+                $timezoneName = trim((string) get_setting('timezone'));
+                if (!$timezoneName) {
+                    $timezoneName = 'America/Sao_Paulo';
+                }
+
+                try {
+                    $dateTime = new \DateTime($localDateTime, new \DateTimeZone($timezoneName));
+                    $dateTime->setTimezone(new \DateTimeZone('UTC'));
+                    $data[$field] = $dateTime->format('Y-m-d H:i:s');
+                } catch (\Throwable $e) {
+                    $data[$field] = convert_date_local_to_utc($localDateTime);
+                }
                 continue;
             }
 
