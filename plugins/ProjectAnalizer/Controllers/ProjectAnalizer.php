@@ -2978,6 +2978,55 @@ class ProjectAnalizer extends Security_Controller {
         ));
     }
 
+    function approve_timelog() {
+        $this->access_only_team_members();
+
+        $id = get_only_numeric_value($this->request->getPost('id'));
+        if (!$id) {
+            echo json_encode(array("success" => false, "message" => app_lang("record_not_found")));
+            return;
+        }
+
+        $timesheet_manage_permission = get_array_value($this->login_user->permissions, "timesheet_manage_permission");
+        if (!$this->login_user->is_admin && !$timesheet_manage_permission) {
+            app_redirect("forbidden");
+        }
+
+        $timelog = $this->Timesheets_model->get_one($id);
+        if (!$timelog || !$timelog->id || $timelog->deleted) {
+            echo json_encode(array("success" => false, "message" => app_lang("record_not_found")));
+            return;
+        }
+
+        if (($timelog->approval_status ?? "pending") === "approved") {
+            echo json_encode(array(
+                "success" => true,
+                "id" => $id,
+                "data" => $this->_timesheet_row_data($id),
+                "message" => "Lançamento já aprovado."
+            ));
+            return;
+        }
+
+        $saved = $this->Timesheets_model->ci_save(array(
+            "approval_status" => "approved",
+            "approved_by" => $this->login_user->id,
+            "approved_at" => get_current_utc_time()
+        ), $id);
+
+        if (!$saved) {
+            echo json_encode(array("success" => false, "message" => app_lang("error_occurred")));
+            return;
+        }
+
+        echo json_encode(array(
+            "success" => true,
+            "id" => $id,
+            "data" => $this->_timesheet_row_data($id),
+            "message" => "Lançamento aprovado com sucesso."
+        ));
+    }
+
     function delete_timelog() {
         
         $this->access_only_team_members();
@@ -2986,9 +3035,12 @@ class ProjectAnalizer extends Security_Controller {
         
 
         $id = $this->request->getPost('id');
-        
 
-        
+        $timelog_info = $this->Timesheets_model->get_one($id);
+        if ($timelog_info && ($timelog_info->approval_status ?? "pending") === "approved") {
+            echo json_encode(array("success" => false, "message" => "Lançamento aprovado não pode ser excluído."));
+            return;
+        }
 
         $this->check_timelog_update_permission($id);
 
@@ -3014,6 +3066,14 @@ class ProjectAnalizer extends Security_Controller {
         $Photos_model->ensureTableExists();
         
         $id = $this->request->getPost('id');
+
+        if ($id) {
+            $timelog_info = $this->Timesheets_model->get_one($id);
+            if ($timelog_info && ($timelog_info->approval_status ?? "pending") === "approved") {
+                echo json_encode(array("success" => false, "message" => "Lançamento aprovado não pode ser alterado."));
+                return;
+            }
+        }
 
         $files = $this->request->getFiles();
 
@@ -3804,12 +3864,24 @@ class ProjectAnalizer extends Security_Controller {
             $row_data[] = $this->template->view("custom_fields/output_" . $field->field_type, array("value" => $data->$cf_id));
         }
 
-        $options = modal_anchor(get_uri("projectanalizer/timelog_modal_form"), "<i data-feather='edit' class='icon-16'></i>", array("class" => "edit", "title" => app_lang('edit_timelog'), "data-post-id" => $data->id))
-            . js_anchor("<i data-feather='x' class='icon-16'></i>", array('title' => app_lang('delete_timelog'), "class" => "delete", "data-id" => $data->id, "data-action-url" => get_uri("projectanalizer/delete_timelog"), "data-action" => "delete"));
-
+        $approval_status = $data->approval_status ?? "pending";
         $timesheet_manage_permission = get_array_value($this->login_user->permissions, "timesheet_manage_permission");
-        if ($data->user_id === $this->login_user->id && ($timesheet_manage_permission === "own_project_members_excluding_own" || $timesheet_manage_permission === "specific_excluding_own")) {
-            $options = "";
+        $can_approve_timelog = $this->login_user->is_admin || !empty($timesheet_manage_permission);
+
+        if ($approval_status === "approved") {
+            $options = "<span class='badge bg-success' title='Aprovado'>Aprovado</span>";
+        } else {
+            $options = modal_anchor(get_uri("projectanalizer/timelog_modal_form"), "<i data-feather='edit' class='icon-16'></i>", array("class" => "edit", "title" => app_lang('edit_timelog'), "data-post-id" => $data->id))
+                . js_anchor("<i data-feather='x' class='icon-16'></i>", array('title' => app_lang('delete_timelog'), "class" => "delete", "data-id" => $data->id, "data-action-url" => get_uri("projectanalizer/delete_timelog"), "data-action" => "delete"));
+
+            if ($can_approve_timelog) {
+                $approve_url = get_uri("projectanalizer/approve_timelog");
+                $options .= "<a href='#' class='approve-timelog text-success' title='Aprovar lançamento' data-id='" . $data->id . "' data-url='" . $approve_url . "'><i data-feather='check-circle' class='icon-16'></i></a>";
+            }
+
+            if ($data->user_id === $this->login_user->id && ($timesheet_manage_permission === "own_project_members_excluding_own" || $timesheet_manage_permission === "specific_excluding_own")) {
+                $options = "";
+            }
         }
 
         $row_data[] = $options;
