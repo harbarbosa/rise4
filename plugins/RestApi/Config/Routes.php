@@ -64,6 +64,7 @@ $routes->group('api', $rest_api_namespace, function ($routes) {
 	$routes->match(['GET', 'POST'], 'projectanalizer/tasks', 'ProjectAnalizerController::tasks');
 	$routes->match(['GET', 'POST'], 'projectanalizer/tasks/(:num)', 'ProjectAnalizerController::tasks/$1');
 	$routes->match(['GET', 'POST'], 'projectanalizer/tasks/(:num)/(:num)', 'ProjectAnalizerController::task/$1/$2');
+	$routes->get('projectanalizer/my-timesheets', 'ProjectAnalizerTimesheetsController::myTimesheets');
 	$routes->get('projectanalizer/timesheets/(:num)', 'ProjectAnalizerTimesheetsController::listByProject/$1');
 	$routes->get('projectanalizer/timesheets/(:num)/(:num)', 'ProjectAnalizerTimesheetsController::fetchOne/$1/$2');
 	$routes->post('projectanalizer/timesheets/(:num)', 'ProjectAnalizerTimesheetsController::store/$1');
