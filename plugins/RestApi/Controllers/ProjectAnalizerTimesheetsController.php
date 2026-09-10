@@ -16,6 +16,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         $this->timesheetsModel = model('App\Models\Timesheets_model');
         $this->projectsModel = model('App\Models\Projects_model');
         $this->usersModel = model('App\Models\Users_model');
+        $this->photosModel = model('ProjectAnalizer\Models\Photos_model');
     }
 
     public function listByProject(int $projectId)
