@@ -3028,6 +3028,55 @@ class ProjectAnalizer extends Security_Controller {
         ));
     }
 
+    function unapprove_timelog() {
+        $this->access_only_team_members();
+
+        if (!$this->login_user->is_admin) {
+            app_redirect("forbidden");
+        }
+
+        $id = get_only_numeric_value($this->request->getPost('id'));
+        if (!$id) {
+            echo json_encode(array("success" => false, "message" => app_lang("record_not_found")));
+            return;
+        }
+
+        $timelog = $this->Timesheets_model->get_one($id);
+        if (!$timelog || !$timelog->id || $timelog->deleted) {
+            echo json_encode(array("success" => false, "message" => app_lang("record_not_found")));
+            return;
+        }
+
+        if (($timelog->approval_status ?? "pending") !== "approved") {
+            echo json_encode(array(
+                "success" => true,
+                "id" => $id,
+                "data" => $this->_timesheet_row_data($id),
+                "message" => "Lançamento já está pendente."
+            ));
+            return;
+        }
+
+        $approval_data = array(
+            "approval_status" => "pending",
+            "approved_by" => null,
+            "approved_at" => null
+        );
+        $saved = $this->Timesheets_model->ci_save($approval_data, $id);
+
+        if (!$saved) {
+            echo json_encode(array("success" => false, "message" => app_lang("error_occurred")));
+            return;
+        }
+
+        echo json_encode(array(
+            "success" => true,
+            "id" => $id,
+            "data" => $this->_timesheet_row_data($id),
+            "message" => "Aprovação removida. O lançamento voltou para pendente."
+        ));
+    }
+
     function delete_timelog() {
         
         $this->access_only_team_members();
@@ -3870,7 +3919,11 @@ class ProjectAnalizer extends Security_Controller {
         $can_approve_timelog = $this->login_user->is_admin || !empty($timesheet_manage_permission);
 
         if ($approval_status === "approved") {
-            $options = "<span class='badge bg-success' title='Aprovado'>Aprovado</span>";
+            $options = "<span class='badge bg-success mr5' title='Aprovado'>Aprovado</span>";
+            if ($this->login_user->is_admin) {
+                $unapprove_url = get_uri("projectanalizer/unapprove_timelog");
+                $options .= "<a href='#' class='unapprove-timelog text-warning' title='Desaprovar lançamento' data-id='" . $data->id . "' data-url='" . $unapprove_url . "'><i data-feather='rotate-ccw' class='icon-16'></i></a>";
+            }
         } else {
             $options = modal_anchor(get_uri("projectanalizer/timelog_modal_form"), "<i data-feather='edit' class='icon-16'></i>", array("class" => "edit", "title" => app_lang('edit_timelog'), "data-post-id" => $data->id))
                 . js_anchor("<i data-feather='x' class='icon-16'></i>", array('title' => app_lang('delete_timelog'), "class" => "delete", "data-id" => $data->id, "data-action-url" => get_uri("projectanalizer/delete_timelog"), "data-action" => "delete"));
