@@ -455,9 +455,19 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
 
     protected function getPayload(): array
     {
-        $json = $this->request->getJSON(true);
-        if (is_array($json) && $json) {
-            return $json;
+        $contentType = strtolower((string) $this->request->getHeaderLine('Content-Type'));
+
+        // Multipart/form-data deve ser lido via getPost()/getFiles().
+        // Tentar getJSON() em multipart lança HTTPException antes do fallback.
+        if (str_contains($contentType, 'multipart/form-data')) {
+            return $this->request->getPost();
+        }
+
+        if (str_contains($contentType, 'application/json')) {
+            $json = $this->request->getJSON(true);
+            if (is_array($json) && $json) {
+                return $json;
+            }
         }
 
         $raw = $this->request->getRawInput();
