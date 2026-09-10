@@ -191,6 +191,39 @@
         }
 
         $(document)
+            .off("click.approveTimelog", ".approve-timelog")
+            .on("click.approveTimelog", ".approve-timelog", function (e) {
+                e.preventDefault();
+                var $button = $(this);
+                var id = $button.data("id");
+                var url = $button.data("url");
+                if (!id || !url) {
+                    return false;
+                }
+
+                appAjaxRequest({
+                    url: url,
+                    type: "POST",
+                    dataType: "json",
+                    data: {id: id},
+                    success: function (result) {
+                        if (result && result.success) {
+                            if (result.data) {
+                                $("#project-timesheet-table").appTable({newData: result.data, dataId: result.id});
+                            } else {
+                                $("#project-timesheet-table").appTable({reload: true});
+                            }
+                            appAlert.success(result.message || "Lançamento aprovado com sucesso.");
+                        } else {
+                            appAlert.error((result && result.message) || "Não foi possível aprovar o lançamento.");
+                        }
+                    }
+                });
+
+                return false;
+            });
+
+        $(document)
             .off("shown.bs.modal.timelogStageFilter", "#ajaxModal")
             .on("shown.bs.modal.timelogStageFilter", "#ajaxModal", function () {
                 setupTimelogStageFilter($(this));
