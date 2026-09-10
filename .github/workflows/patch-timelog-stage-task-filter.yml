@@ -1,0 +1,129 @@
+name: Patch timelog stage task filter
+
+on:
+  push:
+    branches:
+      - feat/timelog-stage-task-filter
+    paths:
+      - .github/workflows/patch-timelog-stage-task-filter.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/timelog-stage-task-filter
+      - name: Patch timelog modal
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('plugins/ProjectAnalizer/Views/timesheets/modal_form.php')
+          s = p.read_text(encoding='utf-8-sig')
+
+          marker = '''        <div class="form-group">\n            <div class="row">\n                <label for="task_id" class=" col-md-3"><?php echo app_lang('task'); ?></label>'''
+          replacement = '''        <?php
+        // Etapa -> Tarefa no lançamento de atividade. As etapas são os milestones do projeto.
+        $timelog_stage_options = array(array("id" => "", "text" => "- Etapa -"));
+        $timelog_tasks_by_stage = array();
+        $timelog_selected_stage_id = "";
+        if (!empty($project_id)) {
+            $timelog_db = db_connect();
+            $timelog_milestones_table = $timelog_db->prefixTable("milestones");
+            $timelog_tasks_table = $timelog_db->prefixTable("tasks");
+
+            $timelog_milestones = $timelog_db->query(
+                "SELECT id, title FROM {$timelog_milestones_table} WHERE deleted = 0 AND project_id = ? ORDER BY id ASC",
+                array((int) $project_id)
+            )->getResult();
+            foreach ($timelog_milestones as $timelog_milestone) {
+                $timelog_stage_options[] = array("id" => (string) $timelog_milestone->id, "text" => $timelog_milestone->title);
+            }
+
+            $timelog_stage_tasks = $timelog_db->query(
+                "SELECT id, title, milestone_id FROM {$timelog_tasks_table} WHERE deleted = 0 AND project_id = ? AND milestone_id IS NOT NULL AND milestone_id > 0 ORDER BY id DESC",
+                array((int) $project_id)
+            )->getResult();
+            foreach ($timelog_stage_tasks as $timelog_task) {
+                $stage_key = (string) $timelog_task->milestone_id;
+                if (!isset($timelog_tasks_by_stage[$stage_key])) {
+                    $timelog_tasks_by_stage[$stage_key] = array(array("id" => "", "text" => "- " . app_lang("task") . " -"));
+                }
+                $timelog_tasks_by_stage[$stage_key][] = array("id" => (string) $timelog_task->id, "text" => $timelog_task->id . " - " . $timelog_task->title);
+                if (!empty($model_info->task_id) && (int) $model_info->task_id === (int) $timelog_task->id) {
+                    $timelog_selected_stage_id = $stage_key;
+                }
+            }
+        }
+        ?>
+        <div class="form-group">
+            <div class="row">
+                <label for="timelog_stage_id" class="col-md-3">Etapa</label>
+                <div class="col-md-9">
+                    <input type="text" id="timelog_stage_id" class="form-control" placeholder="Etapa" />
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="row">
+                <label for="task_id" class=" col-md-3"><?php echo app_lang('task'); ?></label>'''
+          if marker not in s:
+              raise SystemExit('Task field marker not found')
+          s = s.replace(marker, replacement, 1)
+
+          js_marker = '''        $("#task_id").select2({data: <?php echo $tasks_dropdown; ?>});\n'''
+          js_replacement = '''        var timelogStageOptions = <?php echo json_encode($timelog_stage_options); ?>;
+        var timelogTasksByStage = <?php echo json_encode($timelog_tasks_by_stage); ?>;
+        var timelogSelectedStageId = <?php echo json_encode((string) $timelog_selected_stage_id); ?>;
+        var timelogSelectedTaskId = <?php echo json_encode((string) $model_info->task_id); ?>;
+
+        function loadTimelogTasksForStage(stageId, selectedTaskId) {
+            var taskData = timelogTasksByStage[String(stageId)] || [{id: "", text: "- <?php echo app_lang('task'); ?> -"}];
+            if ($("#task_id").data("select2")) {
+                $("#task_id").select2("destroy");
+            }
+            $("#task_id").empty().select2({data: taskData, width: "100%"});
+            $("#task_id").val(selectedTaskId || "").trigger("change.select2");
+            togglePercentageExecuted();
+        }
+
+        $("#timelog_stage_id").select2({data: timelogStageOptions, width: "100%"});
+        if (timelogSelectedStageId) {
+            $("#timelog_stage_id").val(timelogSelectedStageId).trigger("change.select2");
+            loadTimelogTasksForStage(timelogSelectedStageId, timelogSelectedTaskId);
+        } else {
+            loadTimelogTasksForStage("", "");
+        }
+
+        $("#timelog_stage_id").on("change select2:select", function () {
+            loadTimelogTasksForStage($(this).val(), "");
+        });
+'''
+          if js_marker not in s:
+              raise SystemExit('Task select2 marker not found')
+          s = s.replace(js_marker, js_replacement, 1)
+
+          # Ao trocar projeto, limpar a etapa; os dados da etapa são específicos do projeto aberto.
+          project_marker = '''                        $("#task_id").show().val("");\n                        $('#task_id').select2({data: result.tasks_dropdown});\n                        togglePercentageExecuted();'''
+          project_replacement = '''                        $("#timelog_stage_id").val("").trigger("change.select2");
+                        $("#task_id").show().val("");
+                        $('#task_id').select2({data: []});
+                        togglePercentageExecuted();'''
+          if project_marker in s:
+              s = s.replace(project_marker, project_replacement, 1)
+
+          p.write_text(s, encoding='utf-8')
+      - name: Validate PHP syntax
+        run: php -l plugins/ProjectAnalizer/Views/timesheets/modal_form.php
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add plugins/ProjectAnalizer/Views/timesheets/modal_form.php
+          git commit -m "feat: filter timelog tasks by stage"
+          git push origin HEAD:feat/timelog-stage-task-filter
