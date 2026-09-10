@@ -79,6 +79,43 @@
         });
 
         $(document)
+            .off("click.unapproveTimelog", ".unapprove-timelog")
+            .on("click.unapproveTimelog", ".unapprove-timelog", function (e) {
+                e.preventDefault();
+                var $button = $(this);
+                var id = $button.data("id");
+                var url = $button.data("url");
+                if (!id || !url) {
+                    return false;
+                }
+
+                if (!confirm("Deseja desaprovar este lançamento? Ele voltará a ficar editável e poderá ser excluído.")) {
+                    return false;
+                }
+
+                appAjaxRequest({
+                    url: url,
+                    type: "POST",
+                    dataType: "json",
+                    data: {id: id},
+                    success: function (result) {
+                        if (result && result.success) {
+                            if (result.data) {
+                                $("#project-timesheet-table").appTable({newData: result.data, dataId: result.id});
+                            } else {
+                                $("#project-timesheet-table").appTable({reload: true});
+                            }
+                            appAlert.success(result.message || "Lançamento desaprovado.");
+                        } else {
+                            appAlert.error((result && result.message) || "Não foi possível desaprovar o lançamento.");
+                        }
+                    }
+                });
+
+                return false;
+            });
+
+        $(document)
             .off("click.approveTimelog", ".approve-timelog")
             .on("click.approveTimelog", ".approve-timelog", function (e) {
                 e.preventDefault();
