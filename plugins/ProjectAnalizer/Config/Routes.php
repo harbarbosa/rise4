@@ -13,6 +13,7 @@ $routes->post('api/projectanalizer/timelogs/(:num)/photos', 'TimelogPhotosContro
 $routes->get('api/projectanalizer/tasks/(:num)/(:num)/resources', 'TaskResourcesController::show/$1/$2', ['namespace' => 'RestApi\Controllers']);
 
 $routes->get('projectanalizer', 'ProjectAnalizer::index', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->get('projectanalizer/timelog_stage_data/(:num)', 'Timelog_stage::data/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/execution_schedule/(:num)', 'ProjectAnalizer::execution_schedule/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/evolution_project/(:num)', 'Tasks::evolution_project/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/evolucao/(:num)', 'Projectanalizer_projects::evolucao/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
