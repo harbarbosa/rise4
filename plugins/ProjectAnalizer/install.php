@@ -67,6 +67,25 @@ foreach ($statements as $statement) {
     }
 }
 
+// Campos de aprovação dos lançamentos de atividade (timesheets).
+$projectTimeTable = $dbprefix . "project_time";
+$approvalColumns = array(
+    "approval_status" => "VARCHAR(20) NOT NULL DEFAULT 'pending'",
+    "approved_by" => "INT(11) NULL",
+    "approved_at" => "DATETIME NULL"
+);
+
+foreach ($approvalColumns as $column => $definition) {
+    try {
+        if (!$db->fieldExists($column, $projectTimeTable)) {
+            $db->query("ALTER TABLE `{$projectTimeTable}` ADD `{$column}` {$definition}");
+        }
+    } catch (\Throwable $e) {
+        $result["success"] = false;
+        $result["errors"][] = $e->getMessage();
+    }
+}
+
 foreach (array("pa_tools", "pa_task_materials", "pa_task_tools") as $table) {
     $full_table = $dbprefix . $table;
     // Query the database directly because tableExists() can keep a cached list
