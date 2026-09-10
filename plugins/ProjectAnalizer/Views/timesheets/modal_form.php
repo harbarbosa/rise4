@@ -237,6 +237,21 @@
 
         <div class="form-group">
             <div class="row">
+                <label for="timelog_milestone_id" class="col-md-3">Etapa</label>
+                <div class="col-md-9">
+                    <select
+                        id="timelog_milestone_id"
+                        class="form-control validate-hidden"
+                        data-rule-required="true"
+                        data-msg-required="<?php echo app_lang('field_required'); ?>">
+                        <option value="">- Selecione uma etapa -</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="row">
                 <label for="task_id" class=" col-md-3"><?php echo app_lang('task'); ?></label>
                 <div class="col-md-9" id="dropdown-apploader-section">
                     <?php
@@ -244,8 +259,10 @@
                         "id" => "task_id",
                         "name" => "task_id",
                         "value" => $model_info->task_id,
-                        "class" => "form-control",
-                        "placeholder" => app_lang('task')
+                        "class" => "form-control validate-hidden",
+                        "placeholder" => app_lang('task'),
+                        "data-rule-required" => true,
+                        "data-msg-required" => app_lang("field_required")
                     ));
                     ?>
                     <div id="task-execution-summary" class="mt10" style="display:none;"></div>
@@ -613,7 +630,7 @@
                         $('#user_id').select2({data: projectMembers});
                         updateProjectMembersState(projectMembers);
                         $("#task_id").show().val("");
-                        $('#task_id').select2({data: result.tasks_dropdown});
+                        loadTimelogStages(projectId, "");
                         togglePercentageExecuted();
                         appLoader.hide();
                     }
@@ -635,7 +652,104 @@
         <?php if (empty($model_info->id) && !empty($project_id)) { ?>
         updateProjectMembersState(<?php echo json_encode($project_members_dropdown); ?>);
         <?php } ?>
-        $("#task_id").select2({data: <?php echo $tasks_dropdown; ?>});
+        var initialTaskId = String(<?php echo json_encode((string) ($model_info->task_id ?? "")); ?> || "");
+        var allTimelogTasks = [];
+
+        function rebuildTaskDropdown(tasks, selectedTaskId) {
+            var $task = $("#task_id");
+            if ($task.data("select2")) {
+                $task.select2("destroy");
+            }
+
+            var options = [{id: "", text: "- Selecione uma tarefa -"}].concat(tasks || []);
+            $task.select2({
+                data: options,
+                placeholder: "<?php echo app_lang('task'); ?>",
+                allowClear: true,
+                width: "100%"
+            });
+
+            if (selectedTaskId) {
+                $task.val(String(selectedTaskId)).trigger("change");
+            } else {
+                $task.val("").trigger("change");
+            }
+        }
+
+        function loadTimelogStages(projectId, selectedTaskId) {
+            var $stage = $("#timelog_milestone_id");
+
+            if (!projectId) {
+                if ($stage.data("select2")) {
+                    $stage.select2("destroy");
+                }
+                $stage.empty().append('<option value="">- Selecione uma etapa -</option>').select2({width: "100%"});
+                allTimelogTasks = [];
+                rebuildTaskDropdown([], "");
+                return;
+            }
+
+            appAjaxRequest({
+                url: "<?php echo get_uri('projectanalizer/timelog_stage_data'); ?>/" + projectId,
+                dataType: "json",
+                success: function (result) {
+                    if (!result || !result.success) {
+                        allTimelogTasks = [];
+                        rebuildTaskDropdown([], "");
+                        return;
+                    }
+
+                    allTimelogTasks = result.tasks || [];
+                    var selectedStageId = "";
+
+                    if (selectedTaskId) {
+                        allTimelogTasks.some(function (task) {
+                            if (String(task.id) === String(selectedTaskId)) {
+                                selectedStageId = String(task.milestone_id || "");
+                                return true;
+                            }
+                            return false;
+                        });
+                    }
+
+                    if ($stage.data("select2")) {
+                        $stage.select2("destroy");
+                    }
+                    $stage.empty();
+
+                    (result.stages || []).forEach(function (stage) {
+                        $stage.append($("<option>").val(stage.id).text(stage.text));
+                    });
+
+                    $stage.select2({
+                        placeholder: "- Selecione uma etapa -",
+                        allowClear: true,
+                        width: "100%"
+                    });
+
+                    if (selectedStageId) {
+                        $stage.val(selectedStageId).trigger("change.select2");
+                        var initialTasks = allTimelogTasks.filter(function (task) {
+                            return String(task.milestone_id || "") === selectedStageId;
+                        });
+                        rebuildTaskDropdown(initialTasks, selectedTaskId);
+                    } else {
+                        $stage.val("").trigger("change.select2");
+                        rebuildTaskDropdown([], "");
+                    }
+                }
+            });
+        }
+
+        $("#timelog_milestone_id").on("change", function () {
+            var stageId = String($(this).val() || "");
+            var filteredTasks = allTimelogTasks.filter(function (task) {
+                return String(task.milestone_id || "") === stageId;
+            });
+            rebuildTaskDropdown(stageId ? filteredTasks : [], "");
+        });
+
+        loadTimelogStages(String($("input[name='project_id']").val() || $("#project_id").val() || ""), initialTaskId);
 
         function escapeTaskText(text) {
             return $("<div>").text(text || "").html();
