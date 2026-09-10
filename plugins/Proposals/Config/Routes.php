@@ -46,8 +46,8 @@ $routes->post('propostas/sections/update', 'Proposals::update_section', ['namesp
 $routes->get('propostas/sections/update', 'Proposals::update_section', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/sections/delete', 'Proposals::delete_section', ['namespace' => 'Proposals\\Controllers']);
 $routes->get('propostas/sections/delete', 'Proposals::delete_section', ['namespace' => 'Proposals\\Controllers']);
-$routes->post('propostas/items/add', 'Proposals::add_item', ['namespace' => 'Proposals\\Controllers']);
-$routes->get('propostas/items/add', 'Proposals::add_item', ['namespace' => 'Proposals\\Controllers']);
+$routes->post('propostas/items/add', 'ProposalsItemsSafe::add_item', ['namespace' => 'Proposals\\Controllers']);
+$routes->get('propostas/items/add', 'ProposalsItemsSafe::add_item', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/items/update', 'Proposals::update_item', ['namespace' => 'Proposals\\Controllers']);
 $routes->get('propostas/items/update', 'Proposals::update_item', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/items/delete', 'Proposals::delete_item', ['namespace' => 'Proposals\\Controllers']);
