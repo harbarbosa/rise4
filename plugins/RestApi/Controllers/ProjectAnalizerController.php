@@ -224,6 +224,32 @@ class ProjectAnalizerController extends ModuleApiController
             return $this->failValidationErrors('Invalid timelog id.');
         }
 
+        // Garante que o apontamento existe antes de listar/enviar fotos.
+        $timelog = $this->db->table('project_time')
+            ->where('id', $timelogId)
+            ->where('deleted', 0)
+            ->get()
+            ->getRow();
+
+        if (!$timelog) {
+            return $this->failNotFound('Timelog not found.');
+        }
+
+        if ($this->request->getMethod(true) === 'POST') {
+            $saved = $this->saveTimelogPhotos($timelogId);
+
+            if (!$saved) {
+                return $this->failValidationErrors('No valid photos were received.');
+            }
+
+            return $this->respondCreated([
+                'status' => true,
+                'timelog_id' => $timelogId,
+                'count' => count($saved),
+                'data' => $saved,
+            ]);
+        }
+
         $photos = $this->photosModel->get_by_timelog($timelogId);
 
         return $this->respond([
