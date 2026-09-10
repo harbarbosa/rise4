@@ -3008,11 +3008,12 @@ class ProjectAnalizer extends Security_Controller {
             return;
         }
 
-        $saved = $this->Timesheets_model->ci_save(array(
+        $approval_data = array(
             "approval_status" => "approved",
             "approved_by" => $this->login_user->id,
             "approved_at" => get_current_utc_time()
-        ), $id);
+        );
+        $saved = $this->Timesheets_model->ci_save($approval_data, $id);
 
         if (!$saved) {
             echo json_encode(array("success" => false, "message" => app_lang("error_occurred")));
