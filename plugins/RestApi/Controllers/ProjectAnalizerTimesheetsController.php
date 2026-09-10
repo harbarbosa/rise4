@@ -7,6 +7,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
     protected $timesheetsModel;
     protected $projectsModel;
     protected $usersModel;
+    protected $photosModel;
 
     public function __construct()
     {
@@ -124,10 +125,13 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
             return $this->failValidationErrors('Could not create timesheet.');
         }
 
+        $photos = $this->saveTimesheetPhotos($id);
+
         return $this->respondCreated([
             'status' => true,
             'message' => 'Timesheet created successfully.',
             'id' => $id,
+            'photos' => $photos,
         ]);
     }
 
@@ -397,6 +401,56 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         }
 
         return true;
+    }
+
+    protected function saveTimesheetPhotos(int $timesheetId): array
+    {
+        $this->photosModel->ensureTableExists();
+
+        $files = $this->request->getFiles();
+        $photos = $files['photos'] ?? [];
+
+        if ($photos instanceof \CodeIgniter\HTTP\Files\UploadedFile) {
+            $photos = [$photos];
+        }
+
+        if (!is_array($photos) || !$photos) {
+            return [];
+        }
+
+        $targetDir = FCPATH . 'files/projectanalizer/';
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0777, true);
+        }
+
+        $saved = [];
+        foreach ($photos as $file) {
+            if (!$file || !$file->isValid() || $file->hasMoved()) {
+                continue;
+            }
+
+            $newName = $file->getRandomName();
+            $file->move($targetDir, $newName);
+
+            $photoId = $this->photosModel->insert([
+                'timelog_id' => $timesheetId,
+                'file_name' => $newName,
+                'file_path' => 'files/projectanalizer/' . $newName,
+                'uploaded_by' => 0,
+                'created_at' => get_current_utc_time(),
+            ]);
+
+            if ($photoId) {
+                $saved[] = [
+                    'id' => $photoId,
+                    'file_name' => $newName,
+                    'file_path' => 'files/projectanalizer/' . $newName,
+                    'url' => base_url('files/projectanalizer/' . $newName),
+                ];
+            }
+        }
+
+        return $saved;
     }
 
     protected function getPayload(): array
