@@ -48,8 +48,8 @@ $routes->post('propostas/sections/delete', 'Proposals::delete_section', ['namesp
 $routes->get('propostas/sections/delete', 'Proposals::delete_section', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/items/add', 'ProposalsItemsSafe::add_item', ['namespace' => 'Proposals\\Controllers']);
 $routes->get('propostas/items/add', 'ProposalsItemsSafe::add_item', ['namespace' => 'Proposals\\Controllers']);
-$routes->post('propostas/items/update', 'Proposals::update_item', ['namespace' => 'Proposals\\Controllers']);
-$routes->get('propostas/items/update', 'Proposals::update_item', ['namespace' => 'Proposals\\Controllers']);
+$routes->post('propostas/items/update', 'ProposalsItemsSafe::update_item', ['namespace' => 'Proposals\\Controllers']);
+$routes->get('propostas/items/update', 'ProposalsItemsSafe::update_item', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/items/delete', 'Proposals::delete_item', ['namespace' => 'Proposals\\Controllers']);
 $routes->get('propostas/items/delete', 'Proposals::delete_item', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/items/create_quick', 'Proposals::create_item_quick', ['namespace' => 'Proposals\\Controllers']);
