@@ -15,7 +15,7 @@ if (file_exists($install_file)) {
 }
 
 $db = db_connect('default');
-$dbprefix = get_db_prefix();
+$dbprefix = $db->getPrefix();
 if (!$sql) {
     return array("success" => false, "errors" => array($source_file . " is empty or invalid"));
 }
