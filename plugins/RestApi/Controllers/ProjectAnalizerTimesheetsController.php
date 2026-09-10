@@ -88,6 +88,44 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         ]);
     }
 
+    public function myTimesheets()
+    {
+        $userId = $this->currentStaffUserId();
+        if ($userId <= 0) {
+            return $this->failUnauthorized('User not found.');
+        }
+
+        $db = db_connect('default');
+        $timesheetsTable = $db->prefixTable('project_time');
+        $projectsTable = $db->prefixTable('projects');
+        $tasksTable = $db->prefixTable('tasks');
+
+        $builder = $db->table($timesheetsTable . ' pt');
+        $builder->select('pt.*, p.title AS project_title, t.title AS task_title, t.milestone_id');
+        $builder->join($projectsTable . ' p', 'p.id = pt.project_id', 'left');
+        $builder->join($tasksTable . ' t', 't.id = pt.task_id', 'left');
+        $builder->where('pt.deleted', 0);
+        $builder->groupStart()
+            ->where('pt.user_id', (string) $userId)
+            ->orLike('pt.user_id', $userId . ',', 'after')
+            ->orLike('pt.user_id', ',' . $userId . ',', 'both')
+            ->orLike('pt.user_id', ',' . $userId, 'before')
+            ->groupEnd();
+        $builder->orderBy('pt.start_time', 'DESC');
+        $rows = $builder->get()->getResult();
+
+        $data = [];
+        foreach ($rows as $row) {
+            $data[] = $this->decorateTimesheetRow($row);
+        }
+
+        return $this->respond([
+            'status' => true,
+            'count' => count($data),
+            'data' => $data,
+        ]);
+    }
+
     public function store(int $projectId)
     {
         if (!$this->projectExists($projectId)) {
@@ -98,6 +136,7 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         $payload = $this->normalizeTimesheetCollaborators($payload);
         $data = $this->mapPayload($payload);
         $data['project_id'] = $projectId;
+        $data['approval_status'] = 'pending';
 
         if (!array_key_exists('user_id', $data) || !$data['user_id']) {
             return $this->failValidationErrors('user_id is required.');
@@ -145,6 +184,10 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         $existing = $this->timesheetsModel->get_one($id);
         if (!$existing || !$existing->id || (int) $existing->project_id !== $projectId) {
             return $this->failNotFound('Timesheet not found.');
+        }
+
+        if (($existing->approval_status ?? 'pending') === 'approved') {
+            return $this->failForbidden('Approved timesheets cannot be edited.');
         }
 
         $payload = $this->getPayload();
@@ -195,6 +238,10 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         $existing = $this->timesheetsModel->get_one($id);
         if (!$existing || !$existing->id || (int) $existing->project_id !== $projectId) {
             return $this->failNotFound('Timesheet not found.');
+        }
+
+        if (($existing->approval_status ?? 'pending') === 'approved') {
+            return $this->failForbidden('Approved timesheets cannot be deleted.');
         }
 
         if (!$this->timesheetsModel->delete($id)) {
@@ -353,6 +400,12 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
             $row = (object) $row;
         }
 
+        $row->approval_status = $row->approval_status ?? 'pending';
+        $row->approved_by = isset($row->approved_by) ? (int) $row->approved_by : null;
+        $row->approved_at = $row->approved_at ?? null;
+        $row->start_time_local = !empty($row->start_time) ? convert_date_utc_to_local($row->start_time) : null;
+        $row->end_time_local = !empty($row->end_time) ? convert_date_utc_to_local($row->end_time) : null;
+
         $userIds = $this->normalizeUserIdList($row->user_id ?? '');
         $row->collaborator_ids = $userIds;
         $row->collaborators = [];
@@ -463,6 +516,23 @@ class ProjectAnalizerTimesheetsController extends Rest_api_Controller
         }
 
         return $saved;
+    }
+
+    protected function currentStaffUserId(): int
+    {
+        $email = strtolower(trim((string) ($this->api_user->user ?? '')));
+        if ($email === '') {
+            return 0;
+        }
+
+        $user = $this->usersModel->get_one_where([
+            'email' => $email,
+            'deleted' => 0,
+            'status' => 'active',
+            'user_type' => 'staff',
+        ]);
+
+        return !empty($user->id) ? (int) $user->id : 0;
     }
 
     protected function getPayload(): array
