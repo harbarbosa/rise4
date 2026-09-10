@@ -77,6 +77,124 @@
             xlsColumns: combineCustomFieldsColumns([0, 3, 5, 7, 8, 9, 11], '<?php echo $custom_field_headers; ?>'),
             summation: [{column: 8, fieldName: "total_timesheet_value", dataType: 'time'}]
         });
+
+        function rebuildTimelogTaskSelect($task, tasks, selectedTaskId) {
+            if ($task.data("select2")) {
+                $task.select2("destroy");
+            }
+            $task.val("").show();
+            $task.select2({
+                data: [{id: "", text: "- <?php echo app_lang('task'); ?> -"}].concat(tasks || [])
+            });
+            if (selectedTaskId) {
+                $task.val(String(selectedTaskId)).trigger("change");
+            } else {
+                $task.val("").trigger("change");
+            }
+        }
+
+        function setupTimelogStageFilter($modal) {
+            var $form = $modal.find("#timelog-form");
+            var $task = $form.find("#task_id");
+            if (!$form.length || !$task.length) {
+                return;
+            }
+
+            var $taskGroup = $task.closest(".form-group");
+            if (!$form.find("#timelog_milestone_id").length) {
+                var stageHtml = '<div class="form-group" id="timelog-stage-wrapper">' +
+                    '<div class="row">' +
+                        '<label for="timelog_milestone_id" class="col-md-3">Etapa</label>' +
+                        '<div class="col-md-9">' +
+                            '<select id="timelog_milestone_id" class="form-control"></select>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+                $taskGroup.before(stageHtml);
+            }
+
+            var $stage = $form.find("#timelog_milestone_id");
+            var initialTaskId = String($task.val() || "");
+            var projectId = String($form.find("input[name='project_id']").val() || $form.find("#project_id").val() || "");
+
+            function loadStageData(projectIdToLoad, preserveTaskId) {
+                if (!projectIdToLoad) {
+                    if ($stage.data("select2")) {
+                        $stage.select2("destroy");
+                    }
+                    $stage.empty().append('<option value="">- Etapa -</option>').select2();
+                    rebuildTimelogTaskSelect($task, [], "");
+                    return;
+                }
+
+                appAjaxRequest({
+                    url: "<?php echo get_uri('projectanalizer/timelog_stage_data'); ?>/" + projectIdToLoad,
+                    dataType: "json",
+                    success: function (result) {
+                        if (!result || !result.success) {
+                            return;
+                        }
+
+                        var stages = result.stages || [];
+                        var allTasks = result.tasks || [];
+                        var selectedStageId = "";
+
+                        if (preserveTaskId) {
+                            allTasks.some(function (task) {
+                                if (String(task.id) === String(preserveTaskId)) {
+                                    selectedStageId = String(task.milestone_id || "");
+                                    return true;
+                                }
+                                return false;
+                            });
+                        }
+
+                        if ($stage.data("select2")) {
+                            $stage.select2("destroy");
+                        }
+                        $stage.empty();
+                        stages.forEach(function (stage) {
+                            $stage.append($("<option>").val(stage.id).text(stage.text));
+                        });
+                        $stage.select2();
+
+                        if (selectedStageId) {
+                            $stage.val(selectedStageId).trigger("change.select2");
+                            var initialTasks = allTasks.filter(function (task) {
+                                return String(task.milestone_id || "") === selectedStageId;
+                            });
+                            rebuildTimelogTaskSelect($task, initialTasks, preserveTaskId);
+                        } else {
+                            $stage.val("").trigger("change.select2");
+                            rebuildTimelogTaskSelect($task, [], "");
+                        }
+
+                        $stage.off("change.timelogStage").on("change.timelogStage", function () {
+                            var stageId = String($(this).val() || "");
+                            var filteredTasks = allTasks.filter(function (task) {
+                                return String(task.milestone_id || "") === stageId;
+                            });
+                            rebuildTimelogTaskSelect($task, stageId ? filteredTasks : [], "");
+                        });
+                    }
+                });
+            }
+
+            loadStageData(projectId, initialTaskId);
+
+            $form.find("#project_id").off("change.timelogStageProject").on("change.timelogStageProject", function () {
+                var newProjectId = String($(this).val() || "");
+                setTimeout(function () {
+                    loadStageData(newProjectId, "");
+                }, 250);
+            });
+        }
+
+        $(document)
+            .off("shown.bs.modal.timelogStageFilter", "#ajaxModal")
+            .on("shown.bs.modal.timelogStageFilter", "#ajaxModal", function () {
+                setupTimelogStageFilter($(this));
+            });
     }
     );
 </script>
