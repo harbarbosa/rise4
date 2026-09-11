@@ -65,6 +65,19 @@ $sql = "CREATE TABLE IF NOT EXISTS `{$prefix}contaazul_cost_centers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;";
 $db->query($sql);
 
+// Compatibilidade com instalações antigas: garante que o ID externo do Conta Azul
+// fique armazenado separadamente do ID interno autoincremento da Intranet.
+$costCentersTable = $prefix . 'contaazul_cost_centers';
+if (!$db->fieldExists('ca_id', $costCentersTable)) {
+    $db->query("ALTER TABLE `{$costCentersTable}` ADD COLUMN `ca_id` VARCHAR(100) NULL AFTER `id`");
+}
+if (!$db->fieldExists('code', $costCentersTable)) {
+    $db->query("ALTER TABLE `{$costCentersTable}` ADD COLUMN `code` VARCHAR(100) NULL AFTER `ca_id`");
+}
+
+// projects.cost_center_id sempre referencia contaazul_cost_centers.id (ID interno).
+// ca_id é usado somente para chamadas/sincronização com a API do Conta Azul.
+
 // adiciona coluna id_conta_azul na tabela clients, se não existir
 $clientsTable = $prefix . 'clients';
 $columnExists = $db->query("SHOW COLUMNS FROM `{$clientsTable}` LIKE 'id_conta_azul'")->getResult();
