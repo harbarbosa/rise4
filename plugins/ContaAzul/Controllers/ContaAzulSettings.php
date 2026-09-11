@@ -1137,23 +1137,52 @@ class ContaAzulSettings extends Security_Controller
     {
         $db = db_connect('default');
         $table = $db->prefixTable('contaazul_cost_centers');
-        if ($db->tableExists($table)) {
-            return;
+
+        if (!$db->tableExists($table)) {
+            $sql = "CREATE TABLE IF NOT EXISTS `{$table}` (
+                `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                `ca_id` VARCHAR(100) NULL,
+                `code` VARCHAR(100) NULL,
+                `title` VARCHAR(255) NOT NULL,
+                `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+                `created_at` DATETIME NULL,
+                `updated_at` DATETIME NULL,
+                PRIMARY KEY (`id`),
+                INDEX (`ca_id`),
+                INDEX (`code`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;";
+            $db->query($sql);
         }
 
-        $sql = "CREATE TABLE IF NOT EXISTS `{$table}` (
-            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            `ca_id` VARCHAR(100) NULL,
-            `code` VARCHAR(100) NULL,
-            `title` VARCHAR(255) NOT NULL,
-            `is_active` TINYINT(1) NOT NULL DEFAULT 1,
-            `created_at` DATETIME NULL,
-            `updated_at` DATETIME NULL,
-            PRIMARY KEY (`id`),
-            INDEX (`ca_id`),
-            INDEX (`code`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;";
-        $db->query($sql);
+        // Keep the internal ID independent from Conta Azul's external ID.
+        // Existing installations may predate ca_id, so make the association self-healing.
+        if (!$db->fieldExists('ca_id', $table)) {
+            $db->query("ALTER TABLE `{$table}` ADD COLUMN `ca_id` VARCHAR(100) NULL AFTER `id`");
+        }
+        if (!$db->fieldExists('code', $table)) {
+            $db->query("ALTER TABLE `{$table}` ADD COLUMN `code` VARCHAR(100) NULL AFTER `ca_id`");
+        }
+
+        // Add indexes only when missing. ca_id is intentionally not the primary key:
+        // projects.cost_center_id must always reference the local auto-increment ID.
+        $indexes = $db->getIndexData($table);
+        $hasCaIdIndex = false;
+        $hasCodeIndex = false;
+        foreach ($indexes as $index) {
+            $fields = array_map('strtolower', $index->fields ?? array());
+            if (in_array('ca_id', $fields, true)) {
+                $hasCaIdIndex = true;
+            }
+            if (in_array('code', $fields, true)) {
+                $hasCodeIndex = true;
+            }
+        }
+        if (!$hasCaIdIndex) {
+            $db->query("CREATE INDEX `idx_contaazul_cost_centers_ca_id` ON `{$table}` (`ca_id`)");
+        }
+        if (!$hasCodeIndex) {
+            $db->query("CREATE INDEX `idx_contaazul_cost_centers_code` ON `{$table}` (`code`)");
+        }
     }
 
     private function makeClient($data = null)
