@@ -779,6 +779,28 @@ class ContaAzulSettings extends Security_Controller
                         ->getRow();
                 }
 
+                if (!$existing && $title) {
+                    $titleMatches = $db->table($table)
+                        ->select("id, ca_id, code, title")
+                        ->where("title", $title)
+                        ->get()
+                        ->getResult();
+
+                    if (count($titleMatches) === 1) {
+                        $candidate = $titleMatches[0];
+                        $candidateCaId = trim((string)($candidate->ca_id ?? ""));
+                        $candidateCode = trim((string)($candidate->code ?? ""));
+
+                        if ($candidateCaId === "" || ($caId && $candidateCaId === (string)$caId)) {
+                            if ($candidateCode === "" || !$code || $candidateCode === (string)$code) {
+                                $existing = $candidate;
+                            }
+                        }
+                    } elseif (count($titleMatches) > 1) {
+                        $errors[] = "Centro de custo '{$title}' possui mais de um cadastro local; vínculo automático por nome ignorado.";
+                    }
+                }
+
                 $data = clean_data([
                     "ca_id" => $caId,
                     "code" => $code,
