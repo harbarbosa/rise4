@@ -1998,14 +1998,12 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
         }
 
-        // Buscar itens da memória de cálculo
         $memory_items_query = $this->Proposal_items_model->get_details(array(
             'proposal_id' => $proposal_id,
             'in_memory' => 1
         ));
         $memory_items = ($memory_items_query && method_exists($memory_items_query, 'getResult')) ? $memory_items_query->getResult() : array();
 
-        // Primeiro: excluir todos os itens existentes da proposta (não-memória)
         $existing_items_query = $this->Proposal_items_model->get_details(array(
             'proposal_id' => $proposal_id,
             'in_memory' => 0
@@ -2018,30 +2016,18 @@ class Proposals extends Security_Controller
             $deleted_count++;
         }
 
-        // Agrupar itens da memória por item_id e somar quantidades
-        $grouped_items = array();
-        foreach ($memory_items as $item) {
-            $key = (int)$item->item_id;
-            if ($key > 0) {
-                if (isset($grouped_items[$key])) {
-                    // Somar quantidade
-                    $grouped_items[$key]->qty += $item->qty;
-                    $grouped_items[$key]->total = $grouped_items[$key]->qty * $grouped_items[$key]->sale_unit;
-                } else {
-                    $grouped_items[$key] = $item;
-                }
-            }
-        }
-
+        // Copiar cada linha exatamente como está na memória de cálculo.
+        // Não agrupar somente por item_id: o mesmo produto pode aparecer em etapas
+        // diferentes com preço/markup distintos, e serviços podem não possuir item_id.
+        // O agrupamento antigo descartava item_id=0 e recalculava o total usando o
+        // preço da primeira ocorrência, causando divergência entre os dois totais.
         $next_sort = 0;
         $items_copied = 0;
-
-        // Agora copiar os itens da memória
-        foreach ($grouped_items as $item) {
+        foreach ($memory_items as $item) {
             $data = array(
                 'proposal_id' => $proposal_id,
                 'section_id' => null,
-                'item_id' => $item->item_id,
+                'item_id' => !empty($item->item_id) ? (int)$item->item_id : null,
                 'item_type' => $item->item_type,
                 'description_override' => $item->description_override,
                 'cost_unit' => $item->cost_unit,
@@ -2056,9 +2042,11 @@ class Proposals extends Security_Controller
                 'created_by' => $this->login_user->id,
                 'created_at' => get_my_local_time()
             );
-            $this->Proposal_items_model->ci_save($data, 0);
-            $next_sort++;
-            $items_copied++;
+
+            if ($this->Proposal_items_model->ci_save($data, 0) !== false) {
+                $next_sort++;
+                $items_copied++;
+            }
         }
 
         $this->_log_activity('items_copied_to_proposal', $proposal_id);
