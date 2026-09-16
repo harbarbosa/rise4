@@ -2016,14 +2016,74 @@ class Proposals extends Security_Controller
             $deleted_count++;
         }
 
-        // Copiar cada linha exatamente como está na memória de cálculo.
-        // Não agrupar somente por item_id: o mesmo produto pode aparecer em etapas
-        // diferentes com preço/markup distintos, e serviços podem não possuir item_id.
-        // O agrupamento antigo descartava item_id=0 e recalculava o total usando o
-        // preço da primeira ocorrência, causando divergência entre os dois totais.
+        // Materiais/produtos: uma linha por item_id, somando somente a quantidade.
+        // O valor unitário deve ser único para o mesmo produto na memória.
+        // Serviços: agrupar pelo serviço/descrição e somar os valores totais,
+        // sem aplicar a regra de preço unitário dos materiais.
+        $grouped_items = array();
+        foreach ($memory_items as $item) {
+            $item_type = strtolower(trim((string)($item->item_type ?? 'material')));
+            $item_id = (int)($item->item_id ?? 0);
+            $description = trim((string)($item->description_override ?? ''));
+            $is_service = $item_type === 'service';
+
+            if ($is_service) {
+                $service_key = $item_id > 0
+                    ? 'service:' . $item_id
+                    : 'service-description:' . mb_strtolower($description);
+
+                if (!isset($grouped_items[$service_key])) {
+                    $grouped_items[$service_key] = array(
+                        'item' => clone $item,
+                        'qty' => 1.0,
+                        'total' => 0.0,
+                        'service' => true
+                    );
+                }
+                $grouped_items[$service_key]['total'] += (float)($item->total ?? 0);
+                continue;
+            }
+
+            // Itens manuais sem cadastro não podem ser agrupados com produtos.
+            $product_key = $item_id > 0 ? 'item:' . $item_id : 'manual:' . (int)$item->id;
+            if (!isset($grouped_items[$product_key])) {
+                $grouped_items[$product_key] = array(
+                    'item' => clone $item,
+                    'qty' => 0.0,
+                    'total' => 0.0,
+                    'service' => false
+                );
+            }
+
+            $grouped_items[$product_key]['qty'] += (float)($item->qty ?? 0);
+            // Somar os totais gravados evita perda por arredondamento.
+            $grouped_items[$product_key]['total'] += (float)($item->total ?? 0);
+        }
+
         $next_sort = 0;
         $items_copied = 0;
-        foreach ($memory_items as $item) {
+        foreach ($grouped_items as $group) {
+            $item = $group['item'];
+            $is_service = $group['service'];
+
+            if ($is_service) {
+                $qty = 1;
+                $total = round((float)$group['total'], 2);
+                $sale_unit = $total;
+            } else {
+                $qty = (float)$group['qty'];
+                $sale_unit = (float)($item->sale_unit ?? 0);
+                // Como materiais iguais devem possuir o mesmo valor unitário,
+                // o total agrupado é quantidade x valor unitário. Mantemos a
+                // soma original apenas quando a diferença for exclusivamente
+                // de arredondamento centesimal.
+                $calculated_total = round($qty * $sale_unit, 2);
+                $original_total = round((float)$group['total'], 2);
+                $total = abs($calculated_total - $original_total) <= 0.01
+                    ? $original_total
+                    : $calculated_total;
+            }
+
             $data = array(
                 'proposal_id' => $proposal_id,
                 'section_id' => null,
@@ -2031,10 +2091,10 @@ class Proposals extends Security_Controller
                 'item_type' => $item->item_type,
                 'description_override' => $item->description_override,
                 'cost_unit' => $item->cost_unit,
-                'qty' => $item->qty,
+                'qty' => $qty,
                 'markup_percent' => $item->markup_percent,
-                'sale_unit' => $item->sale_unit,
-                'total' => $item->total,
+                'sale_unit' => $sale_unit,
+                'total' => $total,
                 'show_in_proposal' => 1,
                 'show_values_in_proposal' => 1,
                 'in_memory' => 0,
@@ -2051,7 +2111,7 @@ class Proposals extends Security_Controller
 
         $this->_log_activity('items_copied_to_proposal', $proposal_id);
 
-        $message = "$items_copied itens copiados ($deleted_count excluídos anteriormente)";
+        $message = "$items_copied itens agrupados e copiados ($deleted_count excluídos anteriormente)";
 
         return $this->response->setJSON(array(
             'success' => true,
