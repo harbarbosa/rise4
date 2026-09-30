@@ -70,6 +70,7 @@ foreach ($statements as $statement) {
 // Campos de aprovação dos lançamentos de atividade (timesheets).
 $projectTimeTable = $dbprefix . "project_time";
 $approvalColumns = array(
+    "percentage_executed" => "DECIMAL(8,2) NULL DEFAULT NULL",
     "approval_status" => "VARCHAR(20) NOT NULL DEFAULT 'pending'",
     "approved_by" => "INT(11) NULL",
     "approved_at" => "DATETIME NULL"
