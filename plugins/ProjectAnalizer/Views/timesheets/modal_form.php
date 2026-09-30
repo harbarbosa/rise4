@@ -582,6 +582,12 @@
                     $("#" + table).appTable({newData: result.data, dataId: result.id});
                 }
 
+                // The project tabs are loaded by AJAX and can keep the task table cached.
+                // Reload it so the execution percentage just saved is shown immediately.
+                if ($.fn.DataTable && $.fn.DataTable.isDataTable("#task-table")) {
+                    $("#task-table").DataTable().ajax.reload(null, false);
+                }
+
                 if (result && result.photos && result.photos.length) {
                     var gallery = $("#saved-photo-gallery");
                     if (!gallery.length) {
