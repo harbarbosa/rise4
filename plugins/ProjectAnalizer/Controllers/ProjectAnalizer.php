@@ -3289,13 +3289,22 @@ class ProjectAnalizer extends Security_Controller {
 
 
             save_custom_fields("timesheets", $save_id, $this->login_user->is_admin, $this->login_user->user_type);
+            $task_execution_percentage = 0;
             if ($task_id) {
                 $this->_update_task_status_by_percentage($task_id);
+                $task_execution_percentage = $this->_get_task_execution_percentage_total($task_id);
             }
 
             $this->_log_labor_cost_from_timelog($save_id, $data, $hours);
 
-            echo json_encode(array("success" => true, "data" => $this->_timesheet_row_data($save_id), 'id' => $save_id, 'message' => app_lang('record_saved')));
+            echo json_encode(array(
+                "success" => true,
+                "data" => $this->_timesheet_row_data($save_id),
+                "id" => $save_id,
+                "task_id" => (int) $task_id,
+                "task_execution_percentage" => number_format($task_execution_percentage, 2, ".", ""),
+                "message" => app_lang('record_saved')
+            ));
         } else {
             echo json_encode(array("success" => false, 'message' => app_lang('error_occurred')));
         }
