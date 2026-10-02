@@ -4167,7 +4167,10 @@ class ProjectAnalizer extends Security_Controller {
                 WHERE $users_table.deleted = 0
                     AND $users_table.status = 'active'
                     AND $users_table.user_type = 'staff'
-                    AND $users_table.role_id = $role_id
+                    AND (
+                        $users_table.role_id = $role_id
+                        OR $users_table.is_admin = 1
+                    )
                 ORDER BY $users_table.first_name ASC, $users_table.last_name ASC";
 
         $this->execution_schedule_technician_members = $db->query($sql)->getResult();
