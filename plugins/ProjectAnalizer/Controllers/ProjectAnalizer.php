@@ -4151,15 +4151,15 @@ class ProjectAnalizer extends Security_Controller {
         }
 
         $this->execution_schedule_technician_members = array();
-        $role_id = $this->_get_execution_schedule_technician_role_id();
-
-        if (!$role_id) {
-            return $this->execution_schedule_technician_members;
-        }
+        $role_id = (int) $this->_get_execution_schedule_technician_role_id();
 
         $db = db_connect("default");
         $users_table = $db->prefixTable("users");
-        $role_id = (int) $role_id;
+        $eligible_condition = "$users_table.is_admin = 1";
+
+        if ($role_id) {
+            $eligible_condition = "($users_table.role_id = $role_id OR $users_table.is_admin = 1)";
+        }
 
         $sql = "SELECT $users_table.id,
                        CONCAT(TRIM($users_table.first_name), ' ', TRIM($users_table.last_name)) AS user_name
@@ -4167,10 +4167,7 @@ class ProjectAnalizer extends Security_Controller {
                 WHERE $users_table.deleted = 0
                     AND $users_table.status = 'active'
                     AND $users_table.user_type = 'staff'
-                    AND (
-                        $users_table.role_id = $role_id
-                        OR $users_table.is_admin = 1
-                    )
+                    AND $eligible_condition
                 ORDER BY $users_table.first_name ASC, $users_table.last_name ASC";
 
         $this->execution_schedule_technician_members = $db->query($sql)->getResult();
