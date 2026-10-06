@@ -128,6 +128,8 @@ return [
     'proposals_no_items' => 'No items yet.',
     'proposals_permissions' => 'Proposals Permissions',
     'proposals_view_permission' => 'Can view proposals',
+    'proposals_view_all_permission' => 'Can view all proposals',
+    'proposals_view_all_permission_help' => 'When unchecked, the user can view and manage only proposals they created.',
     'proposals_manage_permission' => 'Can manage proposals',
     'proposals_export_pdf_permission' => 'Can export PDF',
     'proposals_settings_manage_permission' => 'Can manage proposal settings',
