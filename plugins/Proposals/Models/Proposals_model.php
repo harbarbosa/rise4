@@ -50,6 +50,11 @@ class Proposals_model extends Crud_model
             $where .= " AND $table.client_id=$client_id";
         }
 
+        $created_by = $this->_get_clean_value($options, "created_by");
+        if ($created_by && $has_created_by) {
+            $where .= " AND $table.created_by=$created_by";
+        }
+
         $status = $this->_get_clean_value($options, "status");
         if ($status && $has_status) {
             $where .= " AND $table.status='$status'";
