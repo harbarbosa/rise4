@@ -192,6 +192,7 @@ app_hooks()->add_action('app_hook_role_permissions_extension', function ($hook_d
 app_hooks()->add_filter('app_filter_role_permissions_save_data', function ($permissions) {
     $request = \Config\Services::request();
     $permissions['proposals_view'] = $request->getPost('proposals_view') ? '1' : '';
+    $permissions['proposals_view_all'] = $request->getPost('proposals_view_all') ? '1' : '';
     $permissions['proposals_manage'] = $request->getPost('proposals_manage') ? '1' : '';
     $permissions['proposals_export_pdf'] = $request->getPost('proposals_export_pdf') ? '1' : '';
     $permissions['proposals_settings_manage'] = $request->getPost('proposals_settings_manage') ? '1' : '';
