@@ -15,19 +15,32 @@ class Atualizar extends Controller
 
     public function index()
     {
+        $started_at = microtime(true);
+
         // Verificar token de segurança
         $token = $this->request->getGet('token') ?? $this->request->getPost('token');
         
         if ($token !== $this->token_seguranca) {
-            return $this->response->setStatusCode(403)->setJSON([
+            $invalid_result = [
                 'success' => false,
-                'message' => 'Token de segurança inválido'
-            ]);
+                'message' => 'Token de segurança inválido',
+                'steps' => [],
+                'duration' => microtime(true) - $started_at
+            ];
+
+            if ($this->_wants_json()) {
+                return $this->response->setStatusCode(403)->setJSON($invalid_result);
+            }
+
+            return $this->response
+                ->setStatusCode(403)
+                ->setBody(view('atualizar/index', ['result' => $invalid_result]));
         }
 
         $result = [
             'success' => true,
-            'steps' => []
+            'steps' => [],
+            'previous_commit' => $this->_get_current_commit()
         ];
 
         // Passo 1: Git Pull
@@ -51,6 +64,10 @@ class Atualizar extends Controller
                 'success' => $return_var === 0,
                 'output' => implode("\n", $output)
             ];
+
+            if ($return_var !== 0) {
+                $result['success'] = false;
+            }
 
             // Passo 3: Executar instaladores dentro do CodeIgniter já inicializado.
             // Os arquivos usam db_connect() e helpers da aplicação, portanto não
@@ -90,9 +107,29 @@ class Atualizar extends Controller
             }
         }
 
+        $result['current_commit'] = $this->_get_current_commit();
+        $result['duration'] = microtime(true) - $started_at;
         $result['message'] = $result['success'] ? 'Sistema atualizado com sucesso!' : 'Erro ao atualizar sistema';
 
-        return $this->response->setJSON($result);
+        if ($this->_wants_json()) {
+            return $this->response->setJSON($result);
+        }
+
+        return view('atualizar/index', ['result' => $result]);
+    }
+
+    private function _wants_json()
+    {
+        return $this->request->getGet('format') === 'json' || $this->request->isAJAX();
+    }
+
+    private function _get_current_commit()
+    {
+        $output = [];
+        $return_var = 0;
+        exec('cd ' . escapeshellarg(ROOTPATH) . ' && git rev-parse HEAD 2>&1', $output, $return_var);
+
+        return $return_var === 0 ? trim(implode("\n", $output)) : '';
     }
 
     // Rota para executar apenas o SQL de atualização do banco
