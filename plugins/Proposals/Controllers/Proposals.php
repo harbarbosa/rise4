@@ -869,6 +869,9 @@ class Proposals extends Security_Controller
         $options = array(
             "company_id" => $this->_get_company_id()
         );
+        if (!$this->_can_view_all_proposals()) {
+            $options["created_by"] = (int)$this->login_user->id;
+        }
 
         $status = $this->request->getPost('status');
         if ($status) {
@@ -896,10 +899,7 @@ class Proposals extends Security_Controller
         $view_data = array();
 
         if ($id) {
-            $proposal = $this->Proposals_model->get_details(array(
-                'id' => $id,
-                'company_id' => $company_id
-            ))->getRow();
+            $proposal = $this->_get_proposal_for_company($id);
             if (!$proposal) {
                 show_404();
             }
@@ -977,10 +977,7 @@ class Proposals extends Security_Controller
         $view_data = array();
 
         if ($id) {
-            $proposal = $this->Proposals_model->get_details(array(
-                'id' => $id,
-                'company_id' => $company_id
-            ))->getRow();
+            $proposal = $this->_get_proposal_for_company($id);
             if (!$proposal) {
                 show_404();
             }
@@ -1062,10 +1059,7 @@ class Proposals extends Security_Controller
         $company_id = $this->_get_company_id();
 
         if ($id) {
-            $proposal = $this->Proposals_model->get_details(array(
-                'id' => $id,
-                'company_id' => $company_id
-            ))->getRow();
+            $proposal = $this->_get_proposal_for_company($id);
             if (!$proposal) {
                 return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
             }
@@ -1147,6 +1141,10 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(array('success' => false));
         }
 
+        if (!$this->_get_proposal_for_company($id)) {
+            return $this->_json_permission_denied();
+        }
+
         $ok = $this->Proposals_model->delete($id);
         if ($ok) {
             $this->_log_activity('proposal_deleted', $id);
@@ -1161,10 +1159,7 @@ class Proposals extends Security_Controller
         }
 
         $id = (int)$id;
-        $proposal = $this->Proposals_model->get_details(array(
-            'id' => $id,
-            'company_id' => $this->_get_company_id()
-        ))->getRow();
+        $proposal = $this->_get_proposal_for_company($id);
         if (!$proposal) {
             show_404();
         }
@@ -2928,6 +2923,16 @@ class Proposals extends Security_Controller
             || get_array_value($permissions, 'proposals_settings_manage') == '1';
     }
 
+    private function _can_view_all_proposals()
+    {
+        if ($this->login_user->is_admin) {
+            return true;
+        }
+
+        $permissions = $this->login_user->permissions ?? array();
+        return get_array_value($permissions, 'proposals_view_all') == '1';
+    }
+
     private function _has_manage_permission()
     {
         if ($this->login_user->is_admin) {
@@ -3220,10 +3225,15 @@ class Proposals extends Security_Controller
             return null;
         }
 
-        return $this->Proposals_model->get_details(array(
+        $options = array(
             'id' => $proposal_id,
             'company_id' => $this->_get_company_id()
-        ))->getRow();
+        );
+        if (!$this->_can_view_all_proposals()) {
+            $options['created_by'] = (int)$this->login_user->id;
+        }
+
+        return $this->Proposals_model->get_details($options)->getRow();
     }
 
     private function _proposal_belongs_to_company($proposal_id)
