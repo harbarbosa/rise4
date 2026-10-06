@@ -1,5 +1,6 @@
 <?php
 $proposals_view = get_array_value($permissions, "proposals_view");
+$proposals_view_all = get_array_value($permissions, "proposals_view_all");
 $proposals_manage = get_array_value($permissions, "proposals_manage");
 $proposals_export_pdf = get_array_value($permissions, "proposals_export_pdf");
 $proposals_settings_manage = get_array_value($permissions, "proposals_settings_manage");
@@ -13,6 +14,13 @@ $proposals_settings_manage = get_array_value($permissions, "proposals_settings_m
         echo form_checkbox("proposals_view", "1", $proposals_view ? true : false, "id='proposals_view' class='form-check-input'");
         ?>
         <label for="proposals_view"><?php echo app_lang("proposals_view_permission"); ?></label>
+    </div>
+    <div class="ms-4">
+        <?php
+        echo form_checkbox("proposals_view_all", "1", $proposals_view_all ? true : false, "id='proposals_view_all' class='form-check-input'");
+        ?>
+        <label for="proposals_view_all"><?php echo app_lang("proposals_view_all_permission"); ?></label>
+        <div class="text-off small"><?php echo app_lang("proposals_view_all_permission_help"); ?></div>
     </div>
     <div>
         <?php
