@@ -13,6 +13,9 @@ class Proposals extends Security_Controller
     public $Proposal_snapshots_model;
     public $Clients_model;
     public $Invoice_items_model;
+    public $Notes_model;
+    public $Note_category_model;
+    public $Events_model;
 
     public function __construct()
     {
@@ -25,6 +28,9 @@ class Proposals extends Security_Controller
         $this->Proposal_snapshots_model = model('Proposals\\Models\\Proposal_snapshots_model');
         $this->Clients_model = model('App\\Models\\Clients_model');
         $this->Invoice_items_model = model('App\\Models\\Invoice_items_model');
+        $this->Notes_model = model('App\\Models\\Notes_model');
+        $this->Note_category_model = model('App\\Models\\Note_category_model');
+        $this->Events_model = model('App\\Models\\Events_model');
     }
 
     public function index()
@@ -35,10 +41,835 @@ class Proposals extends Security_Controller
 
         $view_data = array(
             "statuses_dropdown" => json_encode($this->_get_statuses_dropdown()),
-            "can_manage" => $this->_has_manage_permission()
+            "statuses_kanban" => $this->_get_statuses(),
+            "can_manage" => $this->_has_manage_permission(),
+            "is_admin" => (bool)$this->login_user->is_admin,
+            "proposal_creators_dropdown" => json_encode($this->_get_proposal_creators_dropdown()),
+            "creator_filter_storage_key" => "proposals_creator_filter_" . (int)$this->login_user->id
         );
 
         return $this->template->rander('Proposals\\Views\\proposals\\index', $view_data);
+    }
+
+    public function kanban_data()
+    {
+        if (!$this->_has_view_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $search = $this->request->getGet('search');
+        
+        $options = array(
+            "company_id" => $this->_get_company_id()
+        );
+
+        if ($this->login_user->is_admin) {
+            $creator_ids = $this->_get_creator_filter_ids($this->request->getGet('created_by'));
+            if ($creator_ids) {
+                $options["created_by_ids"] = $creator_ids;
+            }
+        } elseif (!$this->_can_view_all_proposals()) {
+            $options["created_by"] = (int)$this->login_user->id;
+        }
+        
+        if ($search) {
+            $options["search"] = $search;
+        }
+
+        $query = $this->Proposals_model->get_details($options);
+        $proposals = ($query && method_exists($query, 'getResult')) ? $query->getResult() : array();
+
+        $proposals_by_status = array();
+        $counts = array();
+        $totals = array();
+
+        // Inicializar exatamente os mesmos status usados pelo cadastro/lista.
+        foreach ($this->_get_statuses() as $status) {
+            $status_key = (string) ($status->id ?? '');
+            if ($status_key === '') {
+                continue;
+            }
+            $proposals_by_status[$status_key] = array();
+            $counts[$status_key] = 0;
+            $totals[$status_key] = 0;
+        }
+
+        foreach ($proposals as $proposal) {
+            // Buscar o status da proposal - pode ser 'status' ou 'status_id'
+            $status_id = null;
+            if (isset($proposal->status) && !empty($proposal->status)) {
+                $status_id = $proposal->status;
+            } elseif (isset($proposal->status_id) && !empty($proposal->status_id)) {
+                $status_id = $proposal->status_id;
+            } else {
+                $status_id = 'draft';
+            }
+            
+            // Normalizar status para string
+            if (is_numeric($status_id)) {
+                $status_id = 'draft';
+            }
+            
+            if (!isset($proposals_by_status[$status_id])) {
+                $proposals_by_status[$status_id] = array();
+            }
+            $proposal_total = (float) $this->Proposals_model->get_items_total($proposal->id);
+            $proposals_by_status[$status_id][] = array(
+                'id' => $proposal->id,
+                'title' => $proposal->title,
+                'client_name' => $proposal->client_company ?? ($proposal->client_name ?? ''),
+                'total_sale' => $proposal_total,
+                'total_sale_formatted' => to_currency($proposal_total)
+            );
+            $counts[$status_id] = ($counts[$status_id] ?? 0) + 1;
+            $totals[$status_id] = ($totals[$status_id] ?? 0) + $proposal_total;
+        }
+
+        return $this->response->setJSON([
+            'success' => true,
+            'data' => [
+                'proposals' => $proposals_by_status,
+                'counts' => $counts,
+                'totals' => $totals,
+                'totals_formatted' => array_map(function ($total) {
+                    return to_currency($total);
+                }, $totals)
+            ]
+        ]);
+    }
+
+    public function save_notes()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $id = $this->request->getPost('id');
+        $notes = $this->request->getPost('notes');
+
+        if (!$id) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Invalid parameters']);
+        }
+
+        $data = array('notes' => $notes);
+        $result = $this->Proposals_model->ci_save($data, $id);
+
+        if ($result) {
+            return $this->response->setJSON(['success' => true, 'message' => 'Notes saved']);
+        }
+
+        return $this->response->setJSON(['success' => false, 'message' => 'Error saving']);
+    }
+
+    public function get_followup_events($proposal_id = 0)
+    {
+        if (!$this->_has_view_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+
+        try {
+            // Follow-ups use the native agenda/events table. This keeps the
+            // proposal timeline and the calendar synchronized.
+            $followups = $this->Events_model->get_details(array(
+                'proposal_id' => $proposal_id,
+                'type' => 'all'
+            ))->getResult();
+        } catch (Exception $e) {
+            log_message('error', 'Error in get_followup_events: ' . $e->getMessage());
+            return $this->response->setJSON(['success' => false, 'message' => app_lang('error_occurred')]);
+        }
+
+        $html = '';
+        if (empty($followups)) {
+            $html = '<p class="text-muted">' . app_lang('proposals_no_followup') . '</p>';
+        } else {
+            $html .= '<div class="table-responsive"><table class="table table-bordered">';
+            $html .= '<thead><tr><th>' . app_lang('title') . '</th><th>' . app_lang('date') . '</th><th>' . app_lang('status') . '</th><th>' . app_lang('created_by') . '</th><th></th></tr></thead>';
+            $html .= '<tbody>';
+            foreach ($followups as $followup) {
+                $is_reminder = ($followup->type ?? '') === 'reminder';
+                $is_done = $is_reminder && in_array(($followup->reminder_status ?? ''), array('done', 'shown'), true);
+                $is_rejected = !$is_reminder && !empty($followup->rejected_by);
+                $is_confirmed = !$is_reminder && !empty($followup->confirmed_by);
+                $status_class = $is_done ? 'bg-success' : ($is_rejected ? 'bg-danger' : ($is_confirmed ? 'bg-info' : 'bg-warning'));
+                $status_label = $is_done ? app_lang('done') : ($is_rejected ? app_lang('rejected') : ($is_confirmed ? app_lang('confirmed') : app_lang('pending')));
+                $event_datetime = trim(($followup->start_date ?? '') . ' ' . ($followup->start_time ?? ''));
+                $event_id = encode_id($followup->id, 'event_id');
+                
+                $html .= '<tr>';
+                $html .= '<td>' . esc($followup->title) . '</td>';
+                $html .= '<td>' . ($event_datetime ? format_to_datetime($event_datetime) : '-') . '</td>';
+                $html .= '<td><span class="badge ' . $status_class . '">' . $status_label . '</span></td>';
+                $html .= '<td>' . esc($followup->created_by_name ?? '-') . '</td>';
+                $html .= '<td class="text-center">';
+                $html .= modal_anchor(get_uri('events/modal_form'), '<i data-feather="edit" class="icon-16"></i>', array(
+                    'title' => app_lang('edit_event'),
+                    'data-post-encrypted_event_id' => $event_id,
+                    'data-post-proposal_id' => $proposal_id,
+                    'class' => 'me-2'
+                ));
+                $html .= js_anchor('<i data-feather="trash-2" class="icon-16"></i>', array(
+                    'title' => app_lang('delete_event'),
+                    'data-action-url' => get_uri('events/delete'),
+                    'data-encrypted_event_id' => $event_id,
+                    'data-action' => 'delete-confirmation'
+                ));
+                $html .= '</td>';
+                $html .= '</tr>';
+            }
+            $html .= '</tbody></table></div>';
+        }
+
+        $html .= '<script>if (typeof feather !== "undefined") { feather.replace(); }</script>';
+        return $this->response->setJSON(['success' => true, 'html' => $html]);
+    }
+
+    public function followup_modal_form($proposal_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+        
+        $view_data['proposal_id'] = $proposal_id;
+        
+        return $this->template->view('Proposals\\Views\\proposals\\followup_modal_form', $view_data);
+    }
+
+    public function save_followup()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $this->request->getPost('proposal_id');
+        $title = $this->request->getPost('title');
+        $description = $this->request->getPost('description');
+        $event_date = $this->request->getPost('event_date');
+
+        $db = db_connect('default');
+        $followup_table = $db->prefixTable('proposal_followups');
+        
+        // Criar tabela se não existir
+        if (!$db->tableExists($followup_table)) {
+            $sql = "CREATE TABLE IF NOT EXISTS `{$followup_table}` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `proposal_id` INT(11) NOT NULL,
+                `title` VARCHAR(255) NOT NULL,
+                `description` TEXT,
+                `event_date` DATETIME NOT NULL,
+                `event_id` INT(11) DEFAULT NULL,
+                `status` VARCHAR(20) DEFAULT 'pending',
+                `created_by` INT(11) DEFAULT NULL,
+                `created_at` DATETIME DEFAULT NULL,
+                `deleted` TINYINT(1) DEFAULT 0,
+                PRIMARY KEY (`id`),
+                KEY `proposal_id` (`proposal_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+            $db->query($sql);
+        }
+        
+        $data = array(
+            'proposal_id' => $proposal_id,
+            'title' => $title,
+            'description' => $description,
+            'event_date' => $event_date,
+            'status' => 'pending',
+            'created_by' => $this->login_user->id,
+            'created_at' => get_current_utc_time()
+        );
+        
+        $db->table($followup_table)->insert($data);
+        
+        return $this->response->setJSON(['success' => true, 'message' => 'Follow-up agendado']);
+    }
+
+    public function complete_followup($followup_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $followup_id = (int) $followup_id;
+        $db = db_connect('default');
+        $followup_table = $db->prefixTable('proposal_followups');
+        
+        $db->table($followup_table)->where('id', $followup_id)->update(['status' => 'completed']);
+        
+        return $this->response->setJSON(['success' => true, 'message' => 'Follow-up concluído']);
+    }
+
+    public function delete_followup($followup_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $followup_id = (int) $followup_id;
+        $db = db_connect('default');
+        $followup_table = $db->prefixTable('proposal_followups');
+        
+        $db->table($followup_table)->where('id', $followup_id)->update(['deleted' => 1]);
+        
+        return $this->response->setJSON(['success' => true, 'message' => 'Follow-up excluído']);
+    }
+
+    public function notes_list_data($proposal_id = 0)
+    {
+        if (!$this->_has_view_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+        $db = db_connect('default');
+        $notes_table = $db->prefixTable('notes');
+
+        // Adicionar coluna proposal_id se não existir
+        if (!$db->fieldExists('proposal_id', $notes_table)) {
+            $db->query("ALTER TABLE `{$notes_table}` ADD `proposal_id` INT(11) DEFAULT NULL AFTER `client_id`");
+        }
+
+        $notes = $db->query("
+            SELECT * FROM $notes_table 
+            WHERE proposal_id = $proposal_id AND deleted = 0 
+            ORDER BY created_at DESC
+        ")->getResult();
+
+        $result = [];
+        foreach ($notes as $note) {
+            $actions = modal_anchor(
+                get_uri("propostas/note_modal_form/" . $proposal_id . "/" . $note->id),
+                "<i data-feather='edit' class='icon-16'></i>",
+                ['class' => 'edit', 'title' => app_lang('edit_note')]
+            );
+            $actions .= js_anchor(
+                "<i data-feather='x' class='icon-16'></i>",
+                [
+                    'title' => app_lang('delete_note'),
+                    'class' => 'delete',
+                    'data-id' => $note->id,
+                    'data-action-url' => get_uri('propostas/delete_note/' . $note->id),
+                    'data-action' => 'delete-confirmation'
+                ]
+            );
+
+            $result[] = array(
+                format_to_datetime($note->created_at),
+                $note->id,
+                modal_anchor(
+                    get_uri("propostas/note_modal_form/" . $proposal_id . "/" . $note->id),
+                    $note->title,
+                    ['title' => app_lang('note')]
+                ),
+                $note->is_public ? app_lang('yes') : app_lang('no'),
+                $note->created_by,
+                $actions
+            );
+        }
+
+        return $this->response->setJSON(['data' => $result]);
+    }
+
+    public function note_modal_form($proposal_id = 0, $note_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        // O botão de inclusão envia o proposal_id via POST; a edição também
+        // pode receber os IDs pela URL.
+        $proposal_id = (int) ($proposal_id ?: $this->request->getPost('proposal_id'));
+        $note_id = (int) ($note_id ?: $this->request->getPost('note_id'));
+        
+        $db = db_connect('default');
+        $notes_table = $db->prefixTable('notes');
+        
+        $note_info = $this->Notes_model->get_one($note_id);
+
+        if (!$note_info) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Anotação não encontrada']);
+        }
+
+        $note_categories = $this->Note_category_model
+            ->get_details(['user_id' => $this->login_user->id])
+            ->getResult();
+        $note_categories_dropdown = ['' => '- ' . app_lang('category') . ' -'];
+        foreach ($note_categories as $note_category) {
+            $note_categories_dropdown[$note_category->id] = $note_category->name;
+        }
+        
+        $view_data['proposal_id'] = $proposal_id;
+        $view_data['note_id'] = $note_id;
+        $view_data['note_info'] = $note_info;
+        // Os componentes padrão do modal (ex.: paleta de cores) usam
+        // model_info, como no modal de notas dos projetos.
+        $view_data['model_info'] = $note_info;
+        $view_data['project_id'] = 0;
+        $view_data['client_id'] = 0;
+        $view_data['user_id'] = 0;
+        $view_data['note_categories_dropdown'] = $note_categories_dropdown;
+        $view_data['label_suggestions'] = $this->make_labels_dropdown('note', $note_info->labels, false);
+        
+        return $this->template->view('Proposals\\Views\\proposals\\note_modal_form', $view_data);
+    }
+
+    public function save_note()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $this->request->getPost('proposal_id');
+        $note_id = (int) $this->request->getPost('note_id');
+        $title = $this->request->getPost('title');
+        $description = $this->request->getPost('description');
+        $is_public = $this->request->getPost('is_public') ? 1 : 0;
+
+        $db = db_connect('default');
+        $notes_table = $db->prefixTable('notes');
+
+        if (!$db->tableExists($notes_table)) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Tabela de anotações não encontrada']);
+        }
+
+        if (!$db->fieldExists('proposal_id', $notes_table)) {
+            $db->query("ALTER TABLE `{$notes_table}` ADD `proposal_id` INT(11) DEFAULT NULL AFTER `client_id`");
+        }
+
+        // Em uma edição, preserve o vínculo existente mesmo que o formulário
+        // antigo não tenha enviado o proposal_id.
+        if (!$proposal_id && $note_id) {
+            $existing_note = $db->table($notes_table)
+                ->select('proposal_id')
+                ->where('id', $note_id)
+                ->get()
+                ->getRow();
+            $proposal_id = (int) ($existing_note->proposal_id ?? 0);
+        }
+
+        if (!$proposal_id) {
+            return $this->response->setJSON(['success' => false, 'message' => 'A proposta da anotação não foi informada']);
+        }
+        
+        $target_path = get_setting('timeline_file_path');
+        $files_data = move_files_from_temp_dir_to_permanent_dir($target_path, 'note');
+        $new_files = unserialize($files_data);
+        if (!is_array($new_files)) {
+            $new_files = [];
+        }
+
+        $labels = $this->request->getPost('labels');
+        validate_list_of_numbers($labels);
+
+        $data = array(
+            'proposal_id' => $proposal_id,
+            'title' => $title,
+            'description' => $description,
+            'labels' => $labels,
+            'color' => $this->request->getPost('color'),
+            'project_id' => 0,
+            'client_id' => 0,
+            'user_id' => 0,
+            'category_id' => $this->request->getPost('category_id') ?: 0,
+            'is_public' => $is_public,
+            'files' => serialize($new_files)
+        );
+
+        $data = clean_data($data);
+        
+        if ($note_id) {
+            $note_info = $this->Notes_model->get_one($note_id);
+            if (!$note_info || (int) ($note_info->proposal_id ?? 0) !== $proposal_id) {
+                return $this->response->setJSON(['success' => false, 'message' => 'Anotação não pertence a esta proposta']);
+            }
+            $data['files'] = serialize(update_saved_files($target_path, $note_info->files, $new_files));
+            $save_id = $this->Notes_model->ci_save($data, $note_id);
+        } else {
+            $data['created_by'] = $this->login_user->id;
+            $data['created_at'] = get_current_utc_time();
+            $save_id = $this->Notes_model->ci_save($data);
+        }
+        
+        if (!$save_id) {
+            return $this->response->setJSON(['success' => false, 'message' => app_lang('error_occurred')]);
+        }
+
+        return $this->response->setJSON(['success' => true, 'id' => $save_id, 'message' => app_lang('record_saved')]);
+    }
+
+    public function delete_note($note_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $note_id = (int) $note_id;
+        $db = db_connect('default');
+        $notes_table = $db->prefixTable('notes');
+        
+        $db->table($notes_table)->where('id', $note_id)->update(['deleted' => 1]);
+        
+        return $this->response->setJSON(['success' => true, 'message' => 'Note deleted']);
+    }
+
+    public function files_list_data($proposal_id = 0)
+    {
+        if (!$this->_has_view_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+        $db = db_connect('default');
+        $files_table = $this->_ensure_proposal_files_table($db);
+        
+        // Verificar se tabela existe
+        if (!$db->tableExists($files_table)) {
+            return $this->response->setJSON(['data' => []]);
+        }
+        
+        // Adicionar coluna proposal_id se não existir
+        if (!$db->fieldExists('proposal_id', $files_table)) {
+            $db->query("ALTER TABLE `{$files_table}` ADD `proposal_id` INT(11) DEFAULT NULL");
+        }
+
+        $files = $db->query("
+            SELECT * FROM $files_table 
+            WHERE proposal_id = $proposal_id AND deleted = 0
+            ORDER BY created_at DESC
+        ")->getResult();
+
+        $result = [];
+        foreach ($files as $file) {
+            $file_url = get_uri('propostas/download_file/' . $file->id);
+            $result[] = array(
+                format_to_datetime($file->created_at),
+                $file->id,
+                anchor($file_url, $file->file_name, ['target' => '_blank']),
+                $file->file_size ? number_format($file->file_size / 1024, 2, ',', '.') . ' KB' : '-',
+                $file->uploaded_by,
+                '<div class="text-center">' . 
+                js_anchor('<i data-feather="download" class="icon-16"></i>', array('title' => app_lang('download'), 'href' => $file_url)) .
+                js_anchor('<i data-feather="trash-2" class="icon-16"></i>', array('title' => app_lang('delete'), 'data-action-url' => get_uri('propostas/delete_file/' . $file->id), 'data-action' => 'delete-confirmation')) .
+                '</div>'
+            );
+        }
+
+        return $this->response->setJSON(['data' => $result]);
+    }
+
+    public function file_modal_form($proposal_id = 0, $file_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) ($proposal_id ?: $this->request->getPost('proposal_id'));
+        $file_id = (int) $file_id;
+
+        if (!$proposal_id) {
+            return $this->response->setJSON(['success' => false, 'message' => 'A proposta não foi informada']);
+        }
+        
+        $view_data['proposal_id'] = $proposal_id;
+        $view_data['file_id'] = $file_id;
+        
+        return $this->template->view('Proposals\\Views\\proposals\\file_modal_form', $view_data);
+    }
+
+    public function save_file()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $this->request->getPost('proposal_id');
+
+        if (!$proposal_id) {
+            return $this->response->setJSON(['success' => false, 'message' => 'A proposta não foi informada']);
+        }
+        
+        // Processar upload
+        $upload_file = get_array_value($_FILES, 'file');
+        if (!$upload_file || $upload_file['error'] !== UPLOAD_ERR_OK) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Upload failed']);
+        }
+
+        $file_name = $upload_file['name'];
+        $upload_path = 'proposals/' . $proposal_id . '/';
+        $dir = getcwd() . '/private/uploads/' . $upload_path;
+        
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $new_name = uniqid() . '_' . $file_name;
+        $target = $dir . $new_name;
+        
+        if (move_uploaded_file($upload_file['tmp_name'], $target)) {
+            $db = db_connect('default');
+            $files_table = $this->_ensure_proposal_files_table($db);
+            
+            if (!$db->tableExists($files_table)) {
+                $sql = "CREATE TABLE IF NOT EXISTS `{$files_table}` (
+                    `id` INT(11) NOT NULL AUTO_INCREMENT,
+                    `proposal_id` INT(11) NOT NULL,
+                    `file_name` VARCHAR(255) NOT NULL,
+                    `file_path` VARCHAR(500) NOT NULL,
+                    `file_size` INT(11) DEFAULT 0,
+                    `uploaded_by` INT(11) DEFAULT NULL,
+                    `created_at` DATETIME DEFAULT NULL,
+                    PRIMARY KEY (`id`),
+                    KEY `proposal_id` (`proposal_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+                $db->query($sql);
+            }
+
+            if (!$db->fieldExists('proposal_id', $files_table)) {
+                $db->query("ALTER TABLE `{$files_table}` ADD `proposal_id` INT(11) DEFAULT NULL");
+            }
+            
+            $insert_data = array(
+                'proposal_id' => $proposal_id,
+                'file_name' => $file_name,
+                'file_path' => $upload_path . $new_name,
+                'file_size' => $upload_file['size'],
+                'uploaded_by' => $this->login_user->id,
+                'created_at' => get_current_utc_time()
+            );
+            
+            $db->table($files_table)->insert($insert_data);
+            
+            return $this->response->setJSON(['success' => true, 'message' => 'File uploaded']);
+        }
+
+        return $this->response->setJSON(['success' => false, 'message' => 'Error saving file']);
+    }
+
+    public function delete_file($file_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $file_id = (int) $file_id;
+        $db = db_connect('default');
+        $files_table = $this->_ensure_proposal_files_table($db);
+        
+        $file = $db->query("SELECT * FROM $files_table WHERE id = $file_id")->getRow();
+        
+        if ($file) {
+            // Deletar arquivo físico
+            $file_path = getcwd() . '/private/uploads/' . $file->file_path;
+            if (file_exists($file_path)) {
+                unlink($file_path);
+            }
+            
+            $db->table($files_table)->where('id', $file_id)->delete();
+            
+            return $this->response->setJSON(['success' => true, 'message' => 'File deleted']);
+        }
+
+        return $this->response->setJSON(['success' => false, 'message' => 'File not found']);
+    }
+
+    public function download_file($file_id = 0)
+    {
+        if (!$this->_has_view_permission()) {
+            return $this->response->setStatusCode(403);
+        }
+
+        $file_id = (int) $file_id;
+        $db = db_connect('default');
+        $files_table = $this->_ensure_proposal_files_table($db);
+        $file = $db->table($files_table)
+            ->where('id', $file_id)
+            ->where('deleted', 0)
+            ->get()
+            ->getRow();
+
+        if (!$file || !$file->file_path) {
+            return $this->response->setStatusCode(404);
+        }
+
+        $file_data = serialize([['file_name' => $file->file_path]]);
+        return $this->download_app_files('private/uploads/', $file_data);
+    }
+
+    public function upload_file($proposal_id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+        if (!$proposal_id) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Invalid proposal']);
+        }
+
+        // Processar upload
+        $upload_file = get_array_value($_FILES, 'file');
+        if (!$upload_file || $upload_file['error'] !== UPLOAD_ERR_OK) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Upload failed']);
+        }
+
+        $file_name = $upload_file['name'];
+        $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+        
+        // Validar extensão
+        $allowed_ext = array('pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'zip');
+        if (!in_array($file_ext, $allowed_ext)) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Invalid file type']);
+        }
+
+        // Criar pasta de uploads
+        $upload_path = 'proposals/' . $proposal_id . '/';
+        $dir = getcwd() . '/private/uploads/' . $upload_path;
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        // Mover arquivo
+        $new_name = uniqid() . '_' . $file_name;
+        $target = $dir . $new_name;
+        
+        if (move_uploaded_file($upload_file['tmp_name'], $target)) {
+            // Salvar no banco
+            $db = db_connect('default');
+            $files_table = $this->_ensure_proposal_files_table($db);
+            
+            // Verificar se tabela existe
+            if (!$db->tableExists($files_table)) {
+                $sql = "CREATE TABLE IF NOT EXISTS `{$files_table}` (
+                    `id` INT(11) NOT NULL AUTO_INCREMENT,
+                    `proposal_id` INT(11) NOT NULL,
+                    `file_name` VARCHAR(255) NOT NULL,
+                    `file_path` VARCHAR(500) NOT NULL,
+                    `file_size` INT(11) DEFAULT 0,
+                    ` uploaded_by` INT(11) DEFAULT NULL,
+                    `created_at` DATETIME DEFAULT NULL,
+                    PRIMARY KEY (`id`),
+                    KEY `proposal_id` (`proposal_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+                $db->query($sql);
+            }
+            
+            $insert_data = array(
+                'proposal_id' => $proposal_id,
+                'file_name' => $file_name,
+                'file_path' => $upload_path . $new_name,
+                'file_size' => $upload_file['size'],
+                'uploaded_by' => $this->login_user->id,
+                'created_at' => get_current_utc_time()
+            );
+            
+            $db->table($files_table)->insert($insert_data);
+            
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => array(
+                    'id' => $db->insertID(),
+                    'name' => $file_name,
+                    'url' => get_uri('propostas/download_file/' . $db->insertID())
+                )
+            ]);
+        }
+
+        return $this->response->setJSON(['success' => false, 'message' => 'Error moving file']);
+    }
+
+    public function get_files($proposal_id = 0)
+    {
+        if (!$this->_has_view_permission()) {
+            return $this->response->setJSON(['success' => false, 'message' => 'Permission denied']);
+        }
+
+        $proposal_id = (int) $proposal_id;
+        $db = db_connect('default');
+        $files_table = $this->_ensure_proposal_files_table($db);
+        
+        $files = array();
+        if ($db->tableExists($files_table)) {
+            $files = $db->query("SELECT * FROM $files_table WHERE proposal_id = $proposal_id AND deleted = 0 ORDER BY created_at DESC")->getResult();
+        }
+        
+        return $this->response->setJSON(['success' => true, 'data' => $files]);
+    }
+
+    /**
+     * Retorna a tabela exclusiva de arquivos do plugin Proposals.
+     * Ela não reutiliza a tabela nativa project_files.
+     */
+    private function _ensure_proposal_files_table($db)
+    {
+        $table = $db->prefixTable('proposal_files_custom');
+
+        if (!$db->tableExists($table)) {
+            $db->query("CREATE TABLE IF NOT EXISTS `{$table}` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `proposal_id` INT(11) NOT NULL,
+                `file_name` VARCHAR(255) NOT NULL,
+                `file_path` VARCHAR(500) NOT NULL,
+                `file_size` INT(11) DEFAULT 0,
+                `description` TEXT,
+                `category_id` INT(11) DEFAULT NULL,
+                `uploaded_by` INT(11) DEFAULT NULL,
+                `created_at` DATETIME DEFAULT NULL,
+                `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+                PRIMARY KEY (`id`),
+                KEY `proposal_id` (`proposal_id`),
+                KEY `deleted` (`deleted`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+        }
+
+        // Atualiza instalações antigas/incompletas do plugin sem tocar na
+        // tabela nativa project_files.
+        $columns = [
+            'proposal_id' => 'INT(11) DEFAULT NULL',
+            'file_name' => "VARCHAR(255) NOT NULL DEFAULT ''",
+            'file_path' => "VARCHAR(500) NOT NULL DEFAULT ''",
+            'file_size' => 'INT(11) DEFAULT 0',
+            'description' => 'TEXT',
+            'category_id' => 'INT(11) DEFAULT NULL',
+            'uploaded_by' => 'INT(11) DEFAULT NULL',
+            'created_at' => 'DATETIME DEFAULT NULL',
+            'deleted' => 'TINYINT(1) NOT NULL DEFAULT 0'
+        ];
+        foreach ($columns as $column => $definition) {
+            if (!$db->fieldExists($column, $table)) {
+                $db->query("ALTER TABLE `{$table}` ADD `{$column}` {$definition}");
+            }
+        }
+
+        return $table;
+    }
+
+    private function _get_statuses()
+    {
+        $colors = array(
+            'draft' => '#6c757d',
+            'levantamento' => '#6f42c1',
+            'proposta' => '#fd7e14',
+            'sent' => '#17a2b8',
+            'approved' => '#28a745',
+            'rejected' => '#dc3545',
+            'archived' => '#343a40'
+        );
+        $statuses = array();
+        foreach ($this->_get_statuses_dropdown(false) as $row) {
+            $id = (string) ($row['id'] ?? '');
+            if ($id !== '') {
+                $statuses[] = (object) array(
+                    'id' => $id,
+                    'name' => $row['text'] ?? $id,
+                    'color' => $colors[$id] ?? '#6c757d'
+                );
+            }
+        }
+
+        return $statuses;
     }
 
     public function list_data()
@@ -50,6 +881,14 @@ class Proposals extends Security_Controller
         $options = array(
             "company_id" => $this->_get_company_id()
         );
+        if ($this->login_user->is_admin) {
+            $creator_ids = $this->_get_creator_filter_ids($this->request->getPost('created_by'));
+            if ($creator_ids) {
+                $options["created_by_ids"] = $creator_ids;
+            }
+        } elseif (!$this->_can_view_all_proposals()) {
+            $options["created_by"] = (int)$this->login_user->id;
+        }
 
         $status = $this->request->getPost('status');
         if ($status) {
@@ -77,10 +916,7 @@ class Proposals extends Security_Controller
         $view_data = array();
 
         if ($id) {
-            $proposal = $this->Proposals_model->get_details(array(
-                'id' => $id,
-                'company_id' => $company_id
-            ))->getRow();
+            $proposal = $this->_get_proposal_for_company($id);
             if (!$proposal) {
                 show_404();
             }
@@ -158,10 +994,7 @@ class Proposals extends Security_Controller
         $view_data = array();
 
         if ($id) {
-            $proposal = $this->Proposals_model->get_details(array(
-                'id' => $id,
-                'company_id' => $company_id
-            ))->getRow();
+            $proposal = $this->_get_proposal_for_company($id);
             if (!$proposal) {
                 show_404();
             }
@@ -209,8 +1042,8 @@ class Proposals extends Security_Controller
                 'observations' => '',
                 'validity_days' => '',
                 'status' => 'draft',
-                'commission_type' => 'percent',
-                'commission_value' => 0,
+                'commission_type' => $settings->default_commission_type,
+                'commission_value' => $settings->default_commission_value,
                 'tax_product_percent' => $tax_product_percent,
                 'tax_service_percent' => $tax_service_percent,
                 'tax_service_only' => 0
@@ -243,10 +1076,7 @@ class Proposals extends Security_Controller
         $company_id = $this->_get_company_id();
 
         if ($id) {
-            $proposal = $this->Proposals_model->get_details(array(
-                'id' => $id,
-                'company_id' => $company_id
-            ))->getRow();
+            $proposal = $this->_get_proposal_for_company($id);
             if (!$proposal) {
                 return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
             }
@@ -263,6 +1093,8 @@ class Proposals extends Security_Controller
         $tax_product_percent = $this->_parse_decimal($this->request->getPost('tax_product_percent'));
         $tax_service_percent = $this->_parse_decimal($this->request->getPost('tax_service_percent'));
         $tax_service_only = $this->request->getPost('tax_service_only') ? 1 : 0;
+        $old_status = $id && isset($proposal->status) ? (string)$proposal->status : '';
+        $new_status = (string)($this->request->getPost('status') ?: 'draft');
 
         $data = array(
             'company_id' => $company_id,
@@ -303,6 +1135,9 @@ class Proposals extends Security_Controller
 
         $new_id = $id ? $id : (is_int($save_id) ? $save_id : db_connect('default')->insertID());
         $this->Proposals_model->calculate_totals($new_id);
+        if ($old_status !== $new_status) {
+            $this->_notify_status_members($new_id, $new_status);
+        }
         $this->_log_activity($id ? 'proposal_updated' : 'proposal_created', $new_id);
         return $this->response->setJSON(array(
             'success' => true,
@@ -323,6 +1158,10 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(array('success' => false));
         }
 
+        if (!$this->_get_proposal_for_company($id)) {
+            return $this->_json_permission_denied();
+        }
+
         $ok = $this->Proposals_model->delete($id);
         if ($ok) {
             $this->_log_activity('proposal_deleted', $id);
@@ -337,10 +1176,7 @@ class Proposals extends Security_Controller
         }
 
         $id = (int)$id;
-        $proposal = $this->Proposals_model->get_details(array(
-            'id' => $id,
-            'company_id' => $this->_get_company_id()
-        ))->getRow();
+        $proposal = $this->_get_proposal_for_company($id);
         if (!$proposal) {
             show_404();
         }
@@ -360,6 +1196,10 @@ class Proposals extends Security_Controller
         $items = ($items_query && method_exists($items_query, 'getResult')) ? $items_query->getResult() : array();
         $memory_items = ($memory_items_query && method_exists($memory_items_query, 'getResult')) ? $memory_items_query->getResult() : array();
         $proposal_items = ($proposal_items_query && method_exists($proposal_items_query, 'getResult')) ? $proposal_items_query->getResult() : array();
+        
+        // Recalcular totais baseados na memória de cálculo antes de carregar a view
+        $this->Proposals_model->calculate_totals($id);
+        $proposal = $this->_get_proposal_for_company($id);
         $dashboard_data = $this->_get_dashboard_data($proposal);
         $settings = $this->Proposals_module_settings_model->get_settings($this->_get_company_id());
         $default_markup_percent = $settings && isset($settings->default_markup_percent) ? (float)$settings->default_markup_percent : 0;
@@ -407,6 +1247,7 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
         }
 
+        $old_status = (string)($proposal->status ?? '');
         $allowed = array();
         foreach ($this->_get_statuses_dropdown(false) as $row) {
             if (!empty($row['id'])) {
@@ -417,19 +1258,141 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('invalid_request')));
         }
 
-        $save_id = $this->Proposals_model->ci_save(array(
+        // A aprovação sempre passa pelo fluxo completo: projeto + centro de custo.
+        if ($status === 'approved') {
+            return $this->approve();
+        }
+
+        $status_data = array(
             'status' => $status,
             'updated_at' => get_my_local_time()
-        ), $id);
+        );
+        $save_id = $this->Proposals_model->ci_save($status_data, $id);
 
         if (!$save_id) {
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
         }
 
+        if ($old_status !== $status) {
+            $this->_notify_status_members($id, $status);
+        }
+
         $this->_log_activity('proposal_updated', $id);
         return $this->response->setJSON(array(
             'success' => true,
-            'status' => app_lang('proposals_status_' . $status)
+            'status' => app_lang('proposals_status_' . $status),
+            'status_html' => $this->_get_status_label($status)
+        ));
+    }
+
+    public function approve()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $this->validate_submitted_data(array(
+            'id' => 'required|numeric'
+        ));
+
+        $proposal_id = (int)$this->request->getPost('id');
+        $proposal = $this->_get_proposal_for_company($proposal_id);
+        if (!$proposal) {
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
+        }
+
+        $db = db_connect('default');
+        $db->transStart();
+
+        // Serializa aprovações da mesma proposta. Isso impede que duas
+        // requisições simultâneas criem dois projetos.
+        $proposals_table = $db->prefixTable('proposals_custom');
+        $locked_proposal = $db->query(
+            "SELECT id FROM {$proposals_table} WHERE id=? AND deleted=0 FOR UPDATE",
+            array($proposal_id)
+        )->getRow();
+        if (!$locked_proposal) {
+            $db->transRollback();
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
+        }
+
+        // Atualiza os dados depois de adquirir o bloqueio. Se outra requisição
+        // acabou de criar o projeto, o vínculo já será encontrado aqui.
+        $proposal = $this->_get_proposal_for_company($proposal_id);
+        if (!$proposal) {
+            $db->transRollback();
+            return $this->_json_permission_denied();
+        }
+
+        $approval_data = array(
+            'status' => 'approved',
+            'updated_at' => get_my_local_time()
+        );
+        $save_id = $this->Proposals_model->ci_save($approval_data, $proposal_id);
+
+        if (!$save_id) {
+            $db->transRollback();
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+        }
+
+        // A aprovação cria sempre o projeto. A função é idempotente e reutiliza
+        // o projeto já vinculado quando a proposta for aprovada novamente.
+        $project_id = $this->_create_project_from_proposal($proposal);
+        if (!$project_id) {
+            $db->transRollback();
+            return $this->response->setJSON(array(
+                'success' => false,
+                'message' => app_lang('proposals_project_cost_center_creation_failed')
+            ));
+        }
+
+        $db->transComplete();
+        if (!$db->transStatus()) {
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+        }
+
+        if ((string)($proposal->status ?? '') !== 'approved') {
+            $this->_notify_status_members($proposal_id, 'approved');
+        }
+
+        $this->_log_activity('proposal_approved', $proposal_id);
+
+        return $this->response->setJSON(array(
+            'success' => true,
+            'message' => app_lang('proposals_approved_project_created'),
+            'redirect_to' => get_uri('projects/view/' . $project_id),
+            'project_id' => $project_id
+        ));
+    }
+
+    public function duplicate()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $this->validate_submitted_data(array(
+            'id' => 'required|numeric'
+        ));
+
+        $proposal_id = (int)$this->request->getPost('id');
+        $proposal = $this->_get_proposal_for_company($proposal_id);
+        if (!$proposal) {
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
+        }
+
+        $new_id = $this->_duplicate_proposal($proposal);
+        if (!$new_id) {
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+        }
+
+        $this->_log_activity('proposal_duplicated', $proposal_id, $new_id);
+
+        return $this->response->setJSON(array(
+            'success' => true,
+            'message' => app_lang('record_saved'),
+            'redirect_to' => get_uri('propostas/view/' . $new_id),
+            'id' => $new_id
         ));
     }
 
@@ -588,6 +1551,12 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
         }
 
+        // Atualizar preço do produto se for memória de cálculo
+        if (!empty($data['in_memory']) && !empty($data['item_id']) && !empty($data['sale_unit'])) {
+            $items_model = model('App\\Models\\Items_model');
+            $items_model->ci_save(['unit' => $data['sale_unit']], $data['item_id']);
+        }
+
         $data['id'] = is_int($save_id) ? $save_id : db_connect('default')->insertID();
         $this->Proposals_model->calculate_totals($proposal_id);
         $this->_log_activity('item_created', $proposal_id, $data['id']);
@@ -620,9 +1589,20 @@ class Proposals extends Security_Controller
             return $this->_json_permission_denied();
         }
 
-        $data = $this->_prepare_item_data($proposal_id, (int)$item->section_id, $item);
+        $section_id = (int)$this->request->getPost('section_id');
+        if (!$section_id) {
+            $section_id = (int)$item->section_id;
+        }
+        $data = $this->_prepare_item_data($proposal_id, $section_id, $item);
 
         $ok = $this->Proposal_items_model->ci_save($data, $id);
+        
+        // Atualizar preço do produto se for memória de cálculo
+        if ($ok && !empty($data['in_memory']) && !empty($data['item_id']) && !empty($data['sale_unit'])) {
+            $items_model = model('App\\Models\\Items_model');
+            $items_model->ci_save(['unit' => $data['sale_unit']], $data['item_id']);
+        }
+        
         $this->Proposals_model->calculate_totals($proposal_id);
         if ($ok) {
             $this->_log_activity('item_updated', $proposal_id, $id);
@@ -795,6 +1775,8 @@ class Proposals extends Security_Controller
         $markup = $this->_parse_decimal($this->request->getPost('markup'));
         $unit_type = trim((string)$this->request->getPost('unit_type'));
         $unit_type = $unit_type ? $unit_type : 'UN';
+        $item_type = trim((string)$this->request->getPost('item_type'));
+        $item_type = $item_type ? $item_type : 'material';
 
         $category_id = $this->_get_default_item_category_id();
         if (!$category_id) {
@@ -807,6 +1789,7 @@ class Proposals extends Security_Controller
         $has_cost = $db->fieldExists("cost", $items_table);
         $has_sale = $db->fieldExists("sale", $items_table);
         $has_markup = $db->fieldExists("markup", $items_table);
+        $has_item_type = $db->fieldExists("item_type", $items_table);
         $item_data = array(
             'title' => $title,
             'description' => '',
@@ -824,6 +1807,9 @@ class Proposals extends Security_Controller
         if ($has_markup) {
             $item_data['markup'] = $markup;
         }
+        if ($has_item_type) {
+            $item_data['item_type'] = $item_type;
+        }
 
         $item_id = $items_model->ci_save($item_data, 0);
         if (!$item_id) {
@@ -838,7 +1824,8 @@ class Proposals extends Security_Controller
                 'rate' => $rate,
                 'sale' => $sale,
                 'markup' => $markup,
-                'unit_type' => $unit_type
+                'unit_type' => $unit_type,
+                'item_type' => $item_type
             )
         ));
     }
@@ -1031,40 +2018,236 @@ class Proposals extends Security_Controller
         ));
         $memory_items = ($memory_items_query && method_exists($memory_items_query, 'getResult')) ? $memory_items_query->getResult() : array();
 
-        if ($memory_items) {
-            $next_sort = $this->_get_next_item_sort($proposal_id, null);
-            foreach ($memory_items as $item) {
-                $data = array(
-                    'proposal_id' => $proposal_id,
-                    'section_id' => null,
-                    'item_id' => $item->item_id,
-                    'item_type' => $item->item_type,
-                    'description_override' => $item->description_override,
-                    'cost_unit' => $item->cost_unit,
-                    'qty' => $item->qty,
-                    'markup_percent' => $item->markup_percent,
-                    'sale_unit' => $item->sale_unit,
-                    'total' => $item->total,
-                    'show_in_proposal' => 1,
-                    'show_values_in_proposal' => 1,
-                    'in_memory' => 0,
-                    'sort' => $next_sort,
-                    'created_by' => $this->login_user->id,
-                    'created_at' => get_my_local_time()
+        $existing_items_query = $this->Proposal_items_model->get_details(array(
+            'proposal_id' => $proposal_id,
+            'in_memory' => 0
+        ));
+        $existing_items = ($existing_items_query && method_exists($existing_items_query, 'getResult')) ? $existing_items_query->getResult() : array();
+
+        $deleted_count = 0;
+        foreach ($existing_items as $existing) {
+            $this->Proposal_items_model->delete($existing->id);
+            $deleted_count++;
+        }
+
+        // Materiais/produtos: uma linha por item_id, somando somente a quantidade.
+        // O valor unitário deve ser único para o mesmo produto na memória.
+        // Serviços: agrupar pelo serviço/descrição e somar os valores totais,
+        // sem aplicar a regra de preço unitário dos materiais.
+        $grouped_items = array();
+        foreach ($memory_items as $item) {
+            $item_type = strtolower(trim((string)($item->item_type ?? 'material')));
+            $item_id = (int)($item->item_id ?? 0);
+            $description = trim((string)($item->description_override ?? ''));
+            $is_service = $item_type === 'service';
+
+            if ($is_service) {
+                $service_key = $item_id > 0
+                    ? 'service:' . $item_id
+                    : 'service-description:' . mb_strtolower($description);
+
+                if (!isset($grouped_items[$service_key])) {
+                    $grouped_items[$service_key] = array(
+                        'item' => clone $item,
+                        'qty' => 1.0,
+                        'total' => 0.0,
+                        'service' => true
+                    );
+                }
+                $grouped_items[$service_key]['total'] += (float)($item->total ?? 0);
+                continue;
+            }
+
+            // Itens manuais sem cadastro não podem ser agrupados com produtos.
+            $product_key = $item_id > 0 ? 'item:' . $item_id : 'manual:' . (int)$item->id;
+            if (!isset($grouped_items[$product_key])) {
+                $grouped_items[$product_key] = array(
+                    'item' => clone $item,
+                    'qty' => 0.0,
+                    'total' => 0.0,
+                    'service' => false
                 );
-                $this->Proposal_items_model->ci_save($data, 0);
+            }
+
+            $grouped_items[$product_key]['qty'] += (float)($item->qty ?? 0);
+            // Somar os totais gravados evita perda por arredondamento.
+            $grouped_items[$product_key]['total'] += (float)($item->total ?? 0);
+        }
+
+        $next_sort = 0;
+        $items_copied = 0;
+        foreach ($grouped_items as $group) {
+            $item = $group['item'];
+            $is_service = $group['service'];
+
+            if ($is_service) {
+                $qty = 1;
+                $total = round((float)$group['total'], 2);
+                $sale_unit = $total;
+            } else {
+                $qty = (float)$group['qty'];
+                $sale_unit = (float)($item->sale_unit ?? 0);
+                // Como materiais iguais devem possuir o mesmo valor unitário,
+                // o total agrupado é quantidade x valor unitário. Mantemos a
+                // soma original apenas quando a diferença for exclusivamente
+                // de arredondamento centesimal.
+                $calculated_total = round($qty * $sale_unit, 2);
+                $original_total = round((float)$group['total'], 2);
+                $total = abs($calculated_total - $original_total) <= 0.01
+                    ? $original_total
+                    : $calculated_total;
+            }
+
+            $data = array(
+                'proposal_id' => $proposal_id,
+                'section_id' => null,
+                'item_id' => !empty($item->item_id) ? (int)$item->item_id : null,
+                'item_type' => $item->item_type,
+                'description_override' => $item->description_override,
+                'cost_unit' => $item->cost_unit,
+                'qty' => $qty,
+                'markup_percent' => $item->markup_percent,
+                'sale_unit' => $sale_unit,
+                'total' => $total,
+                'show_in_proposal' => 1,
+                'show_values_in_proposal' => 1,
+                'in_memory' => 0,
+                'sort' => $next_sort,
+                'created_by' => $this->login_user->id,
+                'created_at' => get_my_local_time()
+            );
+
+            if ($this->Proposal_items_model->ci_save($data, 0) !== false) {
                 $next_sort++;
+                $items_copied++;
             }
         }
 
         $this->_log_activity('items_copied_to_proposal', $proposal_id);
 
+        $message = "$items_copied itens agrupados e copiados ($deleted_count excluídos anteriormente)";
+
         return $this->response->setJSON(array(
             'success' => true,
-            'message' => app_lang('record_saved')
+            'message' => $message
         ));
     }
 
+    public function send_memory_to_quotation()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $proposal_id = (int)$this->request->getPost('proposal_id');
+        $proposal = $this->_get_proposal_for_company($proposal_id);
+        if (!$proposal) {
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
+        }
+
+        try {
+            $items_query = $this->Proposal_items_model->get_details(array('proposal_id' => $proposal_id, 'in_memory' => 1));
+            $memory_items = ($items_query && method_exists($items_query, 'getResult')) ? $items_query->getResult() : array();
+            $grouped_items = array();
+
+            foreach ($memory_items as $item) {
+                $item_type = (string)($item->item_type ?? 'material');
+                $item_id = (int)($item->item_id ?? 0);
+                $description = trim((string)($item->description_override ?? ''));
+                if (!$description) {
+                    $description = trim((string)($item->item_title ?? ''));
+                }
+                if (!$description) {
+                    $description = app_lang('item');
+                }
+
+                $group_key = ($item_id > 0 && $item_type !== 'service')
+                    ? 'item:' . $item_id
+                    : 'description:' . $item_type . ':' . mb_strtolower($description);
+
+                if (!isset($grouped_items[$group_key])) {
+                    $grouped_items[$group_key] = array(
+                        'item_id' => ($item_type === 'service' || !$item_id) ? null : $item_id,
+                        'description' => $description,
+                        'quantity' => 0,
+                        'unit' => trim((string)($item->item_unit ?? '')),
+                        'note' => ''
+                    );
+                }
+                $grouped_items[$group_key]['quantity'] += (float)($item->qty ?? 0);
+            }
+
+            if (!count($grouped_items)) {
+                return $this->response->setJSON(array('success' => false, 'message' => app_lang('proposals_no_proposal_items')));
+            }
+
+            $db = db_connect('default');
+            $quotations_model = model('Purchases\\Models\\Purchases_quotations_model');
+            $quotation_items_model = model('Purchases\\Models\\Purchases_quotation_items_model');
+            $company_id = $this->_get_company_id();
+            $quotation_fields = $db->getFieldNames($db->prefixTable('purchases_quotations'));
+            $quotation_item_fields = $db->getFieldNames($db->prefixTable('purchases_quotation_items'));
+            $required_quotation_fields = array('company_id', 'quotation_type', 'quotation_code_number', 'quotation_code', 'title', 'note', 'status', 'created_at', 'created_by');
+            $required_item_fields = array('company_id', 'quotation_id', 'item_id', 'description', 'qty', 'unit', 'desired_date', 'note', 'created_at', 'created_by');
+            if (!is_array($quotation_fields) || count(array_diff($required_quotation_fields, $quotation_fields)) || !is_array($quotation_item_fields) || count(array_diff($required_item_fields, $quotation_item_fields))) {
+                return $this->response->setJSON(array('success' => false, 'message' => 'O banco do plugin Purchases ainda não está preparado para cotações avulsas.'));
+            }
+
+            $code_data = $quotations_model->get_next_quotation_code_data($company_id);
+            $proposal_code = 'PR-' . str_pad($proposal_id, 6, '0', STR_PAD_LEFT);
+            $quotation_data = array(
+                'company_id' => $company_id,
+                'quotation_type' => 'standalone',
+                'quotation_code_number' => $code_data['quotation_code_number'],
+                'quotation_code' => $code_data['quotation_code'],
+                'title' => 'Cotação ' . $proposal_code,
+                'note' => 'Gerada a partir da proposta ' . $proposal_code . '.',
+                'status' => 'draft',
+                'created_at' => get_my_local_time(),
+                'created_by' => $this->login_user->id
+            );
+
+            $db->transBegin();
+            $quotation_id = $quotations_model->ci_save($quotation_data, 0);
+            if (!is_int($quotation_id)) {
+                $quotation_id = (int)$db->insertID();
+            }
+            if (!$quotation_id) {
+                $db->transRollback();
+                return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+            }
+
+            foreach ($grouped_items as $item) {
+                $item_data = array(
+                    'company_id' => $company_id,
+                    'quotation_id' => $quotation_id,
+                    'item_id' => $item['item_id'],
+                    'description' => $item['description'],
+                    'qty' => $item['quantity'],
+                    'unit' => $item['unit'],
+                    'desired_date' => null,
+                    'note' => $item['note'],
+                    'created_at' => get_my_local_time(),
+                    'created_by' => $this->login_user->id
+                );
+                if (in_array('request_item_id', $quotation_item_fields, true)) {
+                    $item_data['request_item_id'] = null;
+                }
+                $quotation_items_model->ci_save($item_data, 0);
+            }
+
+            if ($db->transStatus() === false) {
+                $db->transRollback();
+                return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+            }
+            $db->transCommit();
+
+            return $this->response->setJSON(array('success' => true, 'id' => $quotation_id, 'items_count' => count($grouped_items), 'redirect' => get_uri('purchases_quotations/view/' . $quotation_id)));
+        } catch (\Throwable $e) {
+            log_message('error', 'Error sending proposal memory to quotation: ' . $e->getMessage());
+            return $this->response->setJSON(array('success' => false, 'message' => $e->getMessage()));
+        }
+    }
     public function dashboard_data()
     {
         if (!$this->_has_view_permission()) {
@@ -1080,6 +2263,10 @@ class Proposals extends Security_Controller
         if (!$proposal) {
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
         }
+
+        // Recalcular totais baseados na memória de cálculo
+        $this->Proposals_model->calculate_totals($proposal_id);
+        $proposal = $this->_get_proposal_for_company($proposal_id);
 
         return $this->response->setJSON(array(
             'success' => true,
@@ -1191,6 +2378,14 @@ class Proposals extends Security_Controller
         $view_data = array(
             'settings' => $settings,
             'taxes' => $taxes,
+            'proposal_statuses' => $this->_get_statuses_dropdown(false),
+            'status_notification_assignments' => !empty($settings->status_notification_assignments_json)
+                ? (json_decode($settings->status_notification_assignments_json, true) ?: array())
+                : array(),
+            'team_members' => model('App\\Models\\Users_model')->get_all_where(array(
+                'deleted' => 0,
+                'user_type' => 'staff'
+            ))->getResult(),
             'commission_types' => array(
                 'percent' => app_lang('proposals_commission_type_percent'),
                 'fixed' => app_lang('proposals_commission_type_fixed')
@@ -1215,6 +2410,35 @@ class Proposals extends Security_Controller
         $default_commission_value = $this->request->getPost('default_commission_value');
         $default_commission_value = $this->_parse_decimal($default_commission_value);
         $default_markup_percent = $this->_parse_decimal($this->request->getPost('default_markup_percent'));
+
+        $db = db_connect('default');
+        $settings_table = $db->prefixTable('proposals_module_settings_custom');
+        if ($db->tableExists($settings_table) && !$db->fieldExists('status_notification_assignments_json', $settings_table)) {
+            $db->query("ALTER TABLE `{$settings_table}` ADD `status_notification_assignments_json` TEXT NULL");
+        }
+
+        $allowed_statuses = array();
+        foreach ($this->_get_statuses_dropdown(false) as $status_row) {
+            $allowed_statuses[] = (string)$status_row['id'];
+        }
+        $allowed_member_ids = array();
+        $members = model('App\\Models\\Users_model')->get_all_where(array('deleted' => 0, 'user_type' => 'staff'))->getResult();
+        foreach ($members as $member) {
+            $allowed_member_ids[] = (string)$member->id;
+        }
+        $posted_assignments = $this->request->getPost('status_notification_members');
+        $status_assignments = array();
+        if (is_array($posted_assignments)) {
+            foreach ($posted_assignments as $status => $member_ids) {
+                if (!in_array((string)$status, $allowed_statuses, true) || !is_array($member_ids)) {
+                    continue;
+                }
+                $member_ids = array_values(array_unique(array_filter(array_map('strval', $member_ids), function ($member_id) use ($allowed_member_ids) {
+                    return in_array($member_id, $allowed_member_ids, true);
+                })));
+                $status_assignments[(string)$status] = $member_ids;
+            }
+        }
 
         $tax_names = $this->request->getPost('tax_name');
         $tax_percents = $this->request->getPost('tax_percent');
@@ -1244,7 +2468,8 @@ class Proposals extends Security_Controller
             'default_commission_value' => $default_commission_value,
             'default_markup_percent' => $default_markup_percent,
             'taxes_json' => json_encode($taxes),
-            'taxes_base' => 'total_sale'
+            'taxes_base' => 'total_sale',
+            'status_notification_assignments_json' => json_encode($status_assignments)
         );
 
         $existing_query = $this->Proposals_module_settings_model->get_details(array("company_id" => $company_id));
@@ -1269,6 +2494,538 @@ class Proposals extends Security_Controller
         ));
     }
 
+    private function _prepare_purchase_request_items_from_post($proposal_id)
+    {
+        $proposal_items_query = $this->Proposal_items_model->get_details(array('proposal_id' => (int)$proposal_id));
+        $proposal_items = ($proposal_items_query && method_exists($proposal_items_query, 'getResult')) ? $proposal_items_query->getResult() : array();
+
+        $proposal_items_map = array();
+        foreach ($proposal_items as $item) {
+            $proposal_items_map[(int)$item->id] = $item;
+        }
+
+        $selected_rows = $this->request->getPost('request_item_selected');
+        if (!is_array($selected_rows)) {
+            $selected_rows = array();
+        }
+
+        $quantities = $this->request->getPost('request_item_quantity');
+        $units = $this->request->getPost('request_item_unit');
+        $desired_dates = $this->request->getPost('request_item_desired_date');
+        $notes = $this->request->getPost('request_item_note');
+
+        $rows = array();
+        foreach ($selected_rows as $item_id => $selected) {
+            if (!$selected) {
+                continue;
+            }
+
+            $proposal_item = get_array_value($proposal_items_map, (int)$item_id);
+            if (!$proposal_item) {
+                continue;
+            }
+            if (($proposal_item->item_type ?? 'material') !== 'material') {
+                continue;
+            }
+
+            $description = trim((string)($proposal_item->description_override ?: $proposal_item->item_title));
+            $quantity = $this->_parse_decimal(get_array_value($quantities, $item_id));
+            $unit = trim((string)get_array_value($units, $item_id));
+            $desired_date = trim((string)get_array_value($desired_dates, $item_id));
+            $note = trim((string)get_array_value($notes, $item_id));
+
+            $rows[] = array(
+                'item_id' => $proposal_item->item_type === 'material' ? ((int)$proposal_item->item_id ?: null) : null,
+                'description' => $description,
+                'quantity' => $quantity > 0 ? $quantity : (float)$proposal_item->qty,
+                'unit' => $unit ?: ($proposal_item->item_unit ?: 'UN'),
+                'desired_date' => $desired_date,
+                'note' => $note
+            );
+        }
+
+        $new_item_ids = $this->request->getPost('new_item_id');
+        $new_descriptions = $this->request->getPost('new_item_description');
+        $new_quantities = $this->request->getPost('new_item_quantity');
+        $new_units = $this->request->getPost('new_item_unit');
+        $new_desired_dates = $this->request->getPost('new_item_desired_date');
+        $new_notes = $this->request->getPost('new_item_note');
+
+        if (!is_array($new_item_ids)) {
+            $new_item_ids = array();
+        }
+
+        foreach ($new_item_ids as $index => $raw_item_id) {
+            $description = trim((string)get_array_value($new_descriptions, $index));
+            $quantity = $this->_parse_decimal(get_array_value($new_quantities, $index));
+            $unit = trim((string)get_array_value($new_units, $index));
+            $desired_date = trim((string)get_array_value($new_desired_dates, $index));
+            $note = trim((string)get_array_value($new_notes, $index));
+            $item_id = get_only_numeric_value($raw_item_id);
+
+            if (!$item_id && !$description) {
+                continue;
+            }
+
+            $rows[] = array(
+                'item_id' => $item_id ? (int)$item_id : null,
+                'description' => $description,
+                'quantity' => $quantity > 0 ? $quantity : 1,
+                'unit' => $unit ?: 'UN',
+                'desired_date' => $desired_date,
+                'note' => $note
+            );
+        }
+
+        $final_rows = $rows;
+
+        if (!$final_rows) {
+            return array('success' => false, 'message' => 'Selecione pelo menos um item para a requisição.');
+        }
+
+        foreach ($final_rows as $row) {
+            if (empty($row['desired_date'])) {
+                return array('success' => false, 'message' => app_lang('purchases_desired_date_required'));
+            }
+        }
+
+        return array('success' => true, 'rows' => $final_rows);
+    }
+
+    private function _create_project_from_proposal($proposal)
+    {
+        $Projects_model = model('App\\Models\\Projects_model');
+        $Project_members_model = model('App\\Models\\Project_members_model');
+        $db = db_connect('default');
+        $projects_table = $db->prefixTable('projects');
+
+        // Evita duplicar o projeto quando a aprovação for repetida ou quando
+        // a proposta sair de "Aprovado" e depois voltar para esse status.
+        $existing_project_id = 0;
+        if (!empty($proposal->project_id)) {
+            $linked_project = $db->table($projects_table)
+                ->select('id')
+                ->where('id', (int)$proposal->project_id)
+                ->where('deleted', 0)
+                ->get()
+                ->getRow();
+            $existing_project_id = $linked_project ? (int)$linked_project->id : 0;
+        }
+
+        if (!$existing_project_id && $db->fieldExists('proposal_id', $projects_table)) {
+            $existing_project = $db->table($projects_table)
+                ->select('id')
+                ->where('proposal_id', (int)$proposal->id)
+                ->where('deleted', 0)
+                ->orderBy('id', 'ASC')
+                ->get()
+                ->getRow();
+            $existing_project_id = $existing_project ? (int)$existing_project->id : 0;
+        }
+
+        if ($existing_project_id) {
+            return $this->_create_contaazul_cost_center($existing_project_id) ? $existing_project_id : 0;
+        }
+
+        $data = array(
+            'title' => trim((string)$proposal->title),
+            'description' => trim((string)$proposal->description),
+            'client_id' => !empty($proposal->client_id) ? (int)$proposal->client_id : 0,
+            'project_type' => !empty($proposal->client_id) ? 'client_project' : 'internal_project',
+            'price' => (float)($proposal->total_sale ?? 0),
+            'created_date' => get_current_utc_time(),
+            'created_by' => $this->login_user->id,
+            'status_id' => 1
+        );
+
+        if ($db->fieldExists('proposal_id', $projects_table)) {
+            $data['proposal_id'] = (int)$proposal->id;
+        }
+
+        $project_data = clean_data($data);
+        $project_id = $Projects_model->ci_save($project_data);
+        if (!$project_id || !is_numeric($project_id)) {
+            $project_id = $db->insertID();
+        }
+
+        $project_id = (int)$project_id;
+        if (!$project_id) {
+            return 0;
+        }
+
+        $Project_members_model->save_member(array(
+            'project_id' => $project_id,
+            'user_id' => $this->login_user->id,
+            'is_leader' => 1
+        ));
+
+        $proposals_table = $db->prefixTable('proposals_custom');
+        if ($db->fieldExists('project_id', $proposals_table)) {
+            $proposal_project_data = array('project_id' => $project_id);
+            $this->Proposals_model->ci_save($proposal_project_data, (int)$proposal->id);
+        }
+
+        // Importa o planejamento de materiais da proposta para o projeto.
+        try {
+            $project_materials_model = model('ProjectAnalizer\\Models\\Project_materials_model');
+            $project_materials_model->sync_from_proposal($project_id, (int)$proposal->id);
+        } catch (\\Throwable $e) {
+            log_message('error', '[Proposals] Project materials import failed: ' . $e->getMessage());
+        }
+
+        // Criar o centro de custo no Conta Azul e associá-lo ao projeto.
+        if (!$this->_create_contaazul_cost_center($project_id)) {
+            return 0;
+        }
+
+        return $project_id;
+    }
+
+    private function _create_contaazul_cost_center($project_id)
+    {
+        $project_id = (int) $project_id;
+        if (!$project_id) {
+            return false;
+        }
+
+        if (!class_exists('\\ContaAzul\\Libraries\\ContaAzulClient')) {
+            return false;
+        }
+
+        $Projects_model = model('App\\Models\\Projects_model');
+        $project = $Projects_model->get_one($project_id);
+        if (!$project || empty($project->id)) {
+            return false;
+        }
+
+        $db = db_connect('default');
+        $projects_table = $db->prefixTable('projects');
+        $cost_centers_table = $db->prefixTable('contaazul_cost_centers');
+
+        // Criar tabela e coluna se não existirem
+        if (!$db->fieldExists('cost_center_id', $projects_table)) {
+            $db->query("ALTER TABLE `{$projects_table}` ADD `cost_center_id` INT(11) DEFAULT NULL");
+        }
+        if (!$db->tableExists($cost_centers_table)) {
+            $db->query("CREATE TABLE IF NOT EXISTS `{$cost_centers_table}` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `project_id` INT(11) DEFAULT NULL,
+                `contaazul_id` VARCHAR(50) DEFAULT NULL,
+                `code` VARCHAR(20) DEFAULT NULL,
+                `name` VARCHAR(255) DEFAULT NULL,
+                `is_active` TINYINT(1) DEFAULT 1,
+                `created_at` DATETIME DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `project_id` (`project_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+        }
+
+        if (!$db->fieldExists('cost_center_id', $projects_table) || !$db->tableExists($cost_centers_table)) {
+            return false;
+        }
+
+        // A tabela oficial do plugin Conta Azul usa ca_id/title. Instalações
+        // antigas podem usar contaazul_id/name. O vínculo com o projeto é
+        // acrescentado sem substituir os campos já existentes.
+        if (!$db->fieldExists('project_id', $cost_centers_table)) {
+            $db->query("ALTER TABLE `{$cost_centers_table}` ADD COLUMN `project_id` INT(11) NULL AFTER `id`, ADD INDEX `project_id` (`project_id`)");
+        }
+        if (!$db->fieldExists('project_id', $cost_centers_table)) {
+            log_message('error', 'ContaAzul cost center: project_id column is unavailable');
+            return false;
+        }
+
+        // Reutiliza a associação existente e não cria centro de custo duplicado.
+        if (!empty($project->cost_center_id)) {
+            $linked_query = $db->table($cost_centers_table)
+                ->where('id', (int)$project->cost_center_id)
+                ->get();
+            $linked_cost_center = $linked_query ? $linked_query->getRow() : null;
+            if ($linked_cost_center) {
+                return true;
+            }
+        }
+
+        $existing_query = $db->table($cost_centers_table)
+            ->where('project_id', $project_id)
+            ->orderBy('id', 'DESC')
+            ->get();
+        $existing_cost_center = $existing_query ? $existing_query->getRow() : null;
+        if ($existing_cost_center) {
+            $db->table($projects_table)
+                ->where('id', $project_id)
+                ->update(array('cost_center_id' => (int)$existing_cost_center->id));
+            return true;
+        }
+
+        $title = trim((string) ($project->title ?? ''));
+        if ($title === '') {
+            return false;
+        }
+
+        $costCenterTitle = 'PROJETO - ' . $title;
+
+        $clientId = get_setting("contaazul_client_id");
+        $clientSecret = get_setting("contaazul_client_secret");
+        $redirectUri = get_setting("contaazul_redirect_uri") ?: get_uri("contaazul/callback");
+        $scope = get_setting("contaazul_scope") ?: "openid profile aws.cognito.signin.user.admin";
+
+        if (!$clientId || !$clientSecret) {
+            return false;
+        }
+
+        $client = new \ContaAzul\Libraries\ContaAzulClient(
+            $clientId,
+            $clientSecret,
+            $redirectUri,
+            $scope,
+            get_setting("contaazul_access_token"),
+            get_setting("contaazul_refresh_token"),
+            get_setting("contaazul_token_expires_at")
+        );
+
+        if ($client->isExpired() && get_setting("contaazul_refresh_token")) {
+            $refresh = $client->refreshAccessToken(get_setting("contaazul_refresh_token"));
+            if ($refresh["ok"]) {
+                $tokens = $client->getTokens();
+                $settingsModel = model('App\\Models\\Settings_model');
+                $settingsModel->save_setting("contaazul_access_token", $tokens["access_token"] ?? "");
+                $settingsModel->save_setting("contaazul_refresh_token", $tokens["refresh_token"] ?? "");
+                $settingsModel->save_setting("contaazul_token_expires_at", $tokens["expires_at"] ?? "");
+            } else {
+                log_message('error', 'ContaAzul cost center create: token refresh failed for project ' . $project_id . ' - ' . ($refresh['body'] ?? ''));
+                return false;
+            }
+        }
+
+        $response = $client->createCostCenter($costCenterTitle);
+        if (!$response["ok"]) {
+            log_message('error', 'ContaAzul cost center create failed for project ' . $project_id . ' - HTTP ' . ($response['status'] ?? 0) . ' - ' . ($response['body'] ?? ''));
+            return false;
+        }
+
+        $payload = is_array($response["data"]) ? $response["data"] : array();
+        $caId = $payload["id"] ?? ($payload["uuid"] ?? null);
+        $code = $payload["codigo"] ?? ($payload["code"] ?? null);
+        $isActive = isset($payload["ativo"]) ? (int) !!$payload["ativo"] : (isset($payload["active"]) ? (int) !!$payload["active"] : 1);
+        $savedTitle = trim((string) ($payload["descricao"] ?? ($payload["description"] ?? ($payload["nome"] ?? ($payload["name"] ?? $costCenterTitle)))));
+
+        $insert_data = array(
+            'project_id' => $project_id,
+            'code' => $code,
+            'is_active' => $isActive,
+            'created_at' => get_current_utc_time()
+        );
+
+        if ($db->fieldExists('ca_id', $cost_centers_table)) {
+            $insert_data['ca_id'] = $caId;
+        } elseif ($db->fieldExists('contaazul_id', $cost_centers_table)) {
+            $insert_data['contaazul_id'] = $caId;
+        }
+
+        if ($db->fieldExists('title', $cost_centers_table)) {
+            $insert_data['title'] = $savedTitle;
+        } elseif ($db->fieldExists('name', $cost_centers_table)) {
+            $insert_data['name'] = $savedTitle;
+        }
+
+        if ($db->fieldExists('updated_at', $cost_centers_table)) {
+            $insert_data['updated_at'] = get_current_utc_time();
+        }
+
+        $inserted = $db->table($cost_centers_table)->insert($insert_data);
+        $cc_id = $inserted ? (int)$db->insertID() : 0;
+
+        if (!$cc_id) {
+            log_message('error', 'ContaAzul cost center local association failed for project ' . $project_id);
+            return false;
+        }
+
+        $updated = $db->table($projects_table)
+            ->where('id', $project_id)
+            ->update(array('cost_center_id' => $cc_id));
+        if (!$updated) {
+            log_message('error', 'ContaAzul cost center project association failed for project ' . $project_id);
+            return false;
+        }
+
+        log_message('info', 'Centro de custo criado no Conta Azul para o projeto ' . $project_id);
+        return true;
+    }
+
+    private function _create_purchase_request_from_proposal($proposal, $project_id, $rows)
+    {
+        $Purchases_requests_model = model('Purchases\\Models\\Purchases_requests_model');
+        $Purchases_request_items_model = model('Purchases\\Models\\Purchases_request_items_model');
+
+        $code_data = $Purchases_requests_model->get_next_request_code_data($this->_get_company_id());
+        $request_data = array(
+            'company_id' => $this->_get_company_id(),
+            'project_id' => $project_id ? (int)$project_id : null,
+            'os_id' => null,
+            'is_internal' => $project_id ? 0 : 1,
+            'cost_center' => '',
+            'priority' => 'medium',
+            'note' => 'Gerada a partir da proposta PR-' . str_pad((int)$proposal->id, 6, '0', STR_PAD_LEFT),
+            'updated_at' => get_my_local_time(),
+            'request_code_number' => $code_data['request_code_number'],
+            'request_code' => $code_data['request_code'],
+            'requested_by' => $this->login_user->id,
+            'requester_id' => $this->login_user->id,
+            'request_date' => get_my_local_time(),
+            'created_at' => get_my_local_time(),
+            'created_by' => $this->login_user->id,
+            'status' => 'draft'
+        );
+
+        $request_id = $Purchases_requests_model->ci_save($request_data);
+        if (!$request_id || !is_numeric($request_id)) {
+            $request_id = db_connect('default')->insertID();
+        }
+
+        $request_id = (int)$request_id;
+        if (!$request_id) {
+            return 0;
+        }
+
+        foreach ($rows as $row) {
+            $item_data = array(
+                'company_id' => $this->_get_company_id(),
+                'request_id' => $request_id,
+                'item_id' => get_array_value($row, 'item_id'),
+                'description' => get_array_value($row, 'description'),
+                'unit' => get_array_value($row, 'unit') ?: 'UN',
+                'quantity' => (float)get_array_value($row, 'quantity'),
+                'rate' => 0,
+                'total' => 0,
+                'desired_date' => get_array_value($row, 'desired_date'),
+                'note' => get_array_value($row, 'note'),
+                'created_at' => get_my_local_time(),
+                'created_by' => $this->login_user->id
+            );
+
+            if (!$Purchases_request_items_model->save($item_data)) {
+                return 0;
+            }
+        }
+
+        return $request_id;
+    }
+
+    private function _duplicate_proposal($proposal)
+    {
+        $db = db_connect('default');
+        $db->transStart();
+
+        $new_proposal_data = array(
+            'company_id' => (int)$proposal->company_id,
+            'client_id' => !empty($proposal->client_id) ? (int)$proposal->client_id : null,
+            'client_name' => $proposal->client_name ?? '',
+            'title' => trim((string)$proposal->title) . ' (Cópia)',
+            'description' => $proposal->description ?? '',
+            'payment_terms' => $proposal->payment_terms ?? '',
+            'observations' => $proposal->observations ?? '',
+            'validity_days' => $proposal->validity_days ?? null,
+            'status' => 'draft',
+            'commission_type' => $proposal->commission_type ?? 'percent',
+            'commission_value' => $proposal->commission_value ?? 0,
+            'tax_product_percent' => $proposal->tax_product_percent ?? 0,
+            'tax_service_percent' => $proposal->tax_service_percent ?? 0,
+            'tax_service_only' => $proposal->tax_service_only ?? 0,
+            'taxes_snapshot_json' => $proposal->taxes_snapshot_json ?? '',
+            'created_at' => get_my_local_time(),
+            'created_by' => $this->login_user->id,
+            'updated_at' => get_my_local_time()
+        );
+
+        $proposals_table = $db->prefixTable('proposals_custom');
+        if (!$db->fieldExists('client_name', $proposals_table)) {
+            unset($new_proposal_data['client_name']);
+        }
+
+        $new_proposal_id = $this->Proposals_model->ci_save($new_proposal_data);
+        if (!$new_proposal_id || !is_numeric($new_proposal_id)) {
+            $new_proposal_id = $db->insertID();
+        }
+
+        $new_proposal_id = (int)$new_proposal_id;
+        if (!$new_proposal_id) {
+            $db->transRollback();
+            return 0;
+        }
+
+        $sections_query = $this->Proposal_sections_model->get_details(array('proposal_id' => (int)$proposal->id));
+        $sections = ($sections_query && method_exists($sections_query, 'getResult')) ? $sections_query->getResult() : array();
+        $section_map = array();
+        $pending_sections = $sections;
+
+        while ($pending_sections) {
+            $progress = false;
+            foreach ($pending_sections as $index => $section) {
+                $old_parent_id = (int)($section->parent_id ?? 0);
+                if ($old_parent_id && !isset($section_map[$old_parent_id])) {
+                    continue;
+                }
+
+                $section_data = array(
+                    'proposal_id' => $new_proposal_id,
+                    'parent_id' => $old_parent_id ? $section_map[$old_parent_id] : null,
+                    'title' => $section->title ?? '',
+                    'sort' => $section->sort ?? 0
+                );
+
+                $new_section_id = $this->Proposal_sections_model->ci_save($section_data);
+                if (!$new_section_id || !is_numeric($new_section_id)) {
+                    $new_section_id = $db->insertID();
+                }
+
+                $section_map[(int)$section->id] = (int)$new_section_id;
+                unset($pending_sections[$index]);
+                $progress = true;
+            }
+
+            if (!$progress) {
+                break;
+            }
+        }
+
+        $items_query = $this->Proposal_items_model->get_details(array('proposal_id' => (int)$proposal->id));
+        $items = ($items_query && method_exists($items_query, 'getResult')) ? $items_query->getResult() : array();
+        foreach ($items as $item) {
+            $item_data = array(
+                'proposal_id' => $new_proposal_id,
+                'section_id' => !empty($item->section_id) ? get_array_value($section_map, (int)$item->section_id) : null,
+                'item_id' => $item->item_id ?: null,
+                'item_type' => $item->item_type ?? 'material',
+                'description_override' => $item->description_override ?? '',
+                'cost_unit' => $item->cost_unit ?? 0,
+                'qty' => $item->qty ?? 0,
+                'markup_percent' => $item->markup_percent ?? 0,
+                'sale_unit' => $item->sale_unit ?? 0,
+                'total' => $item->total ?? 0,
+                'show_in_proposal' => $item->show_in_proposal ?? 0,
+                'show_values_in_proposal' => $item->show_values_in_proposal ?? 0,
+                'in_memory' => $item->in_memory ?? 0,
+                'sort' => $item->sort ?? 0
+            );
+
+            $new_item_id = $this->Proposal_items_model->ci_save($item_data);
+            if (!$new_item_id && !$db->insertID()) {
+                $db->transRollback();
+                return 0;
+            }
+        }
+
+        $this->Proposals_model->calculate_totals($new_proposal_id);
+
+        $db->transComplete();
+        if (!$db->transStatus()) {
+            return 0;
+        }
+
+        return $new_proposal_id;
+    }
+
     private function _has_view_permission()
     {
         if ($this->login_user->is_admin) {
@@ -1280,6 +3037,66 @@ class Proposals extends Security_Controller
             || get_array_value($permissions, 'proposals_manage') == '1'
             || get_array_value($permissions, 'proposals_export_pdf') == '1'
             || get_array_value($permissions, 'proposals_settings_manage') == '1';
+    }
+
+    private function _get_creator_filter_ids($value)
+    {
+        if ($value === null || $value === '') {
+            return array();
+        }
+
+        if (!is_array($value)) {
+            $value = preg_split('/[,-]/', (string)$value);
+        }
+
+        return array_values(array_unique(array_filter(array_map('intval', $value))));
+    }
+
+    private function _get_proposal_creators_dropdown()
+    {
+        $dropdown = array(
+            array('id' => '', 'text' => '- ' . app_lang('proposals_all_creators') . ' -')
+        );
+
+        if (!$this->login_user->is_admin) {
+            return $dropdown;
+        }
+
+        $db = db_connect('default');
+        $users_table = $db->prefixTable('users');
+        $proposals_table = $db->prefixTable('proposals_custom');
+        if (!$db->tableExists($users_table) || !$db->tableExists($proposals_table)) {
+            return $dropdown;
+        }
+
+        $builder = $db->table($proposals_table);
+        $builder->select("$users_table.id, CONCAT($users_table.first_name, ' ', $users_table.last_name) AS creator_name");
+        $builder->join($users_table, "$users_table.id=$proposals_table.created_by", 'inner');
+        $builder->where("$proposals_table.deleted", 0);
+        $builder->where("$users_table.deleted", 0);
+        $builder->where("$proposals_table.company_id", $this->_get_company_id());
+        $builder->groupBy("$users_table.id");
+        $builder->orderBy('creator_name', 'ASC');
+        $rows = $builder->get()->getResult();
+
+        foreach ($rows as $row) {
+            $dropdown[] = array(
+                'id' => (string)$row->id,
+                'text' => trim((string)$row->creator_name)
+            );
+        }
+
+        return $dropdown;
+    }
+
+    private function _can_view_all_proposals()
+    {
+        if ($this->login_user->is_admin) {
+            return true;
+        }
+
+        $permissions = $this->login_user->permissions ?? array();
+        return get_array_value($permissions, 'proposals_view_all') == '1';
     }
 
     private function _has_manage_permission()
@@ -1318,6 +3135,8 @@ class Proposals extends Security_Controller
             $rows[] = array('id' => '', 'text' => '- ' . app_lang('status') . ' -');
         }
         $rows[] = array('id' => 'draft', 'text' => app_lang('proposals_status_draft'));
+        $rows[] = array('id' => 'levantamento', 'text' => app_lang('proposals_status_levantamento'));
+        $rows[] = array('id' => 'proposta', 'text' => app_lang('proposals_status_proposta'));
         $rows[] = array('id' => 'sent', 'text' => app_lang('proposals_status_sent'));
         $rows[] = array('id' => 'approved', 'text' => app_lang('proposals_status_approved'));
         $rows[] = array('id' => 'rejected', 'text' => app_lang('proposals_status_rejected'));
@@ -1326,13 +3145,33 @@ class Proposals extends Security_Controller
         return $rows;
     }
 
+    private function _notify_status_members($proposal_id, $status)
+    {
+        $settings = $this->Proposals_module_settings_model->get_settings($this->_get_company_id());
+        $assignments = !empty($settings->status_notification_assignments_json)
+            ? json_decode($settings->status_notification_assignments_json, true)
+            : array();
+        $member_ids = is_array($assignments) && isset($assignments[$status]) ? $assignments[$status] : array();
+        $member_ids = array_values(array_unique(array_filter(array_map('intval', (array)$member_ids))));
+        if (!$member_ids) {
+            return;
+        }
+
+        helper('notifications');
+        log_notification('proposal_status_changed', array(
+            'proposal_id' => (int)$proposal_id,
+            'multiple_tasks_notify_to_user_ids' => implode(',', $member_ids),
+            'plugin_proposal_status' => $status
+        ), $this->login_user->id);
+    }
+
     private function _make_row($data)
     {
         $code = 'PR-' . str_pad($data->id, 6, '0', STR_PAD_LEFT);
         $client = $data->client_company ? $data->client_company : ($data->client_name ? $data->client_name : '-');
         $status = $data->status ? $data->status : 'draft';
-        $status_label = "<span class='badge bg-secondary'>" . app_lang('proposals_status_' . $status) . "</span>";
-        $total_value = isset($data->total_sale) ? $data->total_sale : 0;
+        $status_label = $this->_get_status_label($status);
+        $total_value = $this->Proposals_model->get_items_total($data->id);
         $total = to_currency($total_value);
         $updated = isset($data->updated_at) && $data->updated_at ? $data->updated_at : (isset($data->created_at) ? $data->created_at : '');
 
@@ -1371,6 +3210,21 @@ class Proposals extends Security_Controller
     private function _json_permission_denied()
     {
         return $this->response->setJSON(array('success' => false, 'message' => app_lang('permission_denied')));
+    }
+
+    private function _get_status_label($status)
+    {
+        $class_map = array(
+            'draft' => 'secondary',
+            'sent' => 'info',
+            'approved' => 'success',
+            'rejected' => 'danger',
+            'archived' => 'dark'
+        );
+
+        $class = get_array_value($class_map, $status, 'secondary');
+
+        return "<span class='badge bg-" . $class . "'>" . app_lang('proposals_status_' . $status) . "</span>";
     }
 
     private function _get_linked_task_ids($proposal_id)
@@ -1537,10 +3391,15 @@ class Proposals extends Security_Controller
             return null;
         }
 
-        return $this->Proposals_model->get_details(array(
+        $options = array(
             'id' => $proposal_id,
             'company_id' => $this->_get_company_id()
-        ))->getRow();
+        );
+        if (!$this->_can_view_all_proposals()) {
+            $options['created_by'] = (int)$this->login_user->id;
+        }
+
+        return $this->Proposals_model->get_details($options)->getRow();
     }
 
     private function _proposal_belongs_to_company($proposal_id)
@@ -1813,7 +3672,7 @@ class Proposals extends Security_Controller
         $markup_avg = $cost_total > 0 ? (($total_sale / $cost_total) - 1) * 100 : 0;
 
         $status = $proposal->status ?? 'draft';
-        $status_label = app_lang('proposals_status_' . $status);
+        $status_label = $this->_get_status_label($status);
         $updated_at = $proposal->updated_at ?? $proposal->created_at ?? '';
 
         return array(

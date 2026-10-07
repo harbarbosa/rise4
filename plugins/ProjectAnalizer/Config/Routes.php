@@ -5,9 +5,19 @@ use Config\Services;
 
 $routes = Services::routes();
 
+// API: upload de fotos para um apontamento/timesheet existente.
+// O controller herda Rest_api_Controller e mantém a mesma autenticação por authtoken.
+$routes->post('api/projectanalizer/timelogs/(:num)/photos', 'TimelogPhotosController::upload/$1', ['namespace' => 'RestApi\Controllers']);
+
+// API: materiais e ferramentas vinculados a uma tarefa do ProjectAnalizer.
+$routes->get('api/projectanalizer/tasks/(:num)/(:num)/resources', 'TaskResourcesController::show/$1/$2', ['namespace' => 'RestApi\Controllers']);
+
 $routes->get('projectanalizer', 'ProjectAnalizer::index', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->get('projectanalizer/timelog_stage_data/(:num)', 'Timelog_stage::data/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->get('projectanalizer/execution_schedule/(:num)', 'ProjectAnalizer::execution_schedule/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/evolution_project/(:num)', 'Tasks::evolution_project/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/evolucao/(:num)', 'Projectanalizer_projects::evolucao/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->get('projectanalizer/revenues_expenses/(:num)', 'Projectanalizer_projects::revenues_expenses/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/evolucao/reschedule_modal_form/(:num)', 'Projectanalizer_projects::reschedule_modal_form/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/evolucao/reschedule_modal_form/(:num)', 'Projectanalizer_projects::reschedule_modal_form/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/evolucao/generate_baseline/(:num)', 'Projectanalizer_projects::generate_baseline/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
@@ -35,6 +45,12 @@ $routes->get('projectanalizer/cron-snapshots', 'Projectanalizer_projects::cron_s
 $routes->get('projectanalizer/evolucao/export/(:num)', 'Projectanalizer_projects::export_report/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/evolucao/export_costs_csv/(:num)', 'Projectanalizer_projects::export_costs_csv/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/cost_centers/sync', 'ProjectAnalizer::sync_cost_centers', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->get('projectanalizer/project_materials/(:num)', 'Project_materials::index/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/project_materials/add', 'Project_materials::add', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/project_materials/allocate', 'Project_materials::allocate', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/project_materials/create_request', 'Project_materials::create_request', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/ai_generate_plan/(:num)', 'ProjectAnalizer::ai_generate_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/ai_apply_plan/(:num)', 'ProjectAnalizer::ai_apply_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/(:any)', 'ProjectAnalizer::$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/(:any)', 'ProjectAnalizer::$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 

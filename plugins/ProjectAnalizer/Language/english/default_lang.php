@@ -1,5 +1,33 @@
 <?php
 
+$lang['task_materials'] = 'Required materials';
+$lang['select_proposal_material'] = 'Select a proposal material';
+$lang['no_proposal_materials'] = 'No materials available in the linked proposal.';
+$lang['add_material'] = 'Add material';
+$lang['task_tools'] = 'Required tools';
+$lang['select_tool'] = 'Select a tool';
+$lang['new_tool_name'] = 'Or enter a new tool';
+$lang['add_tool'] = 'Add tool';
+$lang['specific_tool_need'] = 'Specific requirement';
+$lang['task_resources'] = 'Task resources';
+$lang['materials'] = 'Materials';
+$lang['tools'] = 'Tools';
+$lang['ai_project_planning'] = 'Smart project planning';
+$lang['ai_project_planning_help'] = 'Analyze the proposal description and materials to suggest stages and tasks.';
+$lang['generate_ai_plan'] = 'Generate AI plan';
+$lang['generating_ai_plan'] = 'AI is analyzing the project...';
+$lang['suggested_project_plan'] = 'Suggested plan';
+$lang['days'] = 'days';
+$lang['ai_project_plan_chat_placeholder'] = 'Request changes to the plan, for example: split by rack...';
+$lang['initial_ai_plan'] = 'Initial plan generated';
+$lang['apply_ai_plan'] = 'Implement plan';
+$lang['confirm_apply_ai_plan'] = 'Create the stages and tasks from this plan in the project?';
+$lang['you'] = 'You';
+$lang['assistant'] = 'Assistant';
+$lang['ai_plan_updated'] = 'Plan updated according to your request.';
+$lang['material'] = 'Material';
+$lang['tool'] = 'Tool';
+
 $lang['projectanalizer'] = 'Project Analyzer';
 $lang['etapas'] = 'Stages';
 $lang['projectanalizer_etapas'] = 'Stages';
@@ -62,7 +90,9 @@ $lang['cost_material'] = 'Material';
 $lang['cost_labor'] = 'Labor';
 $lang['cost_service'] = 'Service';
 $lang['cost_third_party'] = 'Third party';
+$lang['cost_terceiros'] = 'Third party';
 $lang['cost_other'] = 'Other';
+$lang['cost_outros'] = 'Other';
 $lang['realized_financial_today'] = 'Realized financial today';
 $lang['financial_deviation'] = 'Financial deviation';
 $lang['spi'] = 'SPI';
@@ -114,5 +144,33 @@ $lang['cumulative'] = 'Cumulative';
 $lang['cashflow_negative'] = 'Negative cashflow';
 $lang['billing_delayed'] = 'Billing delayed';
 
-return $lang;
+$lang['execution_schedule'] = 'Execution schedule';
+$lang['execution_schedule_helper_text'] = 'Plan where each team member will be assigned by project and period.';
+$lang['allocation_planned'] = 'Planned';
+$lang['allocation_confirmed'] = 'Confirmed';
+$lang['allocation_done'] = 'Done';
+$lang['allocation_cancelled'] = 'Cancelled';
+$lang['execution_schedule_conflict'] = 'This team member already has an allocation in the selected period.';
+$lang['execution_schedule_conflict_members'] = 'The following team members already have allocations in the selected period:';
+$lang['execution_schedule_invalid_range'] = 'End date cannot be earlier than start date.';
+$lang['execution_schedule_member_required'] = 'Select at least one team member.';
+$lang['execution_schedule_multiple_members_help'] = 'You can select more than one team member to create multiple allocations at once.';
+$lang['execution_schedule_multiple_members_saved'] = '%s allocations were saved successfully.';
+$lang['execution_schedule_date_from'] = 'Start date';
+$lang['execution_schedule_date_to'] = 'End date';
+$lang['execution_schedule_leader'] = 'Leader';
+$lang['execution_schedule_leader_help'] = 'Choose the team member responsible for the activity and entries in this period.';
+$lang['execution_schedule_leader_required'] = 'Select the activity leader.';
+$lang['execution_schedule_not_allocated_today'] = 'Not allocated today';
+$lang['execution_schedule_not_allocated_week'] = 'Not allocated this week';
+$lang['execution_schedule_not_allocated_period'] = 'Not allocated in selected period';
+$lang['execution_schedule_unallocated_list'] = 'Unallocated technicians in the period';
+$lang['execution_schedule_no_unallocated_members'] = 'No unallocated technicians in the selected period.';
 
+$lang['available'] = 'Available';
+$lang['of_total'] = 'of a total of';
+$lang['material_quantity_exceeds_available'] = 'The quantity entered for %s exceeds the available balance of %s.';
+
+$lang["project_materials"] = "Materials";
+
+return $lang;
