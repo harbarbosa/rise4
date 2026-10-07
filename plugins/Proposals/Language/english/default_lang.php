@@ -130,6 +130,7 @@ return [
     'proposals_view_permission' => 'Can view proposals',
     'proposals_view_all_permission' => 'Can view all proposals',
     'proposals_view_all_permission_help' => 'When unchecked, the user can view and manage only proposals they created.',
+    'proposals_all_creators' => 'All creators',
     'proposals_manage_permission' => 'Can manage proposals',
     'proposals_export_pdf_permission' => 'Can export PDF',
     'proposals_settings_manage_permission' => 'Can manage proposal settings',
