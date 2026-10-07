@@ -86,12 +86,13 @@ class Project_materials extends Security_Controller
         if (!$description) return $this->_error('Informe o material.');
 
         $key = 'manual:' . hash('sha256', strtolower(($item_id ?: $description) . '|' . $unit . '|' . microtime(true)));
-        $id = $this->materials_model->ci_save(array(
+        $material_data = array(
             'project_id' => $project_id, 'item_id' => $item_id ?: null, 'description' => $description,
             'unit' => $unit, 'planned_quantity' => 0, 'additional_quantity' => $quantity,
             'source' => 'manual', 'source_key' => $key, 'created_by' => $this->login_user->id,
             'created_at' => get_my_local_time(), 'updated_at' => get_my_local_time(), 'deleted' => 0
-        ), 0);
+        );
+        $id = $this->materials_model->ci_save($material_data, 0);
         return $this->response->setJSON(array('success' => (bool)$id, 'message' => $id ? app_lang('record_saved') : app_lang('error_occurred')));
     }
 
@@ -285,21 +286,23 @@ class Project_materials extends Security_Controller
         $RequestItems = model('Purchases\\Models\\Purchases_request_items_model');
         $code = $Requests->get_next_request_code_data($this->_company_id());
         $task = model('App\\Models\\Tasks_model')->get_one($task_id);
-        $request_id = $Requests->ci_save(array(
+        $request_data = array(
             'company_id' => $this->_company_id(), 'request_code_number' => $code['request_code_number'], 'request_code' => $code['request_code'],
             'project_id' => $project_id, 'client_id' => $project->client_id ?? null, 'os_id' => null, 'is_internal' => 0,
             'cost_center' => $this->_cost_center_name($project), 'priority' => 'medium',
             'note' => 'Materiais da tarefa #' . $task_id . ' - ' . ($task->title ?? ''), 'requested_by' => $this->login_user->id,
             'requester_id' => $this->login_user->id, 'request_date' => get_my_local_time(), 'status' => 'draft',
             'created_by' => $this->login_user->id, 'created_at' => get_my_local_time(), 'updated_at' => get_my_local_time(), 'deleted' => 0
-        ));
+        );
+        $request_id = $Requests->ci_save($request_data, 0);
         $request_id = is_numeric($request_id) ? (int)$request_id : (int)$db->insertID();
         if (!$request_id) { $db->transRollback(); return $this->_error(app_lang('error_occurred')); }
 
         $link_table = $db->prefixTable('pa_project_material_request_items');
         foreach ($rows as $row) {
             $a = $row['allocation']; $qty = $row['quantity'];
-            $item_id = $RequestItems->ci_save(array('company_id' => $this->_company_id(), 'request_id' => $request_id, 'item_id' => $a->item_id ?: null, 'description' => $a->description, 'unit' => $a->unit ?: 'UN', 'quantity' => $qty, 'rate' => 0, 'total' => 0, 'desired_date' => $desired_date, 'note' => 'Tarefa #' . $task_id, 'created_by' => $this->login_user->id, 'created_at' => get_my_local_time(), 'deleted' => 0), 0);
+            $request_item_data = array('company_id' => $this->_company_id(), 'request_id' => $request_id, 'item_id' => $a->item_id ?: null, 'description' => $a->description, 'unit' => $a->unit ?: 'UN', 'quantity' => $qty, 'rate' => 0, 'total' => 0, 'desired_date' => $desired_date, 'note' => 'Tarefa #' . $task_id, 'created_by' => $this->login_user->id, 'created_at' => get_my_local_time(), 'deleted' => 0);
+            $item_id = $RequestItems->ci_save($request_item_data, 0);
             $item_id = is_numeric($item_id) ? (int)$item_id : (int)$db->insertID();
             if (!$item_id || !$db->table($link_table)->insert(array('project_id' => $project_id, 'task_id' => $task_id, 'project_material_id' => (int)$a->project_material_id, 'allocation_id' => (int)$a->id, 'purchase_request_id' => $request_id, 'purchase_request_item_id' => $item_id, 'quantity' => $qty, 'created_by' => $this->login_user->id, 'created_at' => get_my_local_time(), 'deleted' => 0))) { $db->transRollback(); return $this->_error(app_lang('error_occurred')); }
         }
