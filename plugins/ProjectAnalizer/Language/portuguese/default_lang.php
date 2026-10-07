@@ -214,4 +214,6 @@ $lang["available"] = "Disponível";
 $lang["of_total"] = "de um total de";
 $lang["material_quantity_exceeds_available"] = "A quantidade informada para %s excede o saldo disponível de %s.";
 
+$lang["project_materials"] = "Materiais";
+
 return $lang;

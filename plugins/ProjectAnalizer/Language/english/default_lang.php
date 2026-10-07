@@ -171,4 +171,6 @@ $lang['available'] = 'Available';
 $lang['of_total'] = 'of a total of';
 $lang['material_quantity_exceeds_available'] = 'The quantity entered for %s exceeds the available balance of %s.';
 
+$lang["project_materials"] = "Materials";
+
 return $lang;

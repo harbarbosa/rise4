@@ -2665,6 +2665,14 @@ class Proposals extends Security_Controller
             $this->Proposals_model->ci_save($proposal_project_data, (int)$proposal->id);
         }
 
+        // Importa o planejamento de materiais da proposta para o projeto.
+        try {
+            $project_materials_model = model('ProjectAnalizer\\Models\\Project_materials_model');
+            $project_materials_model->sync_from_proposal($project_id, (int)$proposal->id);
+        } catch (\\Throwable $e) {
+            log_message('error', '[Proposals] Project materials import failed: ' . $e->getMessage());
+        }
+
         // Criar o centro de custo no Conta Azul e associá-lo ao projeto.
         if (!$this->_create_contaazul_cost_center($project_id)) {
             return 0;

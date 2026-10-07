@@ -45,6 +45,10 @@ $routes->get('projectanalizer/cron-snapshots', 'Projectanalizer_projects::cron_s
 $routes->get('projectanalizer/evolucao/export/(:num)', 'Projectanalizer_projects::export_report/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/evolucao/export_costs_csv/(:num)', 'Projectanalizer_projects::export_costs_csv/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/cost_centers/sync', 'ProjectAnalizer::sync_cost_centers', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->get('projectanalizer/project_materials/(:num)', 'Project_materials::index/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/project_materials/add', 'Project_materials::add', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/project_materials/allocate', 'Project_materials::allocate', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/project_materials/create_request', 'Project_materials::create_request', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/ai_generate_plan/(:num)', 'ProjectAnalizer::ai_generate_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/ai_apply_plan/(:num)', 'ProjectAnalizer::ai_apply_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/(:any)', 'ProjectAnalizer::$1', ['namespace' => 'ProjectAnalizer\Controllers']);

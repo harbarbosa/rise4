@@ -23,7 +23,7 @@ defined('PLUGINPATH') or exit('No direct script access allowed');
     
 app_hooks()->add_action('app_hook_after_signin', function () {
  
-    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities,proposals';
+    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities,materials,proposals';
  
 
     $save_setting = new \App\Models\Settings_model();
@@ -40,7 +40,7 @@ app_hooks()->add_action('app_hook_after_signin', function () {
 // "evolucao_ff" exista mesmo sem precisar sair/entrar no sistema.
 app_hooks()->add_action('app_hook_before_app_access', function () {
     try {
-        $desired_default = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities,proposals';
+        $desired_default = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities,materials,proposals';
 
         $normalize = function ($value) use ($desired_default) {
             $value = is_string($value) ? trim($value) : "";
@@ -85,6 +85,10 @@ app_hooks()->add_action('app_hook_before_app_access', function () {
                 } else {
                     array_splice($tabs, $pos + 1, 0, array("execution_schedule"));
                 }
+            }
+            if (!in_array("materials", $tabs, true)) {
+                $pos = array_search("teamactivities", $tabs, true);
+                if ($pos === false) { $tabs[] = "materials"; } else { array_splice($tabs, $pos + 1, 0, array("materials")); }
             }
             if (!in_array("proposals", $tabs, true)) {
                 $pos = array_search("teamactivities", $tabs, true);
@@ -216,6 +220,7 @@ app_hooks()->add_filter('app_filter_team_members_project_details_tab', function 
     $project_tabs_of_hook_of_staff["evolution_project"] = "projectanalizer/evolution_project/".$project_id;
     $project_tabs_of_hook_of_staff["execution_schedule"] = "projectanalizer/execution_schedule/".$project_id;
     $project_tabs_of_hook_of_staff["teamactivities"] = "projectanalizer/timesheets/".$project_id;
+    $project_tabs_of_hook_of_staff["materials"] = "projectanalizer/project_materials/".$project_id;
     $project_tabs_of_hook_of_staff["project_items"] = "projectanalizer/projectitens/".$project_id;
     //$project_tabs_of_hook_of_staff["my_tab_another_title_with_available_language_key_value"] = "my_plugin/my_another_tab_url";
 
@@ -234,7 +239,7 @@ app_hooks()->add_filter('app_filter_admin_settings_menu', function ($settings_me
 register_installation_hook("ProjectAnalizer", function ($item_purchase_code) {
     
 
-    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities,proposals';
+    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities,materials,proposals';
  
 
     $save_setting = new \App\Models\Settings_model();
@@ -490,7 +495,7 @@ register_update_hook("ProjectAnalizer", function () {
     $dbprefix = get_db_prefix();
     $messages = array();
 
-    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities,proposals';
+    $project_tabs = 'projectanalizer,etapas,tasks,tasks_kanban,evolution_project,evolucao_ff,revenues_expenses_section,notes,files,comments,execution_schedule,teamactivities,materials,proposals';
     $save_setting = new \App\Models\Settings_model();
     $save_setting->save_setting('project_tab_order', $project_tabs);
     $messages[] = "Updated project_tab_order";
