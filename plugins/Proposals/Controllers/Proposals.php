@@ -1304,6 +1304,26 @@ class Proposals extends Security_Controller
         $db = db_connect('default');
         $db->transStart();
 
+        // Serializa aprovações da mesma proposta. Isso impede que duas
+        // requisições simultâneas criem dois projetos.
+        $proposals_table = $db->prefixTable('proposals_custom');
+        $locked_proposal = $db->query(
+            "SELECT id FROM {$proposals_table} WHERE id=? AND deleted=0 FOR UPDATE",
+            array($proposal_id)
+        )->getRow();
+        if (!$locked_proposal) {
+            $db->transRollback();
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
+        }
+
+        // Atualiza os dados depois de adquirir o bloqueio. Se outra requisição
+        // acabou de criar o projeto, o vínculo já será encontrado aqui.
+        $proposal = $this->_get_proposal_for_company($proposal_id);
+        if (!$proposal) {
+            $db->transRollback();
+            return $this->_json_permission_denied();
+        }
+
         $approval_data = array(
             'status' => 'approved',
             'updated_at' => get_my_local_time()
@@ -2579,15 +2599,25 @@ class Proposals extends Security_Controller
         $db = db_connect('default');
         $projects_table = $db->prefixTable('projects');
 
-        // Evita duplicar o projeto quando a aprovação for repetida.
+        // Evita duplicar o projeto quando a aprovação for repetida ou quando
+        // a proposta sair de "Aprovado" e depois voltar para esse status.
         $existing_project_id = 0;
         if (!empty($proposal->project_id)) {
-            $existing_project_id = (int)$proposal->project_id;
-        } elseif ($db->fieldExists('proposal_id', $projects_table)) {
+            $linked_project = $db->table($projects_table)
+                ->select('id')
+                ->where('id', (int)$proposal->project_id)
+                ->where('deleted', 0)
+                ->get()
+                ->getRow();
+            $existing_project_id = $linked_project ? (int)$linked_project->id : 0;
+        }
+
+        if (!$existing_project_id && $db->fieldExists('proposal_id', $projects_table)) {
             $existing_project = $db->table($projects_table)
                 ->select('id')
                 ->where('proposal_id', (int)$proposal->id)
                 ->where('deleted', 0)
+                ->orderBy('id', 'ASC')
                 ->get()
                 ->getRow();
             $existing_project_id = $existing_project ? (int)$existing_project->id : 0;
