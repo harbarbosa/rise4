@@ -42,7 +42,10 @@ class Proposals extends Security_Controller
         $view_data = array(
             "statuses_dropdown" => json_encode($this->_get_statuses_dropdown()),
             "statuses_kanban" => $this->_get_statuses(),
-            "can_manage" => $this->_has_manage_permission()
+            "can_manage" => $this->_has_manage_permission(),
+            "is_admin" => (bool)$this->login_user->is_admin,
+            "proposal_creators_dropdown" => json_encode($this->_get_proposal_creators_dropdown()),
+            "creator_filter_storage_key" => "proposals_creator_filter_" . (int)$this->login_user->id
         );
 
         return $this->template->rander('Proposals\\Views\\proposals\\index', $view_data);
@@ -59,6 +62,15 @@ class Proposals extends Security_Controller
         $options = array(
             "company_id" => $this->_get_company_id()
         );
+
+        if ($this->login_user->is_admin) {
+            $created_by = (int)$this->request->getGet('created_by');
+            if ($created_by) {
+                $options["created_by"] = $created_by;
+            }
+        } elseif (!$this->_can_view_all_proposals()) {
+            $options["created_by"] = (int)$this->login_user->id;
+        }
         
         if ($search) {
             $options["search"] = $search;
@@ -869,7 +881,12 @@ class Proposals extends Security_Controller
         $options = array(
             "company_id" => $this->_get_company_id()
         );
-        if (!$this->_can_view_all_proposals()) {
+        if ($this->login_user->is_admin) {
+            $created_by = (int)$this->request->getPost('created_by');
+            if ($created_by) {
+                $options["created_by"] = $created_by;
+            }
+        } elseif (!$this->_can_view_all_proposals()) {
             $options["created_by"] = (int)$this->login_user->id;
         }
 
@@ -2921,6 +2938,43 @@ class Proposals extends Security_Controller
             || get_array_value($permissions, 'proposals_manage') == '1'
             || get_array_value($permissions, 'proposals_export_pdf') == '1'
             || get_array_value($permissions, 'proposals_settings_manage') == '1';
+    }
+
+    private function _get_proposal_creators_dropdown()
+    {
+        $dropdown = array(
+            array('id' => '', 'text' => '- ' . app_lang('proposals_all_creators') . ' -')
+        );
+
+        if (!$this->login_user->is_admin) {
+            return $dropdown;
+        }
+
+        $db = db_connect('default');
+        $users_table = $db->prefixTable('users');
+        $proposals_table = $db->prefixTable('proposals_custom');
+        if (!$db->tableExists($users_table) || !$db->tableExists($proposals_table)) {
+            return $dropdown;
+        }
+
+        $builder = $db->table($proposals_table);
+        $builder->select("$users_table.id, CONCAT($users_table.first_name, ' ', $users_table.last_name) AS creator_name");
+        $builder->join($users_table, "$users_table.id=$proposals_table.created_by", 'inner');
+        $builder->where("$proposals_table.deleted", 0);
+        $builder->where("$users_table.deleted", 0);
+        $builder->where("$proposals_table.company_id", $this->_get_company_id());
+        $builder->groupBy("$users_table.id");
+        $builder->orderBy('creator_name', 'ASC');
+        $rows = $builder->get()->getResult();
+
+        foreach ($rows as $row) {
+            $dropdown[] = array(
+                'id' => (string)$row->id,
+                'text' => trim((string)$row->creator_name)
+            );
+        }
+
+        return $dropdown;
     }
 
     private function _can_view_all_proposals()
