@@ -72,26 +72,70 @@
         var proposalFilters = [
             {name: "status", class: "w150", options: <?php echo $statuses_dropdown; ?>}
         ];
+        var proposalCreatorMultiSelect = [];
+        var savedCreatorIds = [];
 
         if (isProposalAdmin) {
-            proposalFilters.push({
+            var savedCreatorValue = localStorage.getItem(creatorFilterStorageKey) || "";
+            if (savedCreatorValue) {
+                try {
+                    savedCreatorIds = JSON.parse(savedCreatorValue);
+                } catch (error) {
+                    // Compatibilidade com a versão anterior, que salvava somente um ID.
+                    savedCreatorIds = [savedCreatorValue];
+                }
+            }
+            if (!Array.isArray(savedCreatorIds)) {
+                savedCreatorIds = [savedCreatorIds];
+            }
+            savedCreatorIds = savedCreatorIds.map(String);
+
+            var availableCreatorIds = [];
+            var creatorOptions = (<?php echo $proposal_creators_dropdown ?? '[]'; ?>)
+                .filter(function (creator) {
+                    return String(creator.id || "") !== "";
+                })
+                .map(function (creator) {
+                    var creatorId = String(creator.id);
+                    availableCreatorIds.push(creatorId);
+                    return {
+                        value: creatorId,
+                        text: creator.text,
+                        isChecked: savedCreatorIds.indexOf(creatorId) !== -1
+                    };
+                });
+
+            savedCreatorIds = savedCreatorIds.filter(function (creatorId) {
+                return availableCreatorIds.indexOf(creatorId) !== -1;
+            });
+            localStorage.setItem(creatorFilterStorageKey, JSON.stringify(savedCreatorIds));
+
+            proposalCreatorMultiSelect.push({
+                text: <?php echo json_encode(app_lang('proposals_creators_filter')); ?>,
                 name: "created_by",
                 class: "w200",
-                options: <?php echo $proposal_creators_dropdown ?? '[]'; ?>
+                options: creatorOptions,
+                saveSelection: false
             });
         }
 
         function getProposalCreatorFilter() {
             if (!isProposalAdmin) {
-                return "";
+                return [];
             }
-            return String($('select[name="created_by"]').first().val() || "");
+
+            var selectedIds = [];
+            $('[data-name="created_by"].active').each(function () {
+                selectedIds.push(String($(this).attr('data-value')));
+            });
+            return selectedIds;
         }
 
         // Tabela padrão
         $("#proposals-table").appTable({
             source: '<?php echo_uri("propostas/list_data") ?>',
             filterDropdown: proposalFilters,
+            multiSelect: proposalCreatorMultiSelect,
             order: [[0, "desc"]],
             columns: [
                 {title: "<?php echo app_lang('proposals_code'); ?>", "class": "all"},
@@ -107,25 +151,14 @@
         });
 
         if (isProposalAdmin) {
-            window.setTimeout(function () {
-                var savedCreator = localStorage.getItem(creatorFilterStorageKey) || "";
-                var $creatorFilter = $('select[name="created_by"]').first();
-
-                if ($creatorFilter.length) {
-                    if (savedCreator && !$creatorFilter.find('option[value="' + savedCreator + '"]').length) {
-                        savedCreator = "";
-                        localStorage.removeItem(creatorFilterStorageKey);
+            $(document).on('click.proposalsCreatorFilter', '[data-name="created_by"]', function () {
+                window.setTimeout(function () {
+                    var selectedIds = getProposalCreatorFilter();
+                    localStorage.setItem(creatorFilterStorageKey, JSON.stringify(selectedIds));
+                    if ($('#kanban-view').hasClass('active')) {
+                        loadKanbanBoard();
                     }
-
-                    $creatorFilter.val(savedCreator).trigger('change');
-                }
-            }, 250);
-
-            $(document).on('change.proposalsCreatorFilter', 'select[name="created_by"]', function () {
-                localStorage.setItem(creatorFilterStorageKey, String($(this).val() || ""));
-                if ($('#kanban-view').hasClass('active')) {
-                    loadKanbanBoard();
-                }
+                }, 10);
             });
         }
 
