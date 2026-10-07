@@ -132,6 +132,8 @@ return [
     'proposals_view_all_permission_help' => 'When unchecked, the user can view and manage only proposals they created.',
     'proposals_all_creators' => 'All creators',
     'proposals_creators_filter' => 'Creators',
+    'proposals_project_cost_center_creation_failed' => 'The project and Conta Azul cost center could not be created. Check the integration and try again.',
+    'proposals_approved_project_created' => 'Proposal approved, project and cost center created successfully.',
     'proposals_manage_permission' => 'Can manage proposals',
     'proposals_export_pdf_permission' => 'Can export PDF',
     'proposals_settings_manage_permission' => 'Can manage proposal settings',
