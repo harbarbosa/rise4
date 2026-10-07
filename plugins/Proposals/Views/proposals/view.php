@@ -339,7 +339,7 @@ $requestable_items = array_values($requestable_items_map);
                     <i data-feather="printer" class="icon-16"></i> <?php echo app_lang('print'); ?>
                 </button>
                 <?php if ($can_manage && !empty($proposal_info->id)) { ?>
-                    <button type="button" class="btn btn-success" id="proposal-approve-button" data-bs-toggle="modal" data-bs-target="#proposal-approve-modal">
+                    <button type="button" class="btn btn-success" id="proposal-approve-button">
                         Aprovar proposta
                     </button>
                     <button type="button" class="btn btn-default" id="proposal-duplicate-button">
@@ -784,121 +784,6 @@ $requestable_items = array_values($requestable_items_map);
     </div>
 </div>
 
-<?php if ($can_manage && !empty($proposal_info->id)) { ?>
-    <div class="modal fade" id="proposal-approve-modal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Aprovar proposta</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo app_lang('close'); ?>"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="proposal-approve-form">
-                        <input type="hidden" name="id" value="<?php echo (int)$proposal_info->id; ?>">
-                        <div class="form-check mb10">
-                            <input class="form-check-input" type="checkbox" id="proposal-create-project" name="create_project" value="1" checked>
-                            <label class="form-check-label" for="proposal-create-project">
-                                Criar novo projeto com os dados do cliente e o valor total da proposta
-                            </label>
-                        </div>
-                        <div class="form-check mb10">
-                            <input class="form-check-input" type="checkbox" id="proposal-create-purchase-request" name="create_purchase_request" value="1">
-                            <label class="form-check-label" for="proposal-create-purchase-request">
-                                Criar requisição de compra
-                            </label>
-                        </div>
-
-                        <div class="proposal-approve-request-section hide" id="proposal-purchase-request-section">
-                            <div class="mb10 text-muted">
-                                Selecione os itens que devem entrar na requisição. Você também pode adicionar linhas novas.
-                            </div>
-                            <div class="row mb15">
-                                <div class="col-md-4">
-                                    <div class="form-check mt10">
-                                        <input class="form-check-input" type="checkbox" id="proposal-select-all-request-items">
-                                        <label class="form-check-label" for="proposal-select-all-request-items">
-                                            Selecionar todos os itens
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="proposal-bulk-request-date" class="mb5">Aplicar data de entrega em todos</label>
-                                    <input type="date" class="form-control" id="proposal-bulk-request-date" value="<?php echo esc($default_desired_date); ?>">
-                                </div>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table table-bordered">
-                                    <thead>
-                                        <tr>
-                                            <th style="width:6%"></th>
-                                            <th style="width:34%">Item</th>
-                                            <th style="width:12%"><?php echo app_lang('quantity'); ?></th>
-                                            <th style="width:12%"><?php echo app_lang('unit'); ?></th>
-                                            <th style="width:16%">Data desejada</th>
-                                            <th style="width:20%"><?php echo app_lang('notes'); ?></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($requestable_items as $request_item) { ?>
-                                            <tr>
-                                                <td class="text-center">
-                                                    <input type="checkbox" class="proposal-request-item-checkbox" name="request_item_selected[<?php echo $request_item['id']; ?>]" value="1">
-                                                </td>
-                                                <td>
-                                                    <?php echo esc($request_item['title']); ?>
-                                                </td>
-                                                <td>
-                                                    <input type="text" class="form-control" name="request_item_quantity[<?php echo $request_item['id']; ?>]" value="<?php echo esc($request_item['qty'] ?: 1); ?>">
-                                                </td>
-                                                <td>
-                                                    <input type="text" class="form-control" name="request_item_unit[<?php echo $request_item['id']; ?>]" value="<?php echo esc($request_item['unit'] ?: 'UN'); ?>">
-                                                </td>
-                                                <td>
-                                                    <input type="date" class="form-control proposal-request-date-input" name="request_item_desired_date[<?php echo $request_item['id']; ?>]" value="<?php echo esc($default_desired_date); ?>">
-                                                </td>
-                                                <td>
-                                                    <input type="text" class="form-control" name="request_item_note[<?php echo $request_item['id']; ?>]">
-                                                </td>
-                                            </tr>
-                                        <?php } ?>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div class="d-flex justify-content-between align-items-center mt15 mb10">
-                                <strong>Novos itens</strong>
-                                <button type="button" class="btn btn-default btn-sm" id="proposal-add-request-row">
-                                    <i data-feather="plus" class="icon-16"></i> <?php echo app_lang('add'); ?>
-                                </button>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table table-bordered" id="proposal-new-request-items-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width:22%">Produto</th>
-                                            <th style="width:24%">Descrição</th>
-                                            <th style="width:10%"><?php echo app_lang('quantity'); ?></th>
-                                            <th style="width:10%"><?php echo app_lang('unit'); ?></th>
-                                            <th style="width:16%">Data desejada</th>
-                                            <th style="width:14%"><?php echo app_lang('notes'); ?></th>
-                                            <th style="width:4%"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-bs-dismiss="modal"><?php echo app_lang('close'); ?></button>
-                    <button type="button" class="btn btn-primary" id="proposal-approve-submit">Confirmar aprovação</button>
-                </div>
-            </div>
-        </div>
-    </div>
-<?php } ?>
-
 <script type="text/javascript">
     (function () {
         var $box = $(".proposal-breakdown");
@@ -1065,11 +950,6 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
         var tabStorageKey = "proposal-view-active-tab-" + proposalId;
         var $proposalTabs = $('.nav-tabs a[data-bs-toggle="tab"][href^="#proposal-"]');
         var savedTab = localStorage.getItem(tabStorageKey);
-        var newRequestItemOptionsHtml = <?php echo json_encode($items_options_html ?? ""); ?>;
-        var $materialRequestItemOptions = $("<div>").html(newRequestItemOptionsHtml);
-        $materialRequestItemOptions.find("option[data-type='service']").remove();
-        newRequestItemOptionsHtml = $materialRequestItemOptions.html();
-
         $("#proposal-memory-send-to-quotation").on("click", function () {
             if (!window.confirm(<?php echo json_encode(app_lang('proposals_send_to_quotation_confirm')); ?>)) {
                 return;
@@ -1146,72 +1026,32 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
             });
         });
 
-        $("#proposal-create-purchase-request").on("change", function () {
-            $("#proposal-purchase-request-section").toggleClass("hide", !$(this).is(":checked"));
-        }).trigger("change");
-
-        $("#proposal-add-request-row").on("click", function () {
-            var bulkRequestDate = $("#proposal-bulk-request-date").val() || "<?php echo esc($default_desired_date); ?>";
-            var rowHtml = '' +
-                '<tr>' +
-                    '<td><select name="new_item_id[]" class="form-control proposal-request-new-item-select">' + newRequestItemOptionsHtml + '</select></td>' +
-                    '<td><input type="text" name="new_item_description[]" class="form-control"></td>' +
-                    '<td><input type="text" name="new_item_quantity[]" class="form-control" value="1"></td>' +
-                    '<td><input type="text" name="new_item_unit[]" class="form-control" value="UN"></td>' +
-                    '<td><input type="date" name="new_item_desired_date[]" class="form-control proposal-request-date-input" value="' + bulkRequestDate + '"></td>' +
-                    '<td><input type="text" name="new_item_note[]" class="form-control"></td>' +
-                    '<td class="text-center"><a href="#" class="text-danger proposal-remove-request-row"><i data-feather="x" class="icon-16"></i></a></td>' +
-                '</tr>';
-
-            $("#proposal-new-request-items-table tbody").append(rowHtml);
-            if (window.feather) {
-                window.feather.replace();
-            }
-        });
-
-        $(document).on("click", ".proposal-remove-request-row", function (e) {
-            e.preventDefault();
-            $(this).closest("tr").remove();
-        });
-
-        $(document).on("change", ".proposal-request-new-item-select", function () {
-            var $option = $(this).find("option:selected");
-            var $row = $(this).closest("tr");
-            var $description = $row.find("input[name='new_item_description[]']");
-            var $unit = $row.find("input[name='new_item_unit[]']");
-
-            if (!$description.val()) {
-                $description.val($.trim($option.text()) === "-" ? "" : $.trim($option.text()));
-            }
-            if ($option.data("unit")) {
-                $unit.val($option.data("unit"));
-            }
-        });
-
-        $("#proposal-select-all-request-items").on("change", function () {
-            $(".proposal-request-item-checkbox").prop("checked", $(this).is(":checked"));
-        });
-
-        $("#proposal-bulk-request-date").on("change", function () {
-            var value = $(this).val();
-            if (!value) {
+        $("#proposal-approve-button").on("click", function () {
+            var $button = $(this);
+            if ($button.prop("disabled")) {
                 return;
             }
-            $(".proposal-request-date-input").val(value);
-        });
 
-        $("#proposal-approve-submit").on("click", function () {
+            $button.prop("disabled", true).addClass("disabled");
             appAjaxRequest({
                 url: "<?php echo_uri('propostas/approve'); ?>",
                 type: "POST",
                 dataType: "json",
-                data: $("#proposal-approve-form").serialize(),
+                data: {
+                    id: "<?php echo (int)($proposal_info->id ?? 0); ?>"
+                },
                 success: function (result) {
                     if (result && result.success) {
+                        appAlert.success(result.message || <?php echo json_encode(app_lang('record_saved')); ?>);
                         window.location.href = result.redirect_to || "<?php echo_uri('propostas/view/' . (int)($proposal_info->id ?? 0)); ?>";
                     } else {
-                        appAlert.error((result && result.message) || "<?php echo app_lang('error_occurred'); ?>");
+                        appAlert.error((result && result.message) || <?php echo json_encode(app_lang('error_occurred')); ?>);
+                        $button.prop("disabled", false).removeClass("disabled");
                     }
+                },
+                error: function () {
+                    appAlert.error(<?php echo json_encode(app_lang('error_occurred')); ?>);
+                    $button.prop("disabled", false).removeClass("disabled");
                 }
             });
         });
