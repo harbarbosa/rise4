@@ -64,9 +64,9 @@ class Proposals extends Security_Controller
         );
 
         if ($this->login_user->is_admin) {
-            $created_by = (int)$this->request->getGet('created_by');
-            if ($created_by) {
-                $options["created_by"] = $created_by;
+            $creator_ids = $this->_get_creator_filter_ids($this->request->getGet('created_by'));
+            if ($creator_ids) {
+                $options["created_by_ids"] = $creator_ids;
             }
         } elseif (!$this->_can_view_all_proposals()) {
             $options["created_by"] = (int)$this->login_user->id;
@@ -882,9 +882,9 @@ class Proposals extends Security_Controller
             "company_id" => $this->_get_company_id()
         );
         if ($this->login_user->is_admin) {
-            $created_by = (int)$this->request->getPost('created_by');
-            if ($created_by) {
-                $options["created_by"] = $created_by;
+            $creator_ids = $this->_get_creator_filter_ids($this->request->getPost('created_by'));
+            if ($creator_ids) {
+                $options["created_by_ids"] = $creator_ids;
             }
         } elseif (!$this->_can_view_all_proposals()) {
             $options["created_by"] = (int)$this->login_user->id;
@@ -2938,6 +2938,19 @@ class Proposals extends Security_Controller
             || get_array_value($permissions, 'proposals_manage') == '1'
             || get_array_value($permissions, 'proposals_export_pdf') == '1'
             || get_array_value($permissions, 'proposals_settings_manage') == '1';
+    }
+
+    private function _get_creator_filter_ids($value)
+    {
+        if ($value === null || $value === '') {
+            return array();
+        }
+
+        if (!is_array($value)) {
+            $value = preg_split('/[,-]/', (string)$value);
+        }
+
+        return array_values(array_unique(array_filter(array_map('intval', $value))));
     }
 
     private function _get_proposal_creators_dropdown()
