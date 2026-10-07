@@ -203,6 +203,11 @@ app_hooks()->add_filter('app_filter_staff_left_menu', function ($sidebar_menu) {
                 "name" => "execution_schedule",
                 "url" => "projectanalizer/execution_schedule",
                 "class" => "calendar"
+            ),
+            "projectanalizer_materials" => array(
+                "name" => "project_materials",
+                "url" => "projectanalizer/project_materials",
+                "class" => "package"
             )
         )
     );

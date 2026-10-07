@@ -50,6 +50,21 @@ class Project_materials extends Security_Controller
         ));
     }
 
+    public function projects()
+    {
+        $options = array();
+        if (!$this->can_manage_all_projects()) {
+            $options['user_id'] = $this->login_user->id;
+        }
+
+        $query = model('App\\Models\\Projects_model')->get_details($options);
+        $projects = $query ? $query->getResult() : array();
+
+        return $this->template->rander('ProjectAnalizer\\Views\\project_materials\\projects', array(
+            'projects' => $projects
+        ));
+    }
+
     public function add()
     {
         $project_id = (int)$this->request->getPost('project_id');
