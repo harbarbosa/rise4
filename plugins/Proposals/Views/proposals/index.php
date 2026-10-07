@@ -67,12 +67,31 @@
 
 <script type="text/javascript">
     $(document).ready(function () {
+        var isProposalAdmin = <?php echo !empty($is_admin) ? 'true' : 'false'; ?>;
+        var creatorFilterStorageKey = <?php echo json_encode($creator_filter_storage_key ?? 'proposals_creator_filter'); ?>;
+        var proposalFilters = [
+            {name: "status", class: "w150", options: <?php echo $statuses_dropdown; ?>}
+        ];
+
+        if (isProposalAdmin) {
+            proposalFilters.push({
+                name: "created_by",
+                class: "w200",
+                options: <?php echo $proposal_creators_dropdown ?? '[]'; ?>
+            });
+        }
+
+        function getProposalCreatorFilter() {
+            if (!isProposalAdmin) {
+                return "";
+            }
+            return String($('select[name="created_by"]').first().val() || "");
+        }
+
         // Tabela padrão
         $("#proposals-table").appTable({
             source: '<?php echo_uri("propostas/list_data") ?>',
-            filterDropdown: [
-                {name: "status", class: "w150", options: <?php echo $statuses_dropdown; ?>}
-            ],
+            filterDropdown: proposalFilters,
             order: [[0, "desc"]],
             columns: [
                 {title: "<?php echo app_lang('proposals_code'); ?>", "class": "all"},
@@ -86,6 +105,29 @@
             printColumns: [0, 1, 2, 3, 4, 5],
             xlsColumns: [0, 1, 2, 3, 4, 5]
         });
+
+        if (isProposalAdmin) {
+            window.setTimeout(function () {
+                var savedCreator = localStorage.getItem(creatorFilterStorageKey) || "";
+                var $creatorFilter = $('select[name="created_by"]').first();
+
+                if ($creatorFilter.length) {
+                    if (savedCreator && !$creatorFilter.find('option[value="' + savedCreator + '"]').length) {
+                        savedCreator = "";
+                        localStorage.removeItem(creatorFilterStorageKey);
+                    }
+
+                    $creatorFilter.val(savedCreator).trigger('change');
+                }
+            }, 250);
+
+            $(document).on('change.proposalsCreatorFilter', 'select[name="created_by"]', function () {
+                localStorage.setItem(creatorFilterStorageKey, String($(this).val() || ""));
+                if ($('#kanban-view').hasClass('active')) {
+                    loadKanbanBoard();
+                }
+            });
+        }
 
         function applyProposalStatusColors() {
             var levantamentoLabel = <?php echo json_encode(app_lang('proposals_status_levantamento')); ?>;
@@ -161,7 +203,10 @@
             $.ajax({
                 url: '<?php echo_uri("propostas/kanban_data") ?>',
                 type: 'GET',
-                data: {search: search},
+                data: {
+                    search: search,
+                    created_by: getProposalCreatorFilter()
+                },
                 dataType: 'json',
                 success: function(response) {
                     if (response.success && response.data) {
