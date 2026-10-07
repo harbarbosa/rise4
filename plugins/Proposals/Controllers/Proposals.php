@@ -2716,22 +2716,33 @@ class Proposals extends Security_Controller
             return false;
         }
 
+        // A tabela oficial do plugin Conta Azul usa ca_id/title. Instalações
+        // antigas podem usar contaazul_id/name. O vínculo com o projeto é
+        // acrescentado sem substituir os campos já existentes.
+        if (!$db->fieldExists('project_id', $cost_centers_table)) {
+            $db->query("ALTER TABLE `{$cost_centers_table}` ADD COLUMN `project_id` INT(11) NULL AFTER `id`, ADD INDEX `project_id` (`project_id`)");
+        }
+        if (!$db->fieldExists('project_id', $cost_centers_table)) {
+            log_message('error', 'ContaAzul cost center: project_id column is unavailable');
+            return false;
+        }
+
         // Reutiliza a associação existente e não cria centro de custo duplicado.
         if (!empty($project->cost_center_id)) {
-            $linked_cost_center = $db->table($cost_centers_table)
+            $linked_query = $db->table($cost_centers_table)
                 ->where('id', (int)$project->cost_center_id)
-                ->get()
-                ->getRow();
+                ->get();
+            $linked_cost_center = $linked_query ? $linked_query->getRow() : null;
             if ($linked_cost_center) {
                 return true;
             }
         }
 
-        $existing_cost_center = $db->table($cost_centers_table)
+        $existing_query = $db->table($cost_centers_table)
             ->where('project_id', $project_id)
             ->orderBy('id', 'DESC')
-            ->get()
-            ->getRow();
+            ->get();
+        $existing_cost_center = $existing_query ? $existing_query->getRow() : null;
         if ($existing_cost_center) {
             $db->table($projects_table)
                 ->where('id', $project_id)
@@ -2793,15 +2804,29 @@ class Proposals extends Security_Controller
 
         $insert_data = array(
             'project_id' => $project_id,
-            'contaazul_id' => $caId,
             'code' => $code,
-            'name' => $savedTitle,
             'is_active' => $isActive,
             'created_at' => get_current_utc_time()
         );
 
-        $db->table($cost_centers_table)->insert($insert_data);
-        $cc_id = $db->insertID();
+        if ($db->fieldExists('ca_id', $cost_centers_table)) {
+            $insert_data['ca_id'] = $caId;
+        } elseif ($db->fieldExists('contaazul_id', $cost_centers_table)) {
+            $insert_data['contaazul_id'] = $caId;
+        }
+
+        if ($db->fieldExists('title', $cost_centers_table)) {
+            $insert_data['title'] = $savedTitle;
+        } elseif ($db->fieldExists('name', $cost_centers_table)) {
+            $insert_data['name'] = $savedTitle;
+        }
+
+        if ($db->fieldExists('updated_at', $cost_centers_table)) {
+            $insert_data['updated_at'] = get_current_utc_time();
+        }
+
+        $inserted = $db->table($cost_centers_table)->insert($insert_data);
+        $cc_id = $inserted ? (int)$db->insertID() : 0;
 
         if (!$cc_id) {
             log_message('error', 'ContaAzul cost center local association failed for project ' . $project_id);
