@@ -55,6 +55,14 @@ class Proposals_model extends Crud_model
             $where .= " AND $table.created_by=$created_by";
         }
 
+        $created_by_ids = get_array_value($options, "created_by_ids");
+        if ($created_by_ids && $has_created_by && is_array($created_by_ids)) {
+            $created_by_ids = array_values(array_unique(array_filter(array_map('intval', $created_by_ids))));
+            if ($created_by_ids) {
+                $where .= " AND $table.created_by IN (" . implode(',', $created_by_ids) . ")";
+            }
+        }
+
         $status = $this->_get_clean_value($options, "status");
         if ($status && $has_status) {
             $where .= " AND $table.status='$status'";
