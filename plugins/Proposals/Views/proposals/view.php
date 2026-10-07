@@ -339,9 +339,11 @@ $requestable_items = array_values($requestable_items_map);
                     <i data-feather="printer" class="icon-16"></i> <?php echo app_lang('print'); ?>
                 </button>
                 <?php if ($can_manage && !empty($proposal_info->id)) { ?>
-                    <button type="button" class="btn btn-success" id="proposal-approve-button">
-                        Aprovar proposta
-                    </button>
+                    <?php if (($proposal_info->status ?? '') !== 'approved') { ?>
+                        <button type="button" class="btn btn-success" id="proposal-approve-button">
+                            Aprovar proposta
+                        </button>
+                    <?php } ?>
                     <button type="button" class="btn btn-default" id="proposal-duplicate-button">
                         Duplicar proposta
                     </button>
