@@ -2667,9 +2667,9 @@ class Proposals extends Security_Controller
 
         // Importa o planejamento de materiais da proposta para o projeto.
         try {
-            $project_materials_model = model('ProjectAnalizer\\Models\\Project_materials_model');
+            $project_materials_model = model('ProjectAnalizer\Models\Project_materials_model');
             $project_materials_model->sync_from_proposal($project_id, (int)$proposal->id);
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             log_message('error', '[Proposals] Project materials import failed: ' . $e->getMessage());
         }
 
