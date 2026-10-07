@@ -74,6 +74,14 @@ if (!$db->fieldExists('ca_id', $costCentersTable)) {
 if (!$db->fieldExists('code', $costCentersTable)) {
     $db->query("ALTER TABLE `{$costCentersTable}` ADD COLUMN `code` VARCHAR(100) NULL AFTER `ca_id`");
 }
+if (!$db->fieldExists('project_id', $costCentersTable)) {
+    $db->query("ALTER TABLE `{$costCentersTable}` ADD COLUMN `project_id` INT(11) NULL AFTER `id`, ADD INDEX `project_id` (`project_id`)");
+}
+
+$projectsTable = $prefix . 'projects';
+if ($db->tableExists($projectsTable) && !$db->fieldExists('cost_center_id', $projectsTable)) {
+    $db->query("ALTER TABLE `{$projectsTable}` ADD COLUMN `cost_center_id` INT(11) NULL");
+}
 
 // projects.cost_center_id sempre referencia contaazul_cost_centers.id (ID interno).
 // ca_id é usado somente para chamadas/sincronização com a API do Conta Azul.
@@ -85,3 +93,9 @@ if (empty($columnExists)) {
     $db->query("ALTER TABLE `{$clientsTable}` ADD COLUMN `id_conta_azul` VARCHAR(100) NULL DEFAULT NULL");
 }
 
+
+return [
+    'success' => true,
+    'tables' => ['contaazul_cost_centers', 'contaazul_logs'],
+    'errors' => []
+];
