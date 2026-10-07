@@ -1258,6 +1258,11 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('invalid_request')));
         }
 
+        // A aprovação sempre passa pelo fluxo completo: projeto + centro de custo.
+        if ($status === 'approved') {
+            return $this->approve();
+        }
+
         $status_data = array(
             'status' => $status,
             'updated_at' => get_my_local_time()
@@ -1296,18 +1301,6 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
         }
 
-        $create_project = $this->request->getPost('create_project') ? true : false;
-        $create_purchase_request = $this->request->getPost('create_purchase_request') ? true : false;
-
-        $request_item_rows = array();
-        if ($create_purchase_request) {
-            $request_items_result = $this->_prepare_purchase_request_items_from_post($proposal_id);
-            if (!$request_items_result['success']) {
-                return $this->response->setJSON($request_items_result);
-            }
-            $request_item_rows = $request_items_result['rows'];
-        }
-
         $db = db_connect('default');
         $db->transStart();
 
@@ -1322,22 +1315,15 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
         }
 
-        $project_id = 0;
-        if ($create_project) {
-            $project_id = $this->_create_project_from_proposal($proposal);
-            if (!$project_id) {
-                $db->transRollback();
-                return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
-            }
-        }
-
-        $purchase_request_id = 0;
-        if ($create_purchase_request) {
-            $purchase_request_id = $this->_create_purchase_request_from_proposal($proposal, $project_id, $request_item_rows);
-            if (!$purchase_request_id) {
-                $db->transRollback();
-                return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
-            }
+        // A aprovação cria sempre o projeto. A função é idempotente e reutiliza
+        // o projeto já vinculado quando a proposta for aprovada novamente.
+        $project_id = $this->_create_project_from_proposal($proposal);
+        if (!$project_id) {
+            $db->transRollback();
+            return $this->response->setJSON(array(
+                'success' => false,
+                'message' => app_lang('proposals_project_cost_center_creation_failed')
+            ));
         }
 
         $db->transComplete();
@@ -1345,21 +1331,17 @@ class Proposals extends Security_Controller
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
         }
 
-        $this->_log_activity('proposal_approved', $proposal_id);
-
-        $redirect_to = get_uri('propostas/view/' . $proposal_id);
-        if ($purchase_request_id) {
-            $redirect_to = get_uri('purchases_requests/view/' . $purchase_request_id);
-        } else if ($project_id) {
-            $redirect_to = get_uri('projects/view/' . $project_id);
+        if ((string)($proposal->status ?? '') !== 'approved') {
+            $this->_notify_status_members($proposal_id, 'approved');
         }
+
+        $this->_log_activity('proposal_approved', $proposal_id);
 
         return $this->response->setJSON(array(
             'success' => true,
-            'message' => app_lang('record_saved'),
-            'redirect_to' => $redirect_to,
-            'project_id' => $project_id,
-            'purchase_request_id' => $purchase_request_id
+            'message' => app_lang('proposals_approved_project_created'),
+            'redirect_to' => get_uri('projects/view/' . $project_id),
+            'project_id' => $project_id
         ));
     }
 
@@ -2597,6 +2579,24 @@ class Proposals extends Security_Controller
         $db = db_connect('default');
         $projects_table = $db->prefixTable('projects');
 
+        // Evita duplicar o projeto quando a aprovação for repetida.
+        $existing_project_id = 0;
+        if (!empty($proposal->project_id)) {
+            $existing_project_id = (int)$proposal->project_id;
+        } elseif ($db->fieldExists('proposal_id', $projects_table)) {
+            $existing_project = $db->table($projects_table)
+                ->select('id')
+                ->where('proposal_id', (int)$proposal->id)
+                ->where('deleted', 0)
+                ->get()
+                ->getRow();
+            $existing_project_id = $existing_project ? (int)$existing_project->id : 0;
+        }
+
+        if ($existing_project_id) {
+            return $this->_create_contaazul_cost_center($existing_project_id) ? $existing_project_id : 0;
+        }
+
         $data = array(
             'title' => trim((string)$proposal->title),
             'description' => trim((string)$proposal->description),
@@ -2635,8 +2635,10 @@ class Proposals extends Security_Controller
             $this->Proposals_model->ci_save($proposal_project_data, (int)$proposal->id);
         }
 
-        // Criar centro de custo no Conta Azul
-        $this->_create_contaazul_cost_center($project_id);
+        // Criar o centro de custo no Conta Azul e associá-lo ao projeto.
+        if (!$this->_create_contaazul_cost_center($project_id)) {
+            return 0;
+        }
 
         return $project_id;
     }
@@ -2645,17 +2647,17 @@ class Proposals extends Security_Controller
     {
         $project_id = (int) $project_id;
         if (!$project_id) {
-            return;
+            return false;
         }
 
         if (!class_exists('\\ContaAzul\\Libraries\\ContaAzulClient')) {
-            return;
+            return false;
         }
 
         $Projects_model = model('App\\Models\\Projects_model');
         $project = $Projects_model->get_one($project_id);
         if (!$project || empty($project->id)) {
-            return;
+            return false;
         }
 
         $db = db_connect('default');
@@ -2681,12 +2683,35 @@ class Proposals extends Security_Controller
         }
 
         if (!$db->fieldExists('cost_center_id', $projects_table) || !$db->tableExists($cost_centers_table)) {
-            return;
+            return false;
+        }
+
+        // Reutiliza a associação existente e não cria centro de custo duplicado.
+        if (!empty($project->cost_center_id)) {
+            $linked_cost_center = $db->table($cost_centers_table)
+                ->where('id', (int)$project->cost_center_id)
+                ->get()
+                ->getRow();
+            if ($linked_cost_center) {
+                return true;
+            }
+        }
+
+        $existing_cost_center = $db->table($cost_centers_table)
+            ->where('project_id', $project_id)
+            ->orderBy('id', 'DESC')
+            ->get()
+            ->getRow();
+        if ($existing_cost_center) {
+            $db->table($projects_table)
+                ->where('id', $project_id)
+                ->update(array('cost_center_id' => (int)$existing_cost_center->id));
+            return true;
         }
 
         $title = trim((string) ($project->title ?? ''));
         if ($title === '') {
-            return;
+            return false;
         }
 
         $costCenterTitle = 'PROJETO - ' . $title;
@@ -2697,7 +2722,7 @@ class Proposals extends Security_Controller
         $scope = get_setting("contaazul_scope") ?: "openid profile aws.cognito.signin.user.admin";
 
         if (!$clientId || !$clientSecret) {
-            return;
+            return false;
         }
 
         $client = new \ContaAzul\Libraries\ContaAzulClient(
@@ -2720,14 +2745,14 @@ class Proposals extends Security_Controller
                 $settingsModel->save_setting("contaazul_token_expires_at", $tokens["expires_at"] ?? "");
             } else {
                 log_message('error', 'ContaAzul cost center create: token refresh failed for project ' . $project_id . ' - ' . ($refresh['body'] ?? ''));
-                return;
+                return false;
             }
         }
 
         $response = $client->createCostCenter($costCenterTitle);
         if (!$response["ok"]) {
             log_message('error', 'ContaAzul cost center create failed for project ' . $project_id . ' - HTTP ' . ($response['status'] ?? 0) . ' - ' . ($response['body'] ?? ''));
-            return;
+            return false;
         }
 
         $payload = is_array($response["data"]) ? $response["data"] : array();
@@ -2748,10 +2773,21 @@ class Proposals extends Security_Controller
         $db->table($cost_centers_table)->insert($insert_data);
         $cc_id = $db->insertID();
 
-        if ($cc_id) {
-            $db->table($projects_table)->where('id', $project_id)->update(['cost_center_id' => $cc_id]);
-            log_message('info', 'Centro de custo criado no Conta Azul para o projeto ' . $project_id);
+        if (!$cc_id) {
+            log_message('error', 'ContaAzul cost center local association failed for project ' . $project_id);
+            return false;
         }
+
+        $updated = $db->table($projects_table)
+            ->where('id', $project_id)
+            ->update(array('cost_center_id' => $cc_id));
+        if (!$updated) {
+            log_message('error', 'ContaAzul cost center project association failed for project ' . $project_id);
+            return false;
+        }
+
+        log_message('info', 'Centro de custo criado no Conta Azul para o projeto ' . $project_id);
+        return true;
     }
 
     private function _create_purchase_request_from_proposal($proposal, $project_id, $rows)
