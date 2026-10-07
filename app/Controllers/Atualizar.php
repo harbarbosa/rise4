@@ -74,7 +74,8 @@ class Atualizar extends Controller
             // podem ser executados corretamente como scripts PHP isolados.
             $plugin_installers = [
                 'Proposals' => ROOTPATH . 'plugins/Proposals/install.php',
-                'ProjectAnalizer' => ROOTPATH . 'plugins/ProjectAnalizer/install.php'
+                'ProjectAnalizer' => ROOTPATH . 'plugins/ProjectAnalizer/install.php',
+                'ContaAzul' => ROOTPATH . 'plugins/ContaAzul/install.php'
             ];
 
             foreach ($plugin_installers as $plugin_name => $install_file) {
