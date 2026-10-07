@@ -133,6 +133,7 @@ return [
     'proposals_view_permission' => 'Pode visualizar propostas',
     'proposals_view_all_permission' => 'Pode visualizar todas as propostas',
     'proposals_view_all_permission_help' => 'Quando desmarcado, o usuario visualiza e gerencia somente as propostas criadas por ele.',
+    'proposals_all_creators' => 'Todos os criadores',
     'proposals_manage_permission' => 'Pode gerenciar propostas',
     'proposals_export_pdf_permission' => 'Pode exportar PDF',
     'proposals_settings_manage_permission' => 'Pode gerenciar configuracoes de propostas',
