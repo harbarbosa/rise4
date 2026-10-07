@@ -50,6 +50,7 @@ $routes->get('projectanalizer/project_materials/(:num)', 'Project_materials::ind
 $routes->post('projectanalizer/project_materials/add', 'Project_materials::add', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/project_materials/allocate', 'Project_materials::allocate', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/project_materials/allocate_batch', 'Project_materials::allocate_batch', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/project_materials/remove_allocation', 'Project_materials::remove_allocation', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/project_materials/create_request', 'Project_materials::create_request', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/ai_generate_plan/(:num)', 'ProjectAnalizer::ai_generate_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/ai_apply_plan/(:num)', 'ProjectAnalizer::ai_apply_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);

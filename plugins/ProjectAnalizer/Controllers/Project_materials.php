@@ -245,6 +245,41 @@ class Project_materials extends Security_Controller
         ));
     }
 
+    public function remove_allocation()
+    {
+        $project_id = (int)$this->request->getPost('project_id');
+        $allocation_id = (int)$this->request->getPost('allocation_id');
+        if (!$this->_get_project($project_id) || !$allocation_id) {
+            return $this->_error(app_lang('invalid_request'));
+        }
+
+        $db = db_connect('default');
+        $table = $db->prefixTable('pa_project_task_materials');
+        $allocation = $db->table($table)
+            ->where('id', $allocation_id)
+            ->where('project_id', $project_id)
+            ->where('deleted', 0)
+            ->get()->getRow();
+        if (!$allocation) {
+            return $this->_error(app_lang('record_not_found'));
+        }
+
+        $requested = $this->materials_model->get_requested_quantity($allocation_id);
+        if ($requested > 0) {
+            return $this->_error('Este material já possui quantidade requisitada. Cancele a requisição de compra antes de desassociá-lo da tarefa.');
+        }
+
+        $ok = $db->table($table)->where('id', $allocation_id)->update(array(
+            'deleted' => 1,
+            'updated_at' => get_my_local_time()
+        ));
+
+        return $this->response->setJSON(array(
+            'success' => (bool)$ok,
+            'message' => $ok ? 'Material desassociado da tarefa.' : app_lang('error_occurred')
+        ));
+    }
+
     public function create_request()
     {
         $project_id = (int)$this->request->getPost('project_id');
