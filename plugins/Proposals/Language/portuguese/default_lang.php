@@ -135,6 +135,8 @@ return [
     'proposals_view_all_permission_help' => 'Quando desmarcado, o usuario visualiza e gerencia somente as propostas criadas por ele.',
     'proposals_all_creators' => 'Todos os criadores',
     'proposals_creators_filter' => 'Criadores',
+    'proposals_project_cost_center_creation_failed' => 'Nao foi possivel criar o projeto e o centro de custo no Conta Azul. Verifique a integracao e tente novamente.',
+    'proposals_approved_project_created' => 'Proposta aprovada, projeto e centro de custo criados com sucesso.',
     'proposals_manage_permission' => 'Pode gerenciar propostas',
     'proposals_export_pdf_permission' => 'Pode exportar PDF',
     'proposals_settings_manage_permission' => 'Pode gerenciar configuracoes de propostas',
