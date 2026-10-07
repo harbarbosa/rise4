@@ -95,6 +95,19 @@ class Project_materials extends Security_Controller
 
         $table = $db->prefixTable('pa_project_task_materials');
         $existing = $db->table($table)->where('project_material_id', $material_id)->where('task_id', $task_id)->where('deleted', 0)->get()->getRow();
+        $allocated_query = $db->table($table)
+            ->selectSum('quantity', 'total')
+            ->where('project_material_id', $material_id)
+            ->where('deleted', 0);
+        if ($existing) {
+            $allocated_query->where('id !=', (int)$existing->id);
+        }
+        $allocated_row = $allocated_query->get()->getRow();
+        $allocated_elsewhere = $allocated_row ? (float)$allocated_row->total : 0;
+        $available = (float)$m->planned_quantity + (float)$m->additional_quantity;
+        if (($allocated_elsewhere + $quantity) > ($available + 0.00001)) {
+            return $this->_error('A quantidade associada ultrapassa o total disponível deste material no projeto.');
+        }
         $data = array('project_id' => $project_id, 'project_material_id' => $material_id, 'task_id' => $task_id, 'quantity' => $quantity, 'notes' => trim((string)$this->request->getPost('notes')), 'updated_at' => get_my_local_time());
         if ($existing) {
             $requested = $this->materials_model->get_requested_quantity((int)$existing->id);
@@ -175,8 +188,8 @@ class Project_materials extends Security_Controller
     {
         if (!$project_id) return null;
         $this->init_project_permission_checker($project_id);
-        $q = model('App\\Models\\Projects_model')->get_details(array('id' => $project_id, 'client_id' => $this->login_user->client_id));
-        return $q ? $q->getRow() : null;
+        $project = model('App\\Models\\Projects_model')->get_one($project_id);
+        return ($project && empty($project->deleted)) ? $project : null;
     }
 
     private function _sync($project)
