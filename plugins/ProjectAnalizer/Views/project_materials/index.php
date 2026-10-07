@@ -13,19 +13,40 @@
             <div class="col-md-1 d-flex align-items-end"><button class="btn btn-primary w-100" type="submit"><?php echo app_lang('save'); ?></button></div>
         </form>
     </div>
+    <?php if ($materials && $tasks) { ?>
+    <form id="project-material-batch-form" class="p15 border-bottom bg-light">
+        <input type="hidden" name="project_id" value="<?php echo (int)$project_id; ?>">
+        <div class="row align-items-end">
+            <div class="col-md-5">
+                <label><strong>Associação em lote</strong></label>
+                <select name="task_id" class="form-control" required>
+                    <option value="">Selecione a tarefa</option>
+                    <?php foreach ($tasks as $task) { ?>
+                        <option value="<?php echo (int)$task->id; ?>"><?php echo esc($task->title); ?></option>
+                    <?php } ?>
+                </select>
+            </div>
+            <div class="col-md-4 text-off">Marque os materiais abaixo e informe a quantidade necessária para a tarefa.</div>
+            <div class="col-md-3 text-end">
+                <button class="btn btn-primary" type="submit"><i data-feather="check-square" class="icon-16"></i> Associar selecionados</button>
+            </div>
+        </div>
+    </form>
+    <?php } ?>
     <div class="table-responsive">
         <table class="table table-hover mb0">
-            <thead><tr><th>Material</th><th>Origem</th><th class="text-end">Previsto</th><th class="text-end">Adicional</th><th class="text-end">Total</th><th class="text-end">Nas tarefas</th><th class="text-end">Requisitado</th><th>Associar à tarefa</th></tr></thead>
+            <thead><tr><th class="w50"><input type="checkbox" id="batch-material-check-all" class="form-check-input"></th><th>Material</th><th>Origem</th><th class="text-end">Previsto</th><th class="text-end">Adicional</th><th class="text-end">Total</th><th class="text-end">Disponível</th><th>Qtd. em lote</th><th>Associar individualmente</th></tr></thead>
             <tbody>
-            <?php foreach ($materials as $material) { $total=(float)$material->planned_quantity+(float)$material->additional_quantity; ?>
+            <?php foreach ($materials as $material) { $total=(float)$material->planned_quantity+(float)$material->additional_quantity; $available=max(0,$total-(float)$material->allocated_quantity); ?>
                 <tr>
+                    <td><input type="checkbox" class="form-check-input batch-material-check" value="<?php echo (int)$material->id; ?>" <?php echo $available>0?'':'disabled'; ?>></td>
                     <td><strong><?php echo esc($material->description); ?></strong><div class="text-off small"><?php echo esc($material->unit); ?></div></td>
                     <td><span class="badge bg-<?php echo $material->source === 'proposal' ? 'info' : 'secondary'; ?>"><?php echo $material->source === 'proposal' ? 'Proposta' : 'Adicional'; ?></span></td>
                     <td class="text-end"><?php echo number_format((float)$material->planned_quantity, 3, ',', '.'); ?></td>
                     <td class="text-end"><?php echo number_format((float)$material->additional_quantity, 3, ',', '.'); ?></td>
                     <td class="text-end"><strong><?php echo number_format($total, 3, ',', '.'); ?></strong></td>
-                    <td class="text-end"><?php echo number_format((float)$material->allocated_quantity, 3, ',', '.'); ?></td>
-                    <td class="text-end"><?php echo number_format((float)$material->requested_quantity, 3, ',', '.'); ?></td>
+                    <td class="text-end"><strong><?php echo number_format($available, 3, ',', '.'); ?></strong></td>
+                    <td><input class="form-control batch-material-quantity w120" inputmode="decimal" placeholder="Qtd." data-max="<?php echo number_format($available,4,'.',''); ?>" disabled></td>
                     <td>
                         <form class="project-material-allocation-form d-flex gap-1">
                             <input type="hidden" name="project_id" value="<?php echo (int)$project_id; ?>"><input type="hidden" name="project_material_id" value="<?php echo (int)$material->id; ?>">
@@ -36,7 +57,7 @@
                     </td>
                 </tr>
             <?php } ?>
-            <?php if (!$materials) { ?><tr><td colspan="8" class="text-center p30 text-off">Nenhum material planejado para este projeto.</td></tr><?php } ?>
+            <?php if (!$materials) { ?><tr><td colspan="9" class="text-center p30 text-off">Nenhum material planejado para este projeto.</td></tr><?php } ?>
             </tbody>
         </table>
     </div>
@@ -64,6 +85,9 @@ $(function(){
     function send($form,url,data){var $b=$form.find('button[type=submit]');$b.prop('disabled',true);appAjaxRequest({url:url,type:'POST',dataType:'json',data:data||$form.serialize(),success:function(r){if(r&&r.success){if(r.redirect_to){window.location.href=r.redirect_to;}else{location.reload();}}else{appAlert.error((r&&r.message)||'Erro');$b.prop('disabled',false);}},error:function(){appAlert.error('Erro ao processar.');$b.prop('disabled',false);}});}
     $('#project-material-add-form').on('submit',function(e){e.preventDefault();send($(this),'<?php echo_uri('projectanalizer/project_materials/add'); ?>');});
     $('.project-material-allocation-form').on('submit',function(e){e.preventDefault();send($(this),'<?php echo_uri('projectanalizer/project_materials/allocate'); ?>');});
+    $('#batch-material-check-all').on('change',function(){$('.batch-material-check:not(:disabled)').prop('checked',this.checked).trigger('change');});
+    $('.batch-material-check').on('change',function(){var $q=$(this).closest('tr').find('.batch-material-quantity');$q.prop('disabled',!this.checked);if(this.checked&&!$q.val()){$q.val($q.data('max'));}else if(!this.checked){$q.val('');}});
+    $('#project-material-batch-form').on('submit',function(e){e.preventDefault();var $f=$(this),data={project_id:$f.find('[name=project_id]').val(),task_id:$f.find('[name=task_id]').val(),project_material_id:[],quantity:[]};$('.batch-material-check:checked').each(function(){data.project_material_id.push($(this).val());data.quantity.push($(this).closest('tr').find('.batch-material-quantity').val());});send($f,'<?php echo_uri('projectanalizer/project_materials/allocate_batch'); ?>',data);});
     $('.project-material-request-form').on('submit',function(e){e.preventDefault();var $f=$(this),data={project_id:$f.find('[name=project_id]').val(),task_id:$f.find('[name=task_id]').val(),desired_date:$f.find('[name=desired_date]').val(),allocation_id:[],request_quantity:[]};$f.find('tbody tr').each(function(){if($(this).find('.request-material-check').is(':checked')){data.allocation_id.push($(this).find('.allocation-id').val());data.request_quantity.push($(this).find('.request-quantity').val());}});send($f,'<?php echo_uri('projectanalizer/project_materials/create_request'); ?>',data);});
 });
 </script>

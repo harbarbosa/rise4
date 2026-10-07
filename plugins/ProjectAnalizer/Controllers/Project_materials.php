@@ -135,6 +135,115 @@ class Project_materials extends Security_Controller
         return $this->response->setJSON(array('success' => (bool)$ok, 'message' => $ok ? app_lang('record_saved') : app_lang('error_occurred')));
     }
 
+    public function allocate_batch()
+    {
+        $project_id = (int)$this->request->getPost('project_id');
+        $task_id = (int)$this->request->getPost('task_id');
+        $material_ids = (array)$this->request->getPost('project_material_id');
+        $quantities = (array)$this->request->getPost('quantity');
+
+        if (!$this->_get_project($project_id) || !$task_id) {
+            return $this->_error(app_lang('invalid_request'));
+        }
+
+        $db = db_connect('default');
+        $task = $db->table($db->prefixTable('tasks'))
+            ->where('id', $task_id)
+            ->where('project_id', $project_id)
+            ->where('deleted', 0)
+            ->get()->getRow();
+        if (!$task) {
+            return $this->_error(app_lang('record_not_found'));
+        }
+
+        $selected = array();
+        foreach ($material_ids as $index => $material_id) {
+            $material_id = (int)$material_id;
+            $quantity = $this->_decimal($quantities[$index] ?? 0);
+            if ($material_id && $quantity > 0) {
+                $selected[$material_id] = $quantity;
+            }
+        }
+        if (!$selected) {
+            return $this->_error('Selecione ao menos um material e informe a quantidade.');
+        }
+
+        $materials_table = $db->prefixTable('pa_project_materials');
+        $allocations_table = $db->prefixTable('pa_project_task_materials');
+        $db->transStart();
+
+        foreach ($selected as $material_id => $quantity) {
+            $material_query = $db->query(
+                "SELECT * FROM $materials_table WHERE id=? AND project_id=? AND deleted=0 FOR UPDATE",
+                array($material_id, $project_id)
+            );
+            $material = $material_query ? $material_query->getRow() : null;
+            if (!$material) {
+                $db->transRollback();
+                return $this->_error('Um dos materiais selecionados não foi encontrado.');
+            }
+
+            $existing = $db->table($allocations_table)
+                ->where('project_material_id', $material_id)
+                ->where('task_id', $task_id)
+                ->where('deleted', 0)
+                ->get()->getRow();
+
+            $allocated_query = $db->table($allocations_table)
+                ->selectSum('quantity', 'total')
+                ->where('project_material_id', $material_id)
+                ->where('deleted', 0);
+            if ($existing) {
+                $allocated_query->where('id !=', (int)$existing->id);
+            }
+            $allocated_row = $allocated_query->get()->getRow();
+            $allocated_elsewhere = $allocated_row ? (float)$allocated_row->total : 0;
+            $available = (float)$material->planned_quantity + (float)$material->additional_quantity;
+            if (($allocated_elsewhere + $quantity) > ($available + 0.00001)) {
+                $db->transRollback();
+                return $this->_error('A quantidade de ' . $material->description . ' ultrapassa o saldo disponível no projeto.');
+            }
+
+            if ($existing) {
+                $requested = $this->materials_model->get_requested_quantity((int)$existing->id);
+                if ($quantity < $requested) {
+                    $db->transRollback();
+                    return $this->_error('A quantidade de ' . $material->description . ' não pode ser menor que o total já requisitado.');
+                }
+                $ok = $db->table($allocations_table)->where('id', (int)$existing->id)->update(array(
+                    'quantity' => $quantity,
+                    'updated_at' => get_my_local_time()
+                ));
+            } else {
+                $ok = $db->table($allocations_table)->insert(array(
+                    'project_id' => $project_id,
+                    'project_material_id' => $material_id,
+                    'task_id' => $task_id,
+                    'quantity' => $quantity,
+                    'created_by' => $this->login_user->id,
+                    'created_at' => get_my_local_time(),
+                    'updated_at' => get_my_local_time(),
+                    'deleted' => 0
+                ));
+            }
+
+            if (!$ok) {
+                $db->transRollback();
+                return $this->_error(app_lang('error_occurred'));
+            }
+        }
+
+        $db->transComplete();
+        if (!$db->transStatus()) {
+            return $this->_error(app_lang('error_occurred'));
+        }
+
+        return $this->response->setJSON(array(
+            'success' => true,
+            'message' => count($selected) . ' material(is) associado(s) à tarefa.'
+        ));
+    }
+
     public function create_request()
     {
         $project_id = (int)$this->request->getPost('project_id');
