@@ -65,6 +65,19 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
     .quotation-observation-link:hover {
         color: #d58512 !important;
     }
+
+    .quotation-winner-choice {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+        color: #198754;
+        font-weight: 600;
+    }
+
+    .quotation-winner-choice input {
+        cursor: pointer;
+    }
 </style>
 
 <div id="page-content" class="page-wrapper clearfix">
@@ -216,6 +229,12 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                             <div class="mt5"><?php echo nl2br(esc($quotation_note)); ?></div>
                         </div>
                     <?php } ?>
+                    <?php if (!empty($can_change_quotation_winner)) { ?>
+                        <div class="alert alert-warning mb15">
+                            <i data-feather="edit-3" class="icon-16"></i>
+                            Você pode alterar o fornecedor vencedor antes de aprovar a requisição.
+                        </div>
+                    <?php } ?>
                     <div class="table-responsive">
                         <table class="table table-bordered request-quotation-table">
                             <thead>
@@ -269,7 +288,18 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                                             <td>
                                                 <div class="small"><?php echo app_lang('purchases_unit_price'); ?>: <?php echo $price ? to_currency($price->unit_price) : '-'; ?></div>
                                                 <div class="small"><?php echo app_lang('purchases_freight_value'); ?>: <?php echo $price ? to_currency($price->freight_value) : '-'; ?></div>
-                                                <?php if ($price && $price->is_winner) { ?>
+                                                <?php if (!empty($can_change_quotation_winner) && $price && (float)$price->unit_price > 0) { ?>
+                                                    <label class="quotation-winner-choice mt5">
+                                                        <input type="radio"
+                                                            class="js-change-quotation-winner"
+                                                            name="quotation_winner_<?php echo (int)$item->request_item_id; ?>"
+                                                            value="<?php echo (int)$supplier->supplier_id; ?>"
+                                                            data-request-id="<?php echo (int)$info->id; ?>"
+                                                            data-request-item-id="<?php echo (int)$item->request_item_id; ?>"
+                                                            <?php echo $price->is_winner ? 'checked="checked"' : ''; ?> />
+                                                        <span><?php echo $price->is_winner ? app_lang('purchases_winner') : 'Selecionar vencedor'; ?></span>
+                                                    </label>
+                                                <?php } else if ($price && $price->is_winner) { ?>
                                                     <span class="badge bg-success"><?php echo app_lang('purchases_winner'); ?></span>
                                                 <?php } ?>
                                             </td>
@@ -511,6 +541,43 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
         <?php if (!empty($show_success_message)) { ?>
         appAlert.success("<?php echo app_lang('purchases_status_quotation_finalized'); ?>", {duration: 3000});
         <?php } ?>
+
+        $(document).on('change', '.js-change-quotation-winner', function () {
+            var $radio = $(this);
+            var groupName = $radio.attr('name');
+            var $group = $('input[name="' + groupName + '"]');
+
+            $group.prop('disabled', true);
+            appAjaxRequest({
+                url: "<?php echo get_uri('purchases_requests/change_quotation_winner'); ?>",
+                type: "POST",
+                dataType: "json",
+                data: {
+                    request_id: $radio.attr('data-request-id'),
+                    request_item_id: $radio.attr('data-request-item-id'),
+                    supplier_id: $radio.val()
+                },
+                success: function (result) {
+                    if (result && result.success) {
+                        appAlert.success(result.message || 'Fornecedor vencedor atualizado.', {duration: 2000});
+                        setTimeout(function () {
+                            location.reload();
+                        }, 400);
+                    } else {
+                        appAlert.error(result && result.message ? result.message : "<?php echo app_lang('error_occurred'); ?>");
+                        setTimeout(function () {
+                            location.reload();
+                        }, 500);
+                    }
+                },
+                error: function () {
+                    appAlert.error("<?php echo app_lang('error_occurred'); ?>");
+                    setTimeout(function () {
+                        location.reload();
+                    }, 500);
+                }
+            });
+        });
 
         $(document).on('click', '.js-show-quotation-observation', function (event) {
             event.preventDefault();
