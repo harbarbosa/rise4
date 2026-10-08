@@ -452,6 +452,8 @@ class Purchase_requests extends Security_Controller
         ))->getResult();
         $view_data['can_approve_requester'] = $this->_can_approve_requester($request);
         $view_data['can_approve_financial'] = $this->_can_approve_financial_with_limit($request);
+        $view_data['can_change_quotation_winner'] = $request->status === 'awaiting_approval'
+            && ($this->_can_approve_requester($request) || $this->_can_approve_financial($request));
         $view_data['has_financial_permission'] = $this->_can_approve_financial($request);
         $view_data['can_reject_approval'] = $this->_can_reject_approval($request);
         $view_data['can_reopen'] = $this->_can_reopen($request);
@@ -598,6 +600,107 @@ class Purchase_requests extends Security_Controller
     public function approve_financial()
     {
         return $this->_handle_approval("financial");
+    }
+
+    public function change_quotation_winner()
+    {
+        try {
+            $request_id = (int)$this->request->getPost('request_id');
+            $request_item_id = (int)$this->request->getPost('request_item_id');
+            $supplier_id = (int)$this->request->getPost('supplier_id');
+
+            if (!$request_id || !$request_item_id || !$supplier_id) {
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => app_lang('record_not_found')
+                ));
+            }
+
+            $request = $this->_get_request_or_404($request_id);
+            $can_change_winner = $request->status === 'awaiting_approval'
+                && ($this->_can_approve_requester($request) || $this->_can_approve_financial($request));
+
+            if (!$can_change_winner) {
+                return $this->_json_permission_denied();
+            }
+
+            $company_id = $this->_get_company_id();
+            $quotation = $this->Purchases_quotations_model->get_one_by_request($request_id, $company_id);
+            if (!$quotation || $quotation->status !== 'finalized') {
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => app_lang('permission_denied')
+                ));
+            }
+
+            $db = db_connect('default');
+            $items_table = $db->prefixTable('purchases_quotation_items');
+            $prices_table = $db->prefixTable('purchases_quotation_item_prices');
+
+            $quotation_item = $db->table($items_table)
+                ->where('quotation_id', (int)$quotation->id)
+                ->where('request_item_id', $request_item_id)
+                ->where('company_id', $company_id)
+                ->where('deleted', 0)
+                ->get()
+                ->getRow();
+
+            $selected_price = $db->table($prices_table)
+                ->where('quotation_id', (int)$quotation->id)
+                ->where('request_item_id', $request_item_id)
+                ->where('supplier_id', $supplier_id)
+                ->where('company_id', $company_id)
+                ->where('deleted', 0)
+                ->get()
+                ->getRow();
+
+            if (!$quotation_item || !$selected_price || (float)$selected_price->unit_price <= 0) {
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => 'O fornecedor selecionado não possui preço válido para este item.'
+                ));
+            }
+
+            $db->transStart();
+            $db->table($prices_table)
+                ->where('quotation_id', (int)$quotation->id)
+                ->where('request_item_id', $request_item_id)
+                ->where('company_id', $company_id)
+                ->where('deleted', 0)
+                ->update(array('is_winner' => 0));
+
+            $db->table($prices_table)
+                ->where('id', (int)$selected_price->id)
+                ->where('company_id', $company_id)
+                ->update(array('is_winner' => 1));
+            $db->transComplete();
+
+            if ($db->transStatus() === false) {
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => app_lang('error_occurred')
+                ));
+            }
+
+            $this->_log_status_change(
+                'quotation',
+                (int)$quotation->id,
+                'winner',
+                'winner',
+                'Fornecedor vencedor alterado durante a aprovação. Item ' . $request_item_id . ', fornecedor ' . $supplier_id . '.'
+            );
+
+            return $this->response->setJSON(array(
+                'success' => true,
+                'message' => 'Fornecedor vencedor atualizado.',
+                'approval_total' => $this->_get_request_quotation_total($request_id)
+            ));
+        } catch (\Throwable $e) {
+            return $this->response->setJSON(array(
+                'success' => false,
+                'message' => $e->getMessage()
+            ));
+        }
     }
 
     public function reject_approval()
