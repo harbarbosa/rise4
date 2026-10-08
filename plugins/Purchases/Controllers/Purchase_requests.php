@@ -380,6 +380,7 @@ class Purchase_requests extends Security_Controller
         $view_data['quotation_totals'] = array();
         $view_data['quotation_winner_totals'] = array();
         if ($quotation) {
+            $this->_ensure_quotation_supplier_attachment_columns();
             $Quotation_suppliers_model = model('Purchases\\Models\\Purchases_quotation_suppliers_model');
             $quotation_suppliers = $Quotation_suppliers_model->get_details(array(
                 'quotation_id' => $quotation->id,
@@ -1984,6 +1985,31 @@ class Purchase_requests extends Security_Controller
             'total_value_at_approval' => null,
             'deleted' => 0
         ));
+    }
+
+    private function _ensure_quotation_supplier_attachment_columns()
+    {
+        $db = db_connect('default');
+        $table = $db->prefixTable('purchases_quotation_suppliers');
+        if (!$db->tableExists($table)) {
+            return false;
+        }
+
+        $columns = array(
+            'attachment_file_name' => "VARCHAR(255) NULL",
+            'attachment_original_name' => "VARCHAR(255) NULL",
+            'attachment_mime' => "VARCHAR(150) NULL",
+            'attachment_size' => "BIGINT UNSIGNED NULL",
+            'attachment_uploaded_by' => "INT(11) NULL",
+            'attachment_uploaded_at' => "DATETIME NULL"
+        );
+        foreach ($columns as $column => $definition) {
+            if (!$db->fieldExists($column, $table)) {
+                $db->query("ALTER TABLE `{$table}` ADD `{$column}` {$definition}");
+            }
+        }
+
+        return true;
     }
 
     private function _get_company_id()

@@ -8,6 +8,47 @@ $priority_key = 'purchases_priority_' . $info->priority;
 $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->priority;
 ?>
 
+<style>
+    #page-content .table {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    #page-content .table th,
+    #page-content .table td {
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        vertical-align: top;
+    }
+
+    #page-content .request-items-table,
+    #page-content .request-quotation-table {
+        table-layout: fixed;
+    }
+
+    #page-content .request-items-table th:nth-child(1) { width: 18%; }
+    #page-content .request-items-table th:nth-child(2) { width: 29%; }
+    #page-content .request-items-table th:nth-child(3) { width: 10%; }
+    #page-content .request-items-table th:nth-child(4) { width: 10%; }
+    #page-content .request-items-table th:nth-child(5) { width: 14%; }
+    #page-content .request-items-table th:nth-child(6) { width: 19%; }
+
+    .request-supplier-attachment {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        margin-top: 8px;
+    }
+
+    .request-supplier-attachment span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 220px;
+    }
+</style>
+
 <div id="page-content" class="page-wrapper clearfix">
     <div class="card">
         <div class="page-title clearfix">
@@ -115,7 +156,7 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
             <div class="mt15">
                 <h4 class="mb10"><?php echo app_lang('purchases_items'); ?></h4>
                 <div class="table-responsive">
-                    <table class="table">
+                    <table class="table request-items-table">
                         <thead>
                             <tr>
                                 <th><?php echo app_lang('purchases_material'); ?></th>
@@ -152,7 +193,7 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                 <div class="mt20">
                     <h4 class="mb10"><?php echo app_lang('purchases_quotation'); ?></h4>
                     <div class="table-responsive">
-                        <table class="table table-bordered">
+                        <table class="table table-bordered request-quotation-table">
                             <thead>
                                 <tr>
                                     <th><?php echo app_lang('purchases_material'); ?></th>
@@ -196,6 +237,14 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                                         <strong><?php echo esc($supplier->supplier_name); ?></strong>
                                         <div><?php echo to_currency(get_array_value($quotation_totals, $supplier->supplier_id, 0)); ?></div>
                                         <div class="text-muted small"><?php echo app_lang('purchases_winner_total'); ?>: <?php echo to_currency(get_array_value($quotation_winner_totals, $supplier->supplier_id, 0)); ?></div>
+                                        <?php if (!empty($supplier->attachment_file_name)) { ?>
+                                            <a class="btn btn-default btn-sm request-supplier-attachment" href="<?php echo get_uri('purchases_quotations/supplier_attachment/' . (int)$supplier->id); ?>" target="_blank" title="<?php echo esc($supplier->attachment_original_name ?: 'Abrir anexo'); ?>">
+                                                <i data-feather="paperclip" class="icon-16"></i>
+                                                <span><?php echo esc($supplier->attachment_original_name ?: 'Abrir anexo'); ?></span>
+                                            </a>
+                                        <?php } else { ?>
+                                            <div class="text-muted small mt5"><i data-feather="paperclip" class="icon-14"></i> Sem anexo</div>
+                                        <?php } ?>
                                     </div>
                                 </div>
                             <?php } ?>
