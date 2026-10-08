@@ -47,6 +47,18 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
         white-space: nowrap;
         max-width: 220px;
     }
+
+    .request-quotation-note {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .request-quotation-price-note {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #e5e7eb;
+    }
 </style>
 
 <div id="page-content" class="page-wrapper clearfix">
@@ -192,6 +204,12 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
             <?php if (!empty($quotation_suppliers) && !empty($quotation_items)) { ?>
                 <div class="mt20">
                     <h4 class="mb10"><?php echo app_lang('purchases_quotation'); ?></h4>
+                    <?php if (!empty($quotation_note)) { ?>
+                        <div class="alert alert-light border mb15 request-quotation-note">
+                            <strong>Observação da cotação:</strong>
+                            <div class="mt5"><?php echo nl2br(esc($quotation_note)); ?></div>
+                        </div>
+                    <?php } ?>
                     <div class="table-responsive">
                         <table class="table table-bordered request-quotation-table">
                             <thead>
@@ -217,6 +235,12 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                                             <td>
                                                 <div class="small"><?php echo app_lang('purchases_unit_price'); ?>: <?php echo $price ? to_currency($price->unit_price) : '-'; ?></div>
                                                 <div class="small"><?php echo app_lang('purchases_freight_value'); ?>: <?php echo $price ? to_currency($price->freight_value) : '-'; ?></div>
+                                                <?php if ($price && !empty($price->notes)) { ?>
+                                                    <div class="small request-quotation-note request-quotation-price-note">
+                                                        <strong>Observação:</strong><br>
+                                                        <?php echo nl2br(esc($price->notes)); ?>
+                                                    </div>
+                                                <?php } ?>
                                                 <?php if ($price && $price->is_winner) { ?>
                                                     <span class="badge bg-success"><?php echo app_lang('purchases_winner'); ?></span>
                                                 <?php } ?>
