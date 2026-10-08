@@ -220,6 +220,7 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                                     <?php foreach ($quotation_suppliers as $supplier) { ?>
                                         <th class="text-center"><?php echo esc($supplier->supplier_name); ?></th>
                                     <?php } ?>
+                                    <th>Observações</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -235,17 +236,31 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                                             <td>
                                                 <div class="small"><?php echo app_lang('purchases_unit_price'); ?>: <?php echo $price ? to_currency($price->unit_price) : '-'; ?></div>
                                                 <div class="small"><?php echo app_lang('purchases_freight_value'); ?>: <?php echo $price ? to_currency($price->freight_value) : '-'; ?></div>
-                                                <?php if ($price && !empty($price->notes)) { ?>
-                                                    <div class="small request-quotation-note request-quotation-price-note">
-                                                        <strong>Observação:</strong><br>
-                                                        <?php echo nl2br(esc($price->notes)); ?>
-                                                    </div>
-                                                <?php } ?>
                                                 <?php if ($price && $price->is_winner) { ?>
                                                     <span class="badge bg-success"><?php echo app_lang('purchases_winner'); ?></span>
                                                 <?php } ?>
                                             </td>
                                         <?php } ?>
+                                        <td class="request-quotation-note">
+                                            <?php
+                                            $has_item_notes = false;
+                                            foreach ($quotation_suppliers as $supplier) {
+                                                $price = get_array_value(get_array_value($quotation_prices_map, $item->request_item_id, array()), $supplier->supplier_id);
+                                                if ($price && !empty($price->notes)) {
+                                                    $has_item_notes = true;
+                                                    ?>
+                                                    <div class="small mb10">
+                                                        <strong><?php echo esc($supplier->supplier_name); ?>:</strong><br>
+                                                        <?php echo nl2br(esc($price->notes)); ?>
+                                                    </div>
+                                                    <?php
+                                                }
+                                            }
+                                            if (!$has_item_notes) {
+                                                echo '-';
+                                            }
+                                            ?>
+                                        </td>
                                     </tr>
                                 <?php } ?>
                             </tbody>
