@@ -425,6 +425,8 @@ class Purchase_quotations extends Security_Controller
             show_404();
         }
 
+        $this->_ensure_supplier_attachment_columns();
+
         $is_standalone = $this->_is_standalone_quotation($quotation);
         $request = $is_standalone ? null : $this->_get_request((int)$quotation->request_id);
         $items = $this->Purchases_quotation_items_model->get_details(array(
@@ -482,6 +484,130 @@ class Purchase_quotations extends Security_Controller
         );
 
         return $this->template->rander('Purchases\\Views\\quotations\\view', $view_data);
+    }
+
+    public function upload_supplier_attachment($id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $this->_ensure_supplier_attachment_columns();
+        $row = $this->_get_quotation_supplier_for_attachment((int)$id);
+        if (!$row) {
+            return $this->response->setStatusCode(404)->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
+        }
+
+        $quotation = $this->_get_quotation((int)$row->quotation_id);
+        if (!$quotation || $quotation->status !== 'draft') {
+            return $this->response->setStatusCode(403)->setJSON(array('success' => false, 'message' => app_lang('permission_denied')));
+        }
+
+        $file = $this->request->getFile('attachment');
+        if (!$file || !$file->isValid()) {
+            return $this->response->setStatusCode(422)->setJSON(array('success' => false, 'message' => 'Selecione um arquivo válido.'));
+        }
+
+        if ($file->getSize() > 10 * 1024 * 1024) {
+            return $this->response->setStatusCode(422)->setJSON(array('success' => false, 'message' => 'O anexo deve ter no máximo 10 MB.'));
+        }
+
+        $extension = strtolower((string)$file->getExtension());
+        $allowed = array('pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx', 'xls', 'xlsx');
+        if (!in_array($extension, $allowed, true)) {
+            return $this->response->setStatusCode(422)->setJSON(array('success' => false, 'message' => 'Formato não permitido. Envie PDF, imagem, Word ou Excel.'));
+        }
+
+        $directory = $this->_supplier_attachment_directory($row);
+        if (!is_dir($directory) && !mkdir($directory, 0775, true)) {
+            return $this->response->setStatusCode(500)->setJSON(array('success' => false, 'message' => 'Não foi possível preparar a pasta do anexo.'));
+        }
+
+        $old_path = !empty($row->attachment_file_name) ? $directory . DIRECTORY_SEPARATOR . basename($row->attachment_file_name) : '';
+        $stored_name = bin2hex(random_bytes(16)) . '.' . $extension;
+        try {
+            $file->move($directory, $stored_name);
+        } catch (\Throwable $e) {
+            return $this->response->setStatusCode(500)->setJSON(array('success' => false, 'message' => 'Não foi possível salvar o anexo.'));
+        }
+
+        $data = array(
+            'attachment_file_name' => $stored_name,
+            'attachment_original_name' => basename((string)$file->getClientName()),
+            'attachment_mime' => (string)$file->getClientMimeType(),
+            'attachment_size' => (int)$file->getSize(),
+            'attachment_uploaded_by' => (int)$this->login_user->id,
+            'attachment_uploaded_at' => get_my_local_time()
+        );
+        $saved = $this->Purchases_quotation_suppliers_model->ci_save($data, (int)$row->id);
+        if (!$saved) {
+            @unlink($directory . DIRECTORY_SEPARATOR . $stored_name);
+            return $this->response->setStatusCode(500)->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+        }
+        if ($old_path && is_file($old_path)) {
+            @unlink($old_path);
+        }
+
+        return $this->response->setJSON(array('success' => true, 'message' => 'Anexo do fornecedor salvo com sucesso.'));
+    }
+
+    public function supplier_attachment($id = 0)
+    {
+        if (!$this->_has_view_permission()) {
+            app_redirect('forbidden');
+        }
+
+        $this->_ensure_supplier_attachment_columns();
+        $row = $this->_get_quotation_supplier_for_attachment((int)$id);
+        if (!$row || empty($row->attachment_file_name)) {
+            show_404();
+        }
+
+        $path = $this->_supplier_attachment_directory($row) . DIRECTORY_SEPARATOR . basename($row->attachment_file_name);
+        if (!is_file($path)) {
+            show_404();
+        }
+
+        return $this->response->download($path, null)->setFileName(basename((string)($row->attachment_original_name ?: $row->attachment_file_name)));
+    }
+
+    public function delete_supplier_attachment($id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $this->_ensure_supplier_attachment_columns();
+        $row = $this->_get_quotation_supplier_for_attachment((int)$id);
+        if (!$row) {
+            return $this->response->setStatusCode(404)->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
+        }
+
+        $quotation = $this->_get_quotation((int)$row->quotation_id);
+        if (!$quotation || $quotation->status !== 'draft') {
+            return $this->response->setStatusCode(403)->setJSON(array('success' => false, 'message' => app_lang('permission_denied')));
+        }
+
+        $path = !empty($row->attachment_file_name)
+            ? $this->_supplier_attachment_directory($row) . DIRECTORY_SEPARATOR . basename($row->attachment_file_name)
+            : '';
+        $data = array(
+            'attachment_file_name' => null,
+            'attachment_original_name' => null,
+            'attachment_mime' => null,
+            'attachment_size' => null,
+            'attachment_uploaded_by' => null,
+            'attachment_uploaded_at' => null
+        );
+        $saved = $this->Purchases_quotation_suppliers_model->ci_save($data, (int)$row->id);
+        if (!$saved) {
+            return $this->response->setStatusCode(500)->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+        }
+        if ($path && is_file($path)) {
+            @unlink($path);
+        }
+
+        return $this->response->setJSON(array('success' => true, 'message' => 'Anexo removido.'));
     }
 
     public function save_prices($id = 0)
@@ -1492,6 +1618,48 @@ class Purchase_quotations extends Security_Controller
         $orders = ($orders_query && method_exists($orders_query, 'getResult')) ? $orders_query->getResult() : array();
 
         return $orders ? true : false;
+    }
+
+    private function _ensure_supplier_attachment_columns()
+    {
+        $db = db_connect('default');
+        $table = $db->prefixTable('purchases_quotation_suppliers');
+        if (!$db->tableExists($table)) {
+            return false;
+        }
+
+        $columns = array(
+            'attachment_file_name' => "VARCHAR(255) NULL",
+            'attachment_original_name' => "VARCHAR(255) NULL",
+            'attachment_mime' => "VARCHAR(150) NULL",
+            'attachment_size' => "BIGINT UNSIGNED NULL",
+            'attachment_uploaded_by' => "INT(11) NULL",
+            'attachment_uploaded_at' => "DATETIME NULL"
+        );
+        foreach ($columns as $column => $definition) {
+            if (!$db->fieldExists($column, $table)) {
+                $db->query("ALTER TABLE `{$table}` ADD `{$column}` {$definition}");
+            }
+        }
+
+        return true;
+    }
+
+    private function _get_quotation_supplier_for_attachment($id)
+    {
+        $query = $this->Purchases_quotation_suppliers_model->get_details(array(
+            'id' => (int)$id,
+            'company_id' => $this->_get_company_id()
+        ));
+        return ($query && method_exists($query, 'getRow')) ? $query->getRow() : null;
+    }
+
+    private function _supplier_attachment_directory($row)
+    {
+        return WRITEPATH . 'uploads' . DIRECTORY_SEPARATOR . 'purchases' . DIRECTORY_SEPARATOR . 'quotation_suppliers'
+            . DIRECTORY_SEPARATOR . (int)$this->_get_company_id()
+            . DIRECTORY_SEPARATOR . (int)$row->quotation_id
+            . DIRECTORY_SEPARATOR . (int)$row->id;
     }
 
     private function _get_company_id()

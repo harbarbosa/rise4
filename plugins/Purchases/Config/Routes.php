@@ -64,6 +64,9 @@ $routes->get('purchases_quotations/create_from_request/(:num)', 'Purchase_quotat
 $routes->post('purchases_quotations/save_from_request', 'Purchase_quotations::save_from_request', ['namespace' => 'Purchases\\Controllers']);
 $routes->get('purchases_quotations/view/(:num)', 'Purchase_quotations::view/$1', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_quotations/save_prices/(:num)', 'Purchase_quotations::save_prices/$1', ['namespace' => 'Purchases\\Controllers']);
+$routes->post('purchases_quotations/upload_supplier_attachment/(:num)', 'Purchase_quotations::upload_supplier_attachment/$1', ['namespace' => 'Purchases\\Controllers']);
+$routes->get('purchases_quotations/supplier_attachment/(:num)', 'Purchase_quotations::supplier_attachment/$1', ['namespace' => 'Purchases\\Controllers']);
+$routes->post('purchases_quotations/delete_supplier_attachment/(:num)', 'Purchase_quotations::delete_supplier_attachment/$1', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_quotations/update_suppliers/(:num)', 'Purchase_quotations::update_suppliers/$1', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_quotations/finalize/(:num)', 'Purchase_quotations::finalize/$1', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_quotations/reopen/(:num)', 'Purchase_quotations::reopen/$1', ['namespace' => 'Purchases\\Controllers']);

@@ -196,6 +196,30 @@ try {
         $result["executed"][] = $statement;
     }
 
+    $quotation_suppliers_table = $db->prefixTable('purchases_quotation_suppliers');
+    $quotation_supplier_fields = $db->getFieldNames($quotation_suppliers_table);
+    if (is_array($quotation_supplier_fields)) {
+        $quotation_supplier_columns = array(
+            'attachment_file_name' => "ALTER TABLE `{$quotation_suppliers_table}` ADD `attachment_file_name` VARCHAR(255) NULL",
+            'attachment_original_name' => "ALTER TABLE `{$quotation_suppliers_table}` ADD `attachment_original_name` VARCHAR(255) NULL",
+            'attachment_mime' => "ALTER TABLE `{$quotation_suppliers_table}` ADD `attachment_mime` VARCHAR(150) NULL",
+            'attachment_size' => "ALTER TABLE `{$quotation_suppliers_table}` ADD `attachment_size` BIGINT UNSIGNED NULL",
+            'attachment_uploaded_by' => "ALTER TABLE `{$quotation_suppliers_table}` ADD `attachment_uploaded_by` INT(11) NULL",
+            'attachment_uploaded_at' => "ALTER TABLE `{$quotation_suppliers_table}` ADD `attachment_uploaded_at` DATETIME NULL"
+        );
+
+        foreach ($quotation_supplier_columns as $field => $statement) {
+            if (!in_array($field, $quotation_supplier_fields)) {
+                $ok = $db->query($statement);
+                $result["executed"][] = $statement;
+                if (!$ok) {
+                    $result["success"] = false;
+                    $result["errors"][] = "Failed: " . $statement;
+                }
+            }
+        }
+    }
+
     $quotation_items_table = $db->prefixTable('purchases_quotation_items');
     $quotation_item_fields = $db->getFieldNames($quotation_items_table);
     if (is_array($quotation_item_fields)) {

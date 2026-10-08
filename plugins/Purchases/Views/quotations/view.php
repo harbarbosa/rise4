@@ -251,6 +251,35 @@ foreach ($suppliers as $supplier) {
                                 <strong><?php echo esc($supplier->supplier_name); ?></strong>
                                 <div class="mt5 js-supplier-total" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>"><?php echo to_currency(get_array_value($totals, $supplier->supplier_id, 0)); ?></div>
                                 <div class="text-muted small mt5"><?php echo app_lang('purchases_winner_total'); ?>: <span class="js-supplier-winner-total" data-supplier-id="<?php echo esc($supplier->supplier_id); ?>"><?php echo to_currency(get_array_value($winner_totals, $supplier->supplier_id, 0)); ?></span></div>
+                                <div class="supplier-quotation-attachment mt10">
+                                    <?php if (!empty($supplier->attachment_file_name)) { ?>
+                                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                                            <a class="btn btn-default btn-sm" href="<?php echo get_uri('purchases_quotations/supplier_attachment/' . (int)$supplier->id); ?>" target="_blank">
+                                                <i data-feather="paperclip" class="icon-16"></i>
+                                                <?php echo esc($supplier->attachment_original_name ?: 'Abrir anexo'); ?>
+                                            </a>
+                                            <?php if ($can_edit) { ?>
+                                                <button type="button" class="btn btn-default btn-sm text-danger delete-supplier-attachment" data-id="<?php echo (int)$supplier->id; ?>" title="Remover anexo">
+                                                    <i data-feather="trash-2" class="icon-16"></i>
+                                                </button>
+                                            <?php } ?>
+                                        </div>
+                                        <?php if (!empty($supplier->attachment_size)) { ?>
+                                            <div class="text-muted small mt5"><?php echo number_format(((int)$supplier->attachment_size) / 1024, 1, ',', '.'); ?> KB</div>
+                                        <?php } ?>
+                                    <?php } else { ?>
+                                        <div class="text-muted small"><i data-feather="paperclip" class="icon-14"></i> Nenhum orçamento anexado</div>
+                                    <?php } ?>
+                                    <?php if ($can_edit) { ?>
+                                        <form class="quotation-attachment-form mt10" enctype="multipart/form-data" data-id="<?php echo (int)$supplier->id; ?>">
+                                            <div class="input-group input-group-sm">
+                                                <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx" required>
+                                                <button class="btn btn-default" type="submit"><i data-feather="upload" class="icon-16"></i> <?php echo !empty($supplier->attachment_file_name) ? 'Substituir' : 'Anexar'; ?></button>
+                                            </div>
+                                            <div class="text-muted small mt5">PDF, imagem, Word ou Excel — até 10 MB.</div>
+                                        </form>
+                                    <?php } ?>
+                                </div>
                             </div>
                         </div>
                     <?php } ?>
@@ -568,6 +597,61 @@ foreach ($suppliers as $supplier) {
         });
 
         updateSummaryTotals();
+
+        $(".quotation-attachment-form").on("submit", function (event) {
+            event.preventDefault();
+            var $form = $(this);
+            var $button = $form.find("button[type=submit]");
+            var data = new FormData(this);
+            $button.prop("disabled", true);
+            $.ajax({
+                url: "<?php echo get_uri('purchases_quotations/upload_supplier_attachment'); ?>/" + $form.data("id"),
+                type: "POST",
+                data: data,
+                dataType: "json",
+                processData: false,
+                contentType: false,
+                success: function (result) {
+                    if (result && result.success) {
+                        appAlert.success(result.message);
+                        window.location.reload();
+                    } else {
+                        appAlert.error((result && result.message) || "<?php echo app_lang('error_occurred'); ?>");
+                        $button.prop("disabled", false);
+                    }
+                },
+                error: function (xhr) {
+                    appAlert.error((xhr.responseJSON && xhr.responseJSON.message) || "<?php echo app_lang('error_occurred'); ?>");
+                    $button.prop("disabled", false);
+                }
+            });
+        });
+
+        $(".delete-supplier-attachment").on("click", function () {
+            if (!confirm("Deseja remover o anexo deste fornecedor?")) {
+                return;
+            }
+            var $button = $(this);
+            $button.prop("disabled", true);
+            appAjaxRequest({
+                url: "<?php echo get_uri('purchases_quotations/delete_supplier_attachment'); ?>/" + $button.data("id"),
+                type: "POST",
+                dataType: "json",
+                success: function (result) {
+                    if (result && result.success) {
+                        appAlert.success(result.message);
+                        window.location.reload();
+                    } else {
+                        appAlert.error((result && result.message) || "<?php echo app_lang('error_occurred'); ?>");
+                        $button.prop("disabled", false);
+                    }
+                },
+                error: function (xhr) {
+                    appAlert.error((xhr.responseJSON && xhr.responseJSON.message) || "<?php echo app_lang('error_occurred'); ?>");
+                    $button.prop("disabled", false);
+                }
+            });
+        });
 
         $("#quotation-prices-form").appForm({
             onSuccess: function () {
