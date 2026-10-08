@@ -54,10 +54,16 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
         word-break: break-word;
     }
 
-    .request-quotation-price-note {
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px solid #e5e7eb;
+    .quotation-observation-link {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 6px;
+        color: #f0ad4e !important;
+        vertical-align: middle;
+    }
+
+    .quotation-observation-link:hover {
+        color: #d58512 !important;
     }
 </style>
 
@@ -220,13 +226,40 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                                     <?php foreach ($quotation_suppliers as $supplier) { ?>
                                         <th class="text-center"><?php echo esc($supplier->supplier_name); ?></th>
                                     <?php } ?>
-                                    <th>Observações</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($quotation_items as $item) { ?>
+                                    <?php
+                                    $quotation_observations = array();
+                                    foreach ($quotation_suppliers as $supplier) {
+                                        $item_price = get_array_value(get_array_value($quotation_prices_map, $item->request_item_id, array()), $supplier->supplier_id);
+                                        if ($item_price && !empty($item_price->notes)) {
+                                            $quotation_observations[] = array(
+                                                'supplier' => $supplier->supplier_name,
+                                                'note' => $item_price->notes
+                                            );
+                                        }
+                                    }
+                                    $observation_id = 'quotation-observation-' . (int)$item->id;
+                                    ?>
                                     <tr>
-                                        <td><?php echo esc($item->item_title ? $item->item_title : '-'); ?></td>
+                                        <td>
+                                            <?php echo esc($item->item_title ? $item->item_title : '-'); ?>
+                                            <?php if (!empty($quotation_observations)) { ?>
+                                                <a href="#" class="js-show-quotation-observation quotation-observation-link" data-observation-target="<?php echo esc($observation_id); ?>" title="Ver observação da cotação">
+                                                    <i data-feather="alert-triangle" class="icon-16"></i>
+                                                </a>
+                                                <div id="<?php echo esc($observation_id); ?>" class="d-none">
+                                                    <?php foreach ($quotation_observations as $observation) { ?>
+                                                        <div class="request-quotation-note mb10">
+                                                            <strong><?php echo esc($observation['supplier']); ?>:</strong><br>
+                                                            <?php echo nl2br(esc($observation['note'])); ?>
+                                                        </div>
+                                                    <?php } ?>
+                                                </div>
+                                            <?php } ?>
+                                        </td>
                                         <td><?php echo esc($item->request_description); ?></td>
                                         <td class="text-right"><?php echo esc(to_decimal_format($item->qty)); ?></td>
                                         <?php foreach ($quotation_suppliers as $supplier) { ?>
@@ -241,26 +274,6 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
                                                 <?php } ?>
                                             </td>
                                         <?php } ?>
-                                        <td class="request-quotation-note">
-                                            <?php
-                                            $has_item_notes = false;
-                                            foreach ($quotation_suppliers as $supplier) {
-                                                $price = get_array_value(get_array_value($quotation_prices_map, $item->request_item_id, array()), $supplier->supplier_id);
-                                                if ($price && !empty($price->notes)) {
-                                                    $has_item_notes = true;
-                                                    ?>
-                                                    <div class="small mb10">
-                                                        <strong><?php echo esc($supplier->supplier_name); ?>:</strong><br>
-                                                        <?php echo nl2br(esc($price->notes)); ?>
-                                                    </div>
-                                                    <?php
-                                                }
-                                            }
-                                            if (!$has_item_notes) {
-                                                echo '-';
-                                            }
-                                            ?>
-                                        </td>
                                     </tr>
                                 <?php } ?>
                             </tbody>
@@ -437,6 +450,25 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
     </div>
 </div>
 
+<div class="modal fade" id="quotation-observation-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Observação da cotação</h4>
+                <button type="button" class="btn btn-default" data-bs-dismiss="modal" aria-label="Close">
+                    <span data-feather="x" class="icon-16"></span>
+                </button>
+            </div>
+            <div class="modal-body" id="quotation-observation-modal-content"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-bs-dismiss="modal">
+                    <span data-feather="x" class="icon-16"></span> <?php echo app_lang('close'); ?>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php echo form_open(get_uri('purchases_requests/submit'), array('id' => 'rc-submit-form', 'class' => 'general-form')); ?>
 <input type="hidden" name="id" value="<?php echo esc($info->id); ?>" />
 <?php echo form_close(); ?>
@@ -479,6 +511,15 @@ $priority_label = app_lang($priority_key) ? app_lang($priority_key) : $info->pri
         <?php if (!empty($show_success_message)) { ?>
         appAlert.success("<?php echo app_lang('purchases_status_quotation_finalized'); ?>", {duration: 3000});
         <?php } ?>
+
+        $(document).on('click', '.js-show-quotation-observation', function (event) {
+            event.preventDefault();
+            var targetId = $(this).attr('data-observation-target');
+            var content = $('#' + targetId).html();
+
+            $('#quotation-observation-modal-content').html(content || '-');
+            $('#quotation-observation-modal').modal('show');
+        });
 
         $(document).on('click', '#rc-submit-btn', function () {
             var $btn = $(this);
