@@ -371,6 +371,10 @@ class Purchase_requests extends Security_Controller
         $view_data['can_convert'] = $this->_can_convert($request);
         $view_data['status_label'] = $this->_get_status_label($request->status);
         $quotation = $this->Purchases_quotations_model->get_one_by_request($id, $this->_get_company_id());
+        $view_data['quotation_info'] = $quotation;
+        $view_data['quotation_note'] = $quotation
+            ? trim((string)($quotation->note ?? $quotation->notes ?? ''))
+            : '';
         $view_data['quotation_id'] = $quotation ? $quotation->id : 0;
         $view_data['has_quotation'] = $quotation ? true : false;
         $view_data['quotation_suppliers'] = array();
