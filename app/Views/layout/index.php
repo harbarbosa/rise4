@@ -21,6 +21,16 @@ if (isset($login_user)) {
 $router = service('router');
 $dynamic_class .= " " . strtolower(get_actual_controller_name($router)) . "-page";
 
+$request = service('request');
+$is_workspace_frame = $request->getGet('_workspace_tab') === '1'
+    || strtolower((string)$request->getServer('HTTP_SEC_FETCH_DEST')) === 'iframe';
+
+if ($is_workspace_frame) {
+    $topbar = null;
+    $left_menu = null;
+    $dynamic_class .= " workspace-tab-frame";
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en" dir="<?php echo $dir; ?>">
@@ -72,7 +82,11 @@ $dynamic_class .= " " . strtolower(get_actual_controller_name($router)) . "-page
                 </div>
             </div>
 
-            <div class="<?php echo $scrollable_page_class; ?>">
+            <?php if ($left_menu && !$is_workspace_frame) {
+                echo view('includes/workspace_tabs', array('login_user' => $login_user));
+            } ?>
+
+            <div class="<?php echo $scrollable_page_class; ?> workspace-base-content">
                 <?php
                 if (isset($content_view) && $content_view != "") {
                     echo view($content_view);
@@ -101,6 +115,7 @@ $dynamic_class .= " " . strtolower(get_actual_controller_name($router)) . "-page
         echo view("includes/summernote");
     } ?>
 
+    <?php if (!$is_workspace_frame) { ?>
     <nav class="mobile-bottom-menu navbar-expand-lg b-t bg-white fixed-bottom d-block d-sm-none" id="mobile-bottom-menu">
         <div class="d-flex justify-content-between pl15 pr15">
             <a class="menu-item sidebar-toggle-btn" aria-current="page" href="#">
@@ -118,6 +133,7 @@ $dynamic_class .= " " . strtolower(get_actual_controller_name($router)) . "-page
             <div id="mobile-quick-add-button" class="menu-item dropdown"></div>
         </div>
     </nav>
+    <?php } ?>
 
     <div style='display: none;'>
         <script type='text/javascript'>
