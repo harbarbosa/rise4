@@ -65,6 +65,13 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
         font-weight: 600;
     }
 
+    .app-workspace-tab-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+    }
+
     .app-workspace-tab-title {
         overflow: hidden;
         text-overflow: ellipsis;
@@ -183,6 +190,42 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
         return url.toString();
     }
 
+    function normalizeIconName(icon) {
+        icon = String(icon || "").toLowerCase();
+        return /^[a-z0-9-]+$/.test(icon) ? icon : "file";
+    }
+
+    function menuIconName($link) {
+        var icon = $link.find("[data-feather]").first().attr("data-feather");
+        if (icon) {
+            return normalizeIconName(icon);
+        }
+
+        var $svg = $link.find("svg.feather").first();
+        if ($svg.length) {
+            var classes = String($svg.attr("class") || "").split(/\s+/);
+            for (var i = 0; i < classes.length; i++) {
+                if (classes[i].indexOf("feather-") === 0 && classes[i] !== "feather") {
+                    return normalizeIconName(classes[i].substring(8));
+                }
+            }
+        }
+
+        return "file";
+    }
+
+    function renderTabIcon($tab, icon) {
+        icon = normalizeIconName(icon);
+        $tab.find(".app-workspace-tab-icon").remove();
+        $('<span class="app-workspace-tab-icon"></span>')
+            .append($("<i></i>").attr("data-feather", icon).addClass("icon-14"))
+            .prependTo($tab);
+
+        if (window.feather) {
+            window.feather.replace();
+        }
+    }
+
     function tabIdForUrl(url) {
         var value = url.replace(window.location.origin, "").replace(/[^a-zA-Z0-9]/g, "_");
         var hash = 0;
@@ -234,8 +277,9 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
         saveState();
     }
 
-    function addTab(url, title, activate) {
+    function addTab(url, title, icon, activate) {
         var normalizedUrl = safeUrl(url);
+        icon = normalizeIconName(icon);
         if (!normalizedUrl) {
             return false;
         }
@@ -244,9 +288,14 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
             return tab.url === normalizedUrl;
         });
         if (existing) {
+            var $existingTab = $tabs.find('[data-tab-id="' + existing.id + '"]');
             if (title && existing.title !== title) {
                 existing.title = title;
-                $tabs.find('[data-tab-id="' + existing.id + '"] .app-workspace-tab-title').text(title);
+                $existingTab.find(".app-workspace-tab-title").text(title);
+            }
+            if (icon && existing.icon !== icon) {
+                existing.icon = icon;
+                renderTabIcon($existingTab, icon);
             }
             if (activate !== false) {
                 activateTab(existing.id);
@@ -257,14 +306,16 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
         var tab = {
             id: tabIdForUrl(normalizedUrl),
             url: normalizedUrl,
-            title: title || "Nova aba"
+            title: title || "Nova aba",
+            icon: icon
         };
         tabsState.push(tab);
 
         var $tab = $('<div class="app-workspace-tab app-workspace-tab-loading" role="tab" draggable="true"></div>')
             .attr("data-tab-id", tab.id)
             .attr("title", tab.title + " — arraste para alterar a ordem");
-        $tab.append($('<i data-feather="file" class="icon-14"></i>'));
+        $tab.append($('<span class="app-workspace-tab-icon"></span>')
+            .append($("<i></i>").attr("data-feather", tab.icon).addClass("icon-14")));
         $tab.append($('<span class="app-workspace-tab-title"></span>').text(tab.title));
         $tab.append($('<button type="button" class="app-workspace-tab-close" aria-label="Fechar aba">&times;</button>'));
         $tabs.append($tab);
@@ -355,7 +406,7 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
 
         stored.slice(0, 15).forEach(function (tab) {
             if (tab && tab.url) {
-                addTab(tab.url, tab.title || "Nova aba", false);
+                addTab(tab.url, tab.title || "Nova aba", tab.icon || "file", false);
             }
         });
 
@@ -467,7 +518,7 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
             var title = $.trim($link.find(".menu-text").text()) ||
                 $.trim($link.clone().find("i,svg").remove().end().text()) ||
                 "Nova aba";
-            addTab(normalizedUrl, title, true);
+            addTab(normalizedUrl, title, menuIconName($link), true);
 
             if ($(window).width() < 768) {
                 $("body").removeClass("sidebar-open");
