@@ -622,9 +622,17 @@ $requestable_items = array_values($requestable_items_map);
 
                     <div class="mt20 text-end">
                         <?php if ($can_manage) { ?>
-                            <button type="button" class="btn btn-outline-success me10" id="proposal-memory-send-to-quotation">
-                                <i data-feather="send" class="icon-16"></i> <?php echo app_lang('proposals_send_to_quotation'); ?>
-                            </button>
+                            <?php
+                            echo modal_anchor(
+                                get_uri('propostas/quotation_items_modal_form'),
+                                '<i data-feather="send" class="icon-16"></i> ' . app_lang('proposals_send_to_quotation'),
+                                array(
+                                    'class' => 'btn btn-outline-success me10',
+                                    'title' => 'Selecionar itens para cotação',
+                                    'data-post-proposal_id' => (int)($proposal_info->id ?? 0)
+                                )
+                            );
+                            ?>
                         <?php } ?>
                         <strong><?php echo app_lang('proposals_total_cost'); ?>:</strong>
                         <span id="proposal-memory-total-cost">0,00</span>
@@ -952,36 +960,6 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
         var tabStorageKey = "proposal-view-active-tab-" + proposalId;
         var $proposalTabs = $('.nav-tabs a[data-bs-toggle="tab"][href^="#proposal-"]');
         var savedTab = localStorage.getItem(tabStorageKey);
-        $("#proposal-memory-send-to-quotation").on("click", function () {
-            if (!window.confirm(<?php echo json_encode(app_lang('proposals_send_to_quotation_confirm')); ?>)) {
-                return;
-            }
-
-            var $button = $(this);
-            $button.prop("disabled", true).addClass("disabled");
-            appAjaxRequest({
-                url: "<?php echo_uri('propostas/send_memory_to_quotation'); ?>",
-                type: "POST",
-                dataType: "json",
-                data: {
-                    proposal_id: <?php echo (int)($proposal_info->id ?? 0); ?>
-                },
-                success: function (result) {
-                    if (result && result.success && result.redirect) {
-                        window.location.href = result.redirect;
-                        return;
-                    }
-
-                    appAlert.error((result && result.message) || <?php echo json_encode(app_lang('error_occurred')); ?>);
-                    $button.prop("disabled", false).removeClass("disabled");
-                },
-                error: function () {
-                    appAlert.error(<?php echo json_encode(app_lang('error_occurred')); ?>);
-                    $button.prop("disabled", false).removeClass("disabled");
-                }
-            });
-        });
-
         if (savedTab) {
             var $savedTabLink = $proposalTabs.filter('[href="' + savedTab + '"]');
 
