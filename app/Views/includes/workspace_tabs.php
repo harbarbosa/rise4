@@ -38,6 +38,26 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
         background: #f8f9fa;
     }
 
+    .app-workspace-tab:not(.app-workspace-home-tab) {
+        cursor: grab;
+    }
+
+    .app-workspace-tab:not(.app-workspace-home-tab):active {
+        cursor: grabbing;
+    }
+
+    .app-workspace-tab.app-workspace-tab-dragging {
+        opacity: .45;
+    }
+
+    .app-workspace-tab.app-workspace-tab-drop-before {
+        box-shadow: -3px 0 0 #1f78d1;
+    }
+
+    .app-workspace-tab.app-workspace-tab-drop-after {
+        box-shadow: 3px 0 0 #1f78d1;
+    }
+
     .app-workspace-tab.active {
         background: #fff;
         color: #212529;
@@ -241,9 +261,9 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
         };
         tabsState.push(tab);
 
-        var $tab = $('<div class="app-workspace-tab app-workspace-tab-loading" role="tab"></div>')
+        var $tab = $('<div class="app-workspace-tab app-workspace-tab-loading" role="tab" draggable="true"></div>')
             .attr("data-tab-id", tab.id)
-            .attr("title", tab.title);
+            .attr("title", tab.title + " — arraste para alterar a ordem");
         $tab.append($('<i data-feather="file" class="icon-14"></i>'));
         $tab.append($('<span class="app-workspace-tab-title"></span>').text(tab.title));
         $tab.append($('<button type="button" class="app-workspace-tab-close" aria-label="Fechar aba">&times;</button>'));
@@ -281,6 +301,23 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
             saveState();
         }
         return true;
+    }
+
+    function syncTabOrder() {
+        var order = [];
+        $tabs.find(".app-workspace-tab:not(.app-workspace-home-tab)").each(function () {
+            order.push($(this).attr("data-tab-id"));
+        });
+
+        tabsState.sort(function (a, b) {
+            return order.indexOf(a.id) - order.indexOf(b.id);
+        });
+        saveState();
+    }
+
+    function clearDropIndicators() {
+        $tabs.find(".app-workspace-tab")
+            .removeClass("app-workspace-tab-drop-before app-workspace-tab-drop-after");
     }
 
     function closeTab(tabId) {
@@ -333,6 +370,64 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
         $tabs = $("#app-workspace-tabs");
         $panels = $("#app-workspace-panels");
         $baseContent = $(".workspace-base-content");
+
+        var draggedTabId = null;
+
+        $tabs.on("dragstart", ".app-workspace-tab:not(.app-workspace-home-tab)", function (event) {
+            draggedTabId = $(this).attr("data-tab-id");
+            $(this).addClass("app-workspace-tab-dragging");
+            var originalEvent = event.originalEvent;
+            if (originalEvent && originalEvent.dataTransfer) {
+                originalEvent.dataTransfer.effectAllowed = "move";
+                originalEvent.dataTransfer.setData("text/plain", draggedTabId);
+            }
+        });
+
+        $tabs.on("dragover", ".app-workspace-tab:not(.app-workspace-home-tab)", function (event) {
+            if (!draggedTabId || $(this).attr("data-tab-id") === draggedTabId) {
+                return;
+            }
+            event.preventDefault();
+            clearDropIndicators();
+
+            var originalEvent = event.originalEvent;
+            var pointerX = originalEvent ? originalEvent.clientX : 0;
+            var bounds = this.getBoundingClientRect();
+            var insertBefore = pointerX < bounds.left + (bounds.width / 2);
+            $(this).addClass(insertBefore ? "app-workspace-tab-drop-before" : "app-workspace-tab-drop-after");
+
+            if (originalEvent && originalEvent.dataTransfer) {
+                originalEvent.dataTransfer.dropEffect = "move";
+            }
+        });
+
+        $tabs.on("drop", ".app-workspace-tab:not(.app-workspace-home-tab)", function (event) {
+            event.preventDefault();
+            if (!draggedTabId) {
+                return;
+            }
+
+            var $dragged = $tabs.find('[data-tab-id="' + draggedTabId + '"]');
+            var $target = $(this);
+            if (!$dragged.length || $dragged.is($target)) {
+                return;
+            }
+
+            if ($target.hasClass("app-workspace-tab-drop-before")) {
+                $dragged.insertBefore($target);
+            } else {
+                $dragged.insertAfter($target);
+            }
+
+            clearDropIndicators();
+            syncTabOrder();
+        });
+
+        $tabs.on("dragend", ".app-workspace-tab:not(.app-workspace-home-tab)", function () {
+            $(this).removeClass("app-workspace-tab-dragging");
+            clearDropIndicators();
+            draggedTabId = null;
+        });
 
         $tabs.on("click", ".app-workspace-tab", function (event) {
             if ($(event.target).closest(".app-workspace-tab-close").length) {
