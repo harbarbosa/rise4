@@ -68,6 +68,7 @@ $routes->post('propostas/document/save', 'Proposals::save_document', ['namespace
 $routes->get('propostas/download_pdf/(:num)', 'Proposals::download_pdf/$1', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/items/visibility', 'Proposals::update_item_visibility', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/items/copy_from_memory', 'Proposals::copy_items_from_memory', ['namespace' => 'Proposals\\Controllers']);
+$routes->post('propostas/quotation_items_modal_form', 'Proposals::quotation_items_modal_form', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/send_memory_to_quotation', 'Proposals::send_memory_to_quotation', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/dashboard_data', 'Proposals::dashboard_data', ['namespace' => 'Proposals\\Controllers']);
 $routes->post('propostas/approve', 'Proposals::approve', ['namespace' => 'Proposals\\Controllers']);
