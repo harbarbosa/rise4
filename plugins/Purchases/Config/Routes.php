@@ -59,7 +59,9 @@ $routes->post('purchases_reports/top_items', 'Purchases_reports::top_items', ['n
 $routes->get('purchases_quotations', 'Purchase_quotations::index', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_quotations/list_data', 'Purchase_quotations::list_data', ['namespace' => 'Purchases\\Controllers']);
 $routes->get('purchases_quotations/create', 'Purchase_quotations::create', ['namespace' => 'Purchases\\Controllers']);
+$routes->get('purchases_quotations/edit/(:num)', 'Purchase_quotations::edit/$1', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_quotations/save', 'Purchase_quotations::save', ['namespace' => 'Purchases\\Controllers']);
+$routes->post('purchases_quotations/delete', 'Purchase_quotations::delete', ['namespace' => 'Purchases\\Controllers']);
 $routes->get('purchases_quotations/create_from_request/(:num)', 'Purchase_quotations::create_from_request/$1', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_quotations/save_from_request', 'Purchase_quotations::save_from_request', ['namespace' => 'Purchases\\Controllers']);
 $routes->get('purchases_quotations/view/(:num)', 'Purchase_quotations::view/$1', ['namespace' => 'Purchases\\Controllers']);
