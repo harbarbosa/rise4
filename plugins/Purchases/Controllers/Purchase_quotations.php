@@ -292,7 +292,6 @@ class Purchase_quotations extends Security_Controller
                     'unit' => $item['unit'],
                     'desired_date' => $item['desired_date'],
                     'note' => $item['note'],
-                    'updated_at' => $now,
                     'deleted' => 0
                 );
 
@@ -349,7 +348,7 @@ class Purchase_quotations extends Security_Controller
                     ->whereIn('id', $removed_item_ids)
                     ->where('quotation_id', $quotation_id)
                     ->where('company_id', $company_id)
-                    ->update(array('deleted' => 1, 'updated_at' => $now));
+                    ->update(array('deleted' => 1));
                 $db->table($prices_table)
                     ->whereIn('quotation_item_id', $removed_item_ids)
                     ->where('quotation_id', $quotation_id)
@@ -410,7 +409,7 @@ class Purchase_quotations extends Security_Controller
             $db->table($db->prefixTable('purchases_quotation_items'))
                 ->where('quotation_id', $id)
                 ->where('company_id', $company_id)
-                ->update(array('deleted' => 1, 'updated_at' => get_my_local_time()));
+                ->update(array('deleted' => 1));
             $db->table($db->prefixTable('purchases_quotation_suppliers'))
                 ->where('quotation_id', $id)
                 ->where('company_id', $company_id)
