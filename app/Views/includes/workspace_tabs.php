@@ -190,6 +190,25 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
         return url.toString();
     }
 
+    function isHomeDestination(rawUrl) {
+        var normalizedUrl = safeUrl(rawUrl);
+        if (!normalizedUrl) {
+            return false;
+        }
+
+        var configuredHome = safeUrl(homeUrl);
+        if (configuredHome && normalizedUrl === configuredHome) {
+            return true;
+        }
+
+        try {
+            var path = new URL(normalizedUrl).pathname.replace(/\/+$/, "");
+            return /\/dashboard(?:\/view\/\d+)?$/.test(path);
+        } catch (e) {
+            return false;
+        }
+    }
+
     function normalizeIconName(icon) {
         icon = String(icon || "").toLowerCase();
         return /^[a-z0-9-]+$/.test(icon) ? icon : "file";
@@ -417,7 +436,7 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
         }
 
         stored.slice(0, 15).forEach(function (tab) {
-            if (tab && tab.url) {
+            if (tab && tab.url && !isHomeDestination(tab.url)) {
                 var restoredUrl = safeUrl(tab.url);
                 var restoredIcon = tab.icon || (restoredUrl ? menuIconForUrl(restoredUrl) : "file");
                 addTab(tab.url, tab.title || "Nova aba", restoredIcon, false);
@@ -528,6 +547,14 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
 
             event.preventDefault();
             event.stopImmediatePropagation();
+
+            if (isHomeDestination(normalizedUrl)) {
+                activateTab(homeTabId);
+                if ($(window).width() < 768) {
+                    $("body").removeClass("sidebar-open");
+                }
+                return;
+            }
 
             var title = $.trim($link.find(".menu-text").text()) ||
                 $.trim($link.clone().find("i,svg").remove().end().text()) ||
