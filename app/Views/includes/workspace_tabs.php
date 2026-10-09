@@ -1,5 +1,6 @@
 <?php
 $workspace_user_id = isset($login_user->id) ? (int)$login_user->id : 0;
+$workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
 ?>
 <style>
     #app-workspace-tabs {
@@ -133,6 +134,7 @@ $workspace_user_id = isset($login_user->id) ? (int)$login_user->id : 0;
     var storageKey = "rise_workspace_tabs_<?php echo $workspace_user_id; ?>";
     var activeStorageKey = storageKey + "_active";
     var homeTabId = "workspace-home";
+    var homeUrl = <?php echo json_encode($workspace_home_url); ?>;
     var $tabs;
     var $panels;
     var $baseContent;
@@ -182,6 +184,20 @@ $workspace_user_id = isset($login_user->id) ? (int)$login_user->id : 0;
     }
 
     function activateTab(tabId) {
+        if (tabId === homeTabId) {
+            var currentHome = safeUrl(window.location.href);
+            var configuredHome = safeUrl(homeUrl);
+            if (configuredHome && currentHome !== configuredHome) {
+                try {
+                    localStorage.setItem(activeStorageKey, homeTabId);
+                } catch (e) {
+                    // Continue navigation when storage is unavailable.
+                }
+                window.location.href = configuredHome;
+                return;
+            }
+        }
+
         $tabs.find(".app-workspace-tab").removeClass("active");
         $tabs.find('[data-tab-id="' + tabId + '"]').addClass("active");
         $panels.find(".app-workspace-panel").removeClass("active");
