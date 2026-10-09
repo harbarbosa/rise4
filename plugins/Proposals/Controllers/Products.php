@@ -31,7 +31,9 @@ class Products extends Security_Controller
         }
 
         $db = db_connect('default');
+        $this->_ensure_product_components_table($db);
         $items_table = $db->prefixTable('items');
+        $components_table = $db->prefixTable('proposal_product_components_custom');
         $has_ca_code = $db->fieldExists("ca_code", $items_table);
         $search = trim((string)$this->request->getPost('search'));
         $search_like = $search ? $db->escapeLikeString($search) : '';
@@ -56,6 +58,8 @@ class Products extends Security_Controller
         if ($has_cost) { $select[] = "$items_table.cost"; }
         if ($has_sale) { $select[] = "$items_table.sale"; }
         if ($has_markup) { $select[] = "$items_table.markup"; }
+        $company_id = (int)$this->_get_company_id();
+        $select[] = "(SELECT COUNT(*) FROM $components_table AS pc WHERE pc.parent_item_id=$items_table.id AND pc.company_id=$company_id AND pc.deleted=0) AS component_count";
 
         $sql = "SELECT " . implode(", ", $select) . "
             FROM $items_table
@@ -95,9 +99,42 @@ class Products extends Security_Controller
         $settings = $settings_model->get_settings($this->_get_company_id());
         $default_markup_percent = isset($settings->default_markup_percent) ? (float)$settings->default_markup_percent : 0;
 
+        $db = db_connect('default');
+        $this->_ensure_product_components_table($db);
+        $items_table = $db->prefixTable('items');
+        $components_table = $db->prefixTable('proposal_product_components_custom');
+        $company_id = $this->_get_company_id();
+
+        $component_products_query = $db->table($items_table)
+            ->select('id, title, unit_type, rate, cost')
+            ->where('deleted', 0);
+        if ($id) {
+            $component_products_query->where('id !=', $id);
+        }
+        $component_products = $component_products_query
+            ->orderBy('title', 'ASC')
+            ->get()
+            ->getResult();
+
+        $composition_rows = array();
+        if ($id) {
+            $composition_rows = $db->table($components_table . ' AS pc')
+                ->select('pc.component_item_id, pc.quantity, i.title, i.unit_type, i.rate, i.cost')
+                ->join($items_table . ' AS i', 'i.id=pc.component_item_id AND i.deleted=0', 'inner')
+                ->where('pc.company_id', $company_id)
+                ->where('pc.parent_item_id', $id)
+                ->where('pc.deleted', 0)
+                ->orderBy('pc.sort', 'ASC')
+                ->get()
+                ->getResult();
+        }
+
         $view_data = array(
             'item' => $item,
-            'default_markup_percent' => $default_markup_percent
+            'default_markup_percent' => $default_markup_percent,
+            'component_products' => $component_products,
+            'composition_rows' => $composition_rows,
+            'is_composite' => !empty($composition_rows)
         );
 
         return $this->template->view('Proposals\\Views\\proposals\\products_modal_form', $view_data);
@@ -123,13 +160,81 @@ class Products extends Security_Controller
         $cost = $this->_parse_decimal($this->request->getPost('cost'));
         $sale = $this->_parse_decimal($this->request->getPost('sale'));
         $markup = $this->_parse_decimal($this->request->getPost('markup'));
+        $is_composite = $this->request->getPost('is_composite') ? true : false;
+        $component_ids = $this->request->getPost('component_item_id');
+        $component_quantities = $this->request->getPost('component_quantity');
 
         $db = db_connect('default');
+        $this->_ensure_product_components_table($db);
         $items_table = $db->prefixTable('items');
         $has_ca_code = $db->fieldExists("ca_code", $items_table);
         $has_cost = $db->fieldExists("cost", $items_table);
         $has_sale = $db->fieldExists("sale", $items_table);
         $has_markup = $db->fieldExists("markup", $items_table);
+        $composition = array();
+
+        if ($is_composite) {
+            if (!is_array($component_ids)) {
+                $component_ids = array();
+            }
+            if (!is_array($component_quantities)) {
+                $component_quantities = array();
+            }
+
+            foreach ($component_ids as $index => $component_id_value) {
+                $component_id = (int)$component_id_value;
+                $quantity = $this->_parse_decimal(get_array_value($component_quantities, $index));
+                if (!$component_id || $quantity <= 0) {
+                    continue;
+                }
+                if ($id && $component_id === $id) {
+                    return $this->response->setJSON(array(
+                        'success' => false,
+                        'message' => 'Um produto não pode fazer parte da própria composição.'
+                    ));
+                }
+                if (!isset($composition[$component_id])) {
+                    $composition[$component_id] = 0;
+                }
+                $composition[$component_id] += $quantity;
+            }
+
+            if (!$composition) {
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => 'Adicione pelo menos um componente com quantidade válida.'
+                ));
+            }
+
+            $component_rows = $db->table($items_table)
+                ->select('id, rate, cost')
+                ->whereIn('id', array_keys($composition))
+                ->where('deleted', 0)
+                ->get()
+                ->getResult();
+
+            if (count($component_rows) !== count($composition)) {
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => 'Um ou mais componentes selecionados não foram encontrados.'
+                ));
+            }
+
+            $cost = 0;
+            foreach ($component_rows as $component_row) {
+                $component_cost = isset($component_row->cost) && is_numeric($component_row->cost)
+                    ? (float)$component_row->cost
+                    : (float)$component_row->rate;
+                $cost += $component_cost * (float)$composition[(int)$component_row->id];
+
+                if ($id && $this->_composition_contains_item((int)$component_row->id, $id, $this->_get_company_id(), $db)) {
+                    return $this->response->setJSON(array(
+                        'success' => false,
+                        'message' => 'A composição selecionada cria uma dependência circular entre produtos.'
+                    ));
+                }
+            }
+        }
 
         $data = array(
             'title' => trim((string)$this->request->getPost('title')),
@@ -150,13 +255,62 @@ class Products extends Security_Controller
             $data['markup'] = $markup;
         }
 
+        $db->transStart();
         $save_id = $this->Items_model->ci_save($data, $id);
         if (!$save_id) {
+            $db->transRollback();
             return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
         }
 
-        $item_id = $id ? $id : (is_int($save_id) ? $save_id : db_connect('default')->insertID());
+        $item_id = $id ? $id : (is_int($save_id) ? $save_id : $db->insertID());
+        $components_table = $db->prefixTable('proposal_product_components_custom');
+        $now = get_my_local_time();
+
+        $db->table($components_table)
+            ->where('company_id', $this->_get_company_id())
+            ->where('parent_item_id', $item_id)
+            ->update(array('deleted' => 1, 'updated_at' => $now));
+
+        if ($is_composite) {
+            $sort = 0;
+            foreach ($composition as $component_id => $quantity) {
+                $sort++;
+                $existing = $db->table($components_table)
+                    ->where('company_id', $this->_get_company_id())
+                    ->where('parent_item_id', $item_id)
+                    ->where('component_item_id', $component_id)
+                    ->get()
+                    ->getRow();
+
+                $component_data = array(
+                    'quantity' => $quantity,
+                    'sort' => $sort,
+                    'updated_at' => $now,
+                    'deleted' => 0
+                );
+
+                if ($existing) {
+                    $db->table($components_table)
+                        ->where('id', (int)$existing->id)
+                        ->update($component_data);
+                } else {
+                    $component_data['company_id'] = $this->_get_company_id();
+                    $component_data['parent_item_id'] = $item_id;
+                    $component_data['component_item_id'] = $component_id;
+                    $component_data['created_by'] = $this->login_user->id;
+                    $component_data['created_at'] = $now;
+                    $db->table($components_table)->insert($component_data);
+                }
+            }
+        }
+
+        $db->transComplete();
+        if ($db->transStatus() === false) {
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+        }
+
         $row = $this->Items_model->get_one($item_id);
+        $row->component_count = $is_composite ? count($composition) : 0;
 
         return $this->response->setJSON(array(
             'success' => true,
@@ -178,6 +332,14 @@ class Products extends Security_Controller
 
         $id = (int)$this->request->getPost('id');
         $success = $this->Items_model->delete($id);
+        if ($success) {
+            $db = db_connect('default');
+            $this->_ensure_product_components_table($db);
+            $db->table($db->prefixTable('proposal_product_components_custom'))
+                ->where('company_id', $this->_get_company_id())
+                ->where('parent_item_id', $id)
+                ->update(array('deleted' => 1, 'updated_at' => get_my_local_time()));
+        }
         return $this->response->setJSON(array('success' => $success ? true : false, 'message' => app_lang('record_deleted')));
     }
 
@@ -190,6 +352,9 @@ class Products extends Security_Controller
         $title = esc($row->title);
         if (isset($row->ca_code) && $row->ca_code !== "") {
             $title .= " <span class='mt0 badge ms-1' style='background-color:#1f78d1;' title='Conta Azul'>CA</span>";
+        }
+        if (!empty($row->component_count)) {
+            $title .= " <span class='mt0 badge bg-warning text-dark ms-1' title='Produto composto'>" . (int)$row->component_count . " componentes</span>";
         }
 
         $actions = modal_anchor(get_uri('propostas/products_modal_form'), "<i data-feather='edit' class='icon-16'></i>", array(
@@ -237,6 +402,64 @@ class Products extends Security_Controller
         ));
         $new_id = $db->insertID();
         return $new_id ? (int)$new_id : 0;
+    }
+
+    private function _ensure_product_components_table($db = null)
+    {
+        $db = $db ?: db_connect('default');
+        $table = $db->prefixTable('proposal_product_components_custom');
+        $sql = "CREATE TABLE IF NOT EXISTS `" . $table . "` (
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `company_id` INT(11) NOT NULL,
+            `parent_item_id` INT(11) NOT NULL,
+            `component_item_id` INT(11) NOT NULL,
+            `quantity` DECIMAL(16,4) NOT NULL DEFAULT 0,
+            `sort` INT(11) NOT NULL DEFAULT 0,
+            `created_by` INT(11) NULL,
+            `created_at` DATETIME NULL,
+            `updated_at` DATETIME NULL,
+            `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `company_parent_component` (`company_id`, `parent_item_id`, `component_item_id`),
+            KEY `parent_item_id` (`parent_item_id`),
+            KEY `component_item_id` (`component_item_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+        $db->query($sql);
+    }
+
+    private function _composition_contains_item($start_item_id, $target_item_id, $company_id, $db)
+    {
+        $table = $db->prefixTable('proposal_product_components_custom');
+        $pending = array((int)$start_item_id);
+        $visited = array();
+
+        while ($pending) {
+            $current = array_shift($pending);
+            if ($current === (int)$target_item_id) {
+                return true;
+            }
+            if (isset($visited[$current])) {
+                continue;
+            }
+            $visited[$current] = true;
+
+            $rows = $db->table($table)
+                ->select('component_item_id')
+                ->where('company_id', $company_id)
+                ->where('parent_item_id', $current)
+                ->where('deleted', 0)
+                ->get()
+                ->getResult();
+
+            foreach ($rows as $row) {
+                $next = (int)$row->component_item_id;
+                if (!isset($visited[$next])) {
+                    $pending[] = $next;
+                }
+            }
+        }
+
+        return false;
     }
 
     private function _parse_decimal($value)
