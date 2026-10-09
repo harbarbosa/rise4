@@ -83,7 +83,16 @@ if ($is_workspace_frame) {
             </div>
 
             <?php if ($left_menu && !$is_workspace_frame) {
-                echo view('includes/workspace_tabs', array('login_user' => $login_user));
+                $workspace_home_url = get_uri("dashboard");
+                $workspace_user_dashboard = get_setting("user_" . (int)$login_user->id . "_dashboard");
+                if ($workspace_user_dashboard) {
+                    $workspace_home_url = get_uri("dashboard/view/" . $workspace_user_dashboard);
+                }
+
+                echo view('includes/workspace_tabs', array(
+                    'login_user' => $login_user,
+                    'workspace_home_url' => $workspace_home_url
+                ));
             } ?>
 
             <div class="<?php echo $scrollable_page_class; ?> workspace-base-content">
