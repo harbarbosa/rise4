@@ -4,14 +4,29 @@ $items_dropdown_list = $items_dropdown_list ?? array('' => '-');
 $suppliers_dropdown = $suppliers_dropdown ?? array();
 $schema_ready = isset($schema_ready) ? (bool) $schema_ready : true;
 $schema_warning = $schema_warning ?? '';
+$quotation_items = $quotation_items ?? array();
+$selected_supplier_ids = array_map('intval', $selected_supplier_ids ?? array());
+$is_edit = !empty($info->id);
+if (!$quotation_items) {
+    $quotation_items = array((object) array(
+        'id' => 0,
+        'item_id' => '',
+        'description' => '',
+        'qty' => 1,
+        'unit' => 'UN',
+        'desired_date' => '',
+        'note' => ''
+    ));
+}
 ?>
 
 <?php echo form_open(get_uri('purchases_quotations/save'), array('id' => 'purchases-quotation-form', 'class' => 'general-form')); ?>
+<input type="hidden" name="id" value="<?php echo (int)($info->id ?? 0); ?>" />
 
 <div id="page-content" class="page-wrapper clearfix">
     <div class="card">
         <div class="page-title clearfix">
-            <h1><?php echo app_lang('purchases_add_standalone_quotation'); ?></h1>
+            <h1><?php echo $is_edit ? 'Editar cotação' : app_lang('purchases_add_standalone_quotation'); ?></h1>
             <div class="title-button-group">
                 <?php echo anchor(get_uri('purchases_quotations'), app_lang('back_to_list'), array('class' => 'btn btn-default')); ?>
             </div>
@@ -36,7 +51,7 @@ $schema_warning = $schema_warning ?? '';
                     <label for="supplier_ids" class="form-label"><?php echo app_lang('purchases_suppliers'); ?></label>
                     <select name="supplier_ids[]" id="supplier_ids" class="form-control select2" multiple data-placeholder="<?php echo app_lang('purchases_suppliers'); ?>" <?php echo $schema_ready ? '' : 'disabled'; ?>>
                         <?php foreach ($suppliers_dropdown as $supplier_id => $supplier_name) { ?>
-                            <option value="<?php echo esc($supplier_id); ?>"><?php echo esc($supplier_name); ?></option>
+                            <option value="<?php echo esc($supplier_id); ?>" <?php echo in_array((int)$supplier_id, $selected_supplier_ids, true) ? 'selected="selected"' : ''; ?>><?php echo esc($supplier_name); ?></option>
                         <?php } ?>
                     </select>
                 </div>
@@ -70,17 +85,22 @@ $schema_warning = $schema_warning ?? '';
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td><?php echo form_dropdown("item_id[]", $items_dropdown_list, "", "class='form-control quotation-item-select' " . ($schema_ready ? '' : 'disabled')); ?></td>
-                                <td><input type="text" name="description[]" class="form-control" <?php echo $schema_ready ? '' : 'disabled'; ?> /></td>
-                                <td><input type="text" name="quantity[]" class="form-control text-right" value="1" <?php echo $schema_ready ? '' : 'disabled'; ?> /></td>
-                                <td><input type="text" name="unit[]" class="form-control" value="UN" <?php echo $schema_ready ? '' : 'disabled'; ?> /></td>
-                                <td><input type="date" name="desired_date[]" class="form-control" <?php echo $schema_ready ? '' : 'disabled'; ?> /></td>
-                                <td><input type="text" name="item_note[]" class="form-control" <?php echo $schema_ready ? '' : 'disabled'; ?> /></td>
-                                <td class="text-center">
-                                    <button type="button" class="btn btn-default btn-sm remove-item" <?php echo $schema_ready ? '' : 'disabled'; ?>><i data-feather='x' class='icon-16'></i></button>
-                                </td>
-                            </tr>
+                            <?php foreach ($quotation_items as $quotation_item) { ?>
+                                <tr>
+                                    <td>
+                                        <input type="hidden" name="quotation_item_id[]" value="<?php echo (int)($quotation_item->id ?? 0); ?>" />
+                                        <?php echo form_dropdown("item_id[]", $items_dropdown_list, $quotation_item->item_id ?? "", "class='form-control quotation-item-select' " . ($schema_ready ? '' : 'disabled')); ?>
+                                    </td>
+                                    <td><input type="text" name="description[]" class="form-control" value="<?php echo esc($quotation_item->description ?? ''); ?>" <?php echo $schema_ready ? '' : 'disabled'; ?> /></td>
+                                    <td><input type="text" name="quantity[]" class="form-control text-right" value="<?php echo esc($quotation_item->qty ?? 1); ?>" <?php echo $schema_ready ? '' : 'disabled'; ?> /></td>
+                                    <td><input type="text" name="unit[]" class="form-control" value="<?php echo esc($quotation_item->unit ?? 'UN'); ?>" <?php echo $schema_ready ? '' : 'disabled'; ?> /></td>
+                                    <td><input type="date" name="desired_date[]" class="form-control" value="<?php echo esc($quotation_item->desired_date ?? ''); ?>" <?php echo $schema_ready ? '' : 'disabled'; ?> /></td>
+                                    <td><input type="text" name="item_note[]" class="form-control" value="<?php echo esc($quotation_item->note ?? ''); ?>" <?php echo $schema_ready ? '' : 'disabled'; ?> /></td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-default btn-sm remove-item" <?php echo $schema_ready ? '' : 'disabled'; ?>><i data-feather='x' class='icon-16'></i></button>
+                                    </td>
+                                </tr>
+                            <?php } ?>
                         </tbody>
                     </table>
                 </div>
@@ -110,7 +130,7 @@ $schema_warning = $schema_warning ?? '';
 
         function addRow() {
             var rowHtml = "<tr>" +
-                "<td><select name='item_id[]' class='form-control quotation-item-select'>" + optionsHtml + "</select></td>" +
+                "<td><input type='hidden' name='quotation_item_id[]' value='0' /><select name='item_id[]' class='form-control quotation-item-select'>" + optionsHtml + "</select></td>" +
                 "<td><input type='text' name='description[]' class='form-control' /></td>" +
                 "<td><input type='text' name='quantity[]' class='form-control text-right' value='1' /></td>" +
                 "<td><input type='text' name='unit[]' class='form-control' value='UN' /></td>" +
