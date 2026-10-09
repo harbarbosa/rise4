@@ -2133,6 +2133,68 @@ class Proposals extends Security_Controller
         ));
     }
 
+    private function _get_grouped_memory_items_for_quotation($proposal_id)
+    {
+        $items_query = $this->Proposal_items_model->get_details(array(
+            'proposal_id' => (int)$proposal_id,
+            'in_memory' => 1
+        ));
+        $memory_items = ($items_query && method_exists($items_query, 'getResult'))
+            ? $items_query->getResult()
+            : array();
+        $grouped_items = array();
+
+        foreach ($memory_items as $item) {
+            $item_type = (string)($item->item_type ?? 'material');
+            $item_id = (int)($item->item_id ?? 0);
+            $description = trim((string)($item->description_override ?? ''));
+            if (!$description) {
+                $description = trim((string)($item->item_title ?? ''));
+            }
+            if (!$description) {
+                $description = app_lang('item');
+            }
+
+            $group_key = ($item_id > 0 && $item_type !== 'service')
+                ? 'item:' . $item_id
+                : 'description:' . $item_type . ':' . mb_strtolower($description);
+            $selection_key = hash('sha256', $group_key);
+
+            if (!isset($grouped_items[$selection_key])) {
+                $grouped_items[$selection_key] = array(
+                    'selection_key' => $selection_key,
+                    'item_id' => ($item_type === 'service' || !$item_id) ? null : $item_id,
+                    'description' => $description,
+                    'quantity' => 0,
+                    'unit' => trim((string)($item->item_unit ?? '')),
+                    'note' => ''
+                );
+            }
+
+            $grouped_items[$selection_key]['quantity'] += (float)($item->qty ?? 0);
+        }
+
+        return $grouped_items;
+    }
+
+    public function quotation_items_modal_form()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $proposal_id = (int)($this->request->getPost('proposal_id') ?: $this->request->getGet('proposal_id'));
+        $proposal = $this->_get_proposal_for_company($proposal_id);
+        if (!$proposal) {
+            return $this->response->setStatusCode(404)->setBody(app_lang('record_not_found'));
+        }
+
+        return view('Proposals\\Views\\proposals\\quotation_items_modal_form', array(
+            'proposal_id' => $proposal_id,
+            'items' => array_values($this->_get_grouped_memory_items_for_quotation($proposal_id))
+        ));
+    }
+
     public function send_memory_to_quotation()
     {
         if (!$this->_has_manage_permission()) {
@@ -2146,39 +2208,23 @@ class Proposals extends Security_Controller
         }
 
         try {
-            $items_query = $this->Proposal_items_model->get_details(array('proposal_id' => $proposal_id, 'in_memory' => 1));
-            $memory_items = ($items_query && method_exists($items_query, 'getResult')) ? $items_query->getResult() : array();
-            $grouped_items = array();
+            $grouped_items = $this->_get_grouped_memory_items_for_quotation($proposal_id);
+            $selected_items = $this->request->getPost('selected_items');
+            $selected_items = is_array($selected_items) ? array_values(array_unique(array_filter($selected_items))) : array();
 
-            foreach ($memory_items as $item) {
-                $item_type = (string)($item->item_type ?? 'material');
-                $item_id = (int)($item->item_id ?? 0);
-                $description = trim((string)($item->description_override ?? ''));
-                if (!$description) {
-                    $description = trim((string)($item->item_title ?? ''));
-                }
-                if (!$description) {
-                    $description = app_lang('item');
-                }
-
-                $group_key = ($item_id > 0 && $item_type !== 'service')
-                    ? 'item:' . $item_id
-                    : 'description:' . $item_type . ':' . mb_strtolower($description);
-
-                if (!isset($grouped_items[$group_key])) {
-                    $grouped_items[$group_key] = array(
-                        'item_id' => ($item_type === 'service' || !$item_id) ? null : $item_id,
-                        'description' => $description,
-                        'quantity' => 0,
-                        'unit' => trim((string)($item->item_unit ?? '')),
-                        'note' => ''
-                    );
-                }
-                $grouped_items[$group_key]['quantity'] += (float)($item->qty ?? 0);
+            if (!count($selected_items)) {
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => 'Selecione pelo menos um item para enviar à cotação.'
+                ));
             }
 
+            $grouped_items = array_intersect_key($grouped_items, array_fill_keys($selected_items, true));
             if (!count($grouped_items)) {
-                return $this->response->setJSON(array('success' => false, 'message' => app_lang('proposals_no_proposal_items')));
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => app_lang('proposals_no_proposal_items')
+                ));
             }
 
             $db = db_connect('default');
@@ -2242,12 +2288,18 @@ class Proposals extends Security_Controller
             }
             $db->transCommit();
 
-            return $this->response->setJSON(array('success' => true, 'id' => $quotation_id, 'items_count' => count($grouped_items), 'redirect' => get_uri('purchases_quotations/view/' . $quotation_id)));
+            return $this->response->setJSON(array(
+                'success' => true,
+                'id' => $quotation_id,
+                'items_count' => count($grouped_items),
+                'redirect' => get_uri('purchases_quotations/view/' . $quotation_id)
+            ));
         } catch (\Throwable $e) {
             log_message('error', 'Error sending proposal memory to quotation: ' . $e->getMessage());
             return $this->response->setJSON(array('success' => false, 'message' => $e->getMessage()));
         }
     }
+
     public function dashboard_data()
     {
         if (!$this->_has_view_permission()) {
