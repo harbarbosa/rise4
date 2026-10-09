@@ -109,6 +109,48 @@ class Purchase_quotations extends Security_Controller
         return $this->template->rander('Purchases\\Views\\quotations\\form', $view_data);
     }
 
+    public function edit($id = 0)
+    {
+        if (!$this->_has_manage_permission()) {
+            app_redirect('forbidden');
+        }
+
+        $id = (int)$id;
+        $quotation = $this->_get_quotation($id);
+        if (!$quotation || !$this->_is_standalone_quotation($quotation)) {
+            show_404();
+        }
+        if ($quotation->status !== 'draft') {
+            app_redirect('forbidden');
+        }
+
+        $items = $this->Purchases_quotation_items_model->get_details(array(
+            'quotation_id' => $id,
+            'company_id' => $this->_get_company_id()
+        ))->getResult();
+        $suppliers = $this->Purchases_quotation_suppliers_model->get_details(array(
+            'quotation_id' => $id,
+            'company_id' => $this->_get_company_id()
+        ))->getResult();
+
+        $selected_supplier_ids = array();
+        foreach ($suppliers as $supplier) {
+            $selected_supplier_ids[] = (int)$supplier->supplier_id;
+        }
+
+        $view_data = array(
+            'quotation_info' => $quotation,
+            'quotation_items' => $items,
+            'selected_supplier_ids' => $selected_supplier_ids,
+            'items_dropdown_list' => $this->_get_items_dropdown_list(),
+            'suppliers_dropdown' => $this->_get_suppliers_dropdown_list(),
+            'schema_ready' => $this->_standalone_quotation_schema_ready(),
+            'schema_warning' => 'O banco do plugin Purchases ainda nao foi atualizado para cotacoes avulsas. Execute o upgrade/instalacao do plugin.'
+        );
+
+        return $this->template->rander('Purchases\\Views\\quotations\\form', $view_data);
+    }
+
     public function save()
     {
         try {
@@ -123,6 +165,16 @@ class Purchase_quotations extends Security_Controller
                 ));
             }
 
+            $id = (int)$this->request->getPost('id');
+            $company_id = $this->_get_company_id();
+            $quotation = null;
+            if ($id) {
+                $quotation = $this->_get_quotation($id);
+                if (!$quotation || !$this->_is_standalone_quotation($quotation) || $quotation->status !== 'draft') {
+                    return $this->response->setJSON(array('success' => false, 'message' => app_lang('permission_denied')));
+                }
+            }
+
             $supplier_ids = $this->request->getPost('supplier_ids');
             if ($supplier_ids === null) {
                 $supplier_ids = $this->request->getPost('supplier_ids[]');
@@ -135,114 +187,248 @@ class Purchase_quotations extends Security_Controller
                 return $this->response->setJSON(array('success' => false, 'message' => app_lang('purchases_select_suppliers_limit')));
             }
 
-            $title = trim((string) $this->request->getPost('title'));
-            $note = trim((string) $this->request->getPost('note'));
-
-            $item_ids = $this->request->getPost('item_id');
-            $descriptions = $this->request->getPost('description');
-            $quantities = $this->request->getPost('quantity');
-            $units = $this->request->getPost('unit');
-            $desired_dates = $this->request->getPost('desired_date');
-            $notes = $this->request->getPost('item_note');
-
-            $items = $this->_prepare_standalone_items($item_ids, $descriptions, $quantities, $units, $desired_dates, $notes);
+            $quotation_item_ids = $this->request->getPost('quotation_item_id');
+            $items = $this->_prepare_standalone_items(
+                $this->request->getPost('item_id'),
+                $this->request->getPost('description'),
+                $this->request->getPost('quantity'),
+                $this->request->getPost('unit'),
+                $this->request->getPost('desired_date'),
+                $this->request->getPost('item_note'),
+                $quotation_item_ids
+            );
             if (!count($items)) {
                 return $this->response->setJSON(array('success' => false, 'message' => app_lang('purchases_add_item')));
             }
 
-            $company_id = $this->_get_company_id();
             $db = db_connect('default');
             $db->transBegin();
-            $code_data = $this->Purchases_quotations_model->get_next_quotation_code_data($company_id);
+            $now = get_my_local_time();
             $quotation_data = array(
-                'company_id' => $company_id,
-                'quotation_type' => 'standalone',
-                'quotation_code_number' => $code_data['quotation_code_number'],
-                'quotation_code' => $code_data['quotation_code'],
-                'title' => $title,
-                'note' => $note,
-                'status' => 'draft',
-                'created_at' => get_my_local_time(),
-                'created_by' => $this->login_user->id
+                'title' => trim((string)$this->request->getPost('title')),
+                'note' => trim((string)$this->request->getPost('note')),
+                'updated_at' => $now
             );
 
-            $quotation_id = $this->Purchases_quotations_model->ci_save($quotation_data, 0);
-            if (!$quotation_id) {
-                return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+            if ($id) {
+                $this->Purchases_quotations_model->ci_save($quotation_data, $id);
+                $quotation_id = $id;
+            } else {
+                $code_data = $this->Purchases_quotations_model->get_next_quotation_code_data($company_id);
+                $quotation_data['company_id'] = $company_id;
+                $quotation_data['quotation_type'] = 'standalone';
+                $quotation_data['quotation_code_number'] = $code_data['quotation_code_number'];
+                $quotation_data['quotation_code'] = $code_data['quotation_code'];
+                $quotation_data['status'] = 'draft';
+                $quotation_data['created_at'] = $now;
+                $quotation_data['created_by'] = $this->login_user->id;
+
+                $quotation_id = $this->Purchases_quotations_model->ci_save($quotation_data, 0);
+                if (!$quotation_id) {
+                    $db->transRollback();
+                    return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+                }
+                if (!is_int($quotation_id)) {
+                    $quotation_id = $db->insertID();
+                }
             }
-            if (!is_int($quotation_id)) {
-                $quotation_id = db_connect('default')->insertID();
-            }
+
+            $suppliers_table = $db->prefixTable('purchases_quotation_suppliers');
+            $items_table = $db->prefixTable('purchases_quotation_items');
+            $prices_table = $db->prefixTable('purchases_quotation_item_prices');
+
+            $db->table($suppliers_table)
+                ->where('quotation_id', $quotation_id)
+                ->where('company_id', $company_id)
+                ->whereNotIn('supplier_id', $supplier_ids)
+                ->update(array('deleted' => 1));
+
+            $db->table($prices_table)
+                ->where('quotation_id', $quotation_id)
+                ->where('company_id', $company_id)
+                ->whereNotIn('supplier_id', $supplier_ids)
+                ->update(array('deleted' => 1, 'is_winner' => 0));
 
             foreach ($supplier_ids as $supplier_id) {
-                $supplier_data = array(
-                    'company_id' => $company_id,
-                    'quotation_id' => $quotation_id,
-                    'supplier_id' => $supplier_id,
-                    'created_at' => get_my_local_time(),
-                    'created_by' => $this->login_user->id
-                );
-                $this->Purchases_quotation_suppliers_model->ci_save($supplier_data, 0);
+                $supplier_row = $db->table($suppliers_table)
+                    ->where('quotation_id', $quotation_id)
+                    ->where('supplier_id', $supplier_id)
+                    ->where('company_id', $company_id)
+                    ->get()
+                    ->getRow();
+
+                if ($supplier_row) {
+                    $db->table($suppliers_table)->where('id', (int)$supplier_row->id)->update(array('deleted' => 0));
+                } else {
+                    $db->table($suppliers_table)->insert(array(
+                        'company_id' => $company_id,
+                        'quotation_id' => $quotation_id,
+                        'supplier_id' => $supplier_id,
+                        'created_at' => $now,
+                        'created_by' => $this->login_user->id,
+                        'deleted' => 0
+                    ));
+                }
             }
 
+            $existing_items = $db->table($items_table)
+                ->select('id')
+                ->where('quotation_id', $quotation_id)
+                ->where('company_id', $company_id)
+                ->where('deleted', 0)
+                ->get()
+                ->getResult();
+            $existing_item_ids = array();
+            foreach ($existing_items as $existing_item) {
+                $existing_item_ids[] = (int)$existing_item->id;
+            }
+
+            $kept_item_ids = array();
             foreach ($items as $item) {
                 $quotation_item_data = array(
-                    'company_id' => $company_id,
-                    'quotation_id' => $quotation_id,
                     'item_id' => $item['item_id'],
                     'description' => $item['description'],
                     'qty' => $item['quantity'],
                     'unit' => $item['unit'],
                     'desired_date' => $item['desired_date'],
                     'note' => $item['note'],
-                    'created_at' => get_my_local_time(),
-                    'created_by' => $this->login_user->id
+                    'updated_at' => $now,
+                    'deleted' => 0
                 );
-                $quotation_item_id = $this->Purchases_quotation_items_model->ci_save($quotation_item_data, 0);
 
-                if (!is_int($quotation_item_id)) {
-                    $quotation_item_id = db_connect('default')->insertID();
+                $quotation_item_id = (int)$item['quotation_item_id'];
+                if ($quotation_item_id && in_array($quotation_item_id, $existing_item_ids, true)) {
+                    $db->table($items_table)
+                        ->where('id', $quotation_item_id)
+                        ->where('quotation_id', $quotation_id)
+                        ->where('company_id', $company_id)
+                        ->update($quotation_item_data);
+                } else {
+                    $quotation_item_data['company_id'] = $company_id;
+                    $quotation_item_data['quotation_id'] = $quotation_id;
+                    $quotation_item_data['created_at'] = $now;
+                    $quotation_item_data['created_by'] = $this->login_user->id;
+                    $db->table($items_table)->insert($quotation_item_data);
+                    $quotation_item_id = (int)$db->insertID();
                 }
+                $kept_item_ids[] = $quotation_item_id;
 
                 foreach ($supplier_ids as $supplier_id) {
-                    $price_data = array(
-                        'company_id' => $company_id,
-                        'quotation_id' => $quotation_id,
-                        'quotation_item_id' => $quotation_item_id,
-                        'supplier_id' => $supplier_id,
-                        'unit_price' => 0,
-                        'lead_time_days' => null,
-                        'freight_value' => 0,
-                        'payment_terms' => '',
-                        'notes' => '',
-                        'created_at' => get_my_local_time(),
-                        'created_by' => $this->login_user->id
-                    );
-                    $this->Purchases_quotation_item_prices_model->ci_save($price_data, 0);
+                    $price_row = $db->table($prices_table)
+                        ->where('quotation_id', $quotation_id)
+                        ->where('quotation_item_id', $quotation_item_id)
+                        ->where('supplier_id', $supplier_id)
+                        ->where('company_id', $company_id)
+                        ->get()
+                        ->getRow();
+
+                    if ($price_row) {
+                        $db->table($prices_table)->where('id', (int)$price_row->id)->update(array('deleted' => 0));
+                    } else {
+                        $db->table($prices_table)->insert(array(
+                            'company_id' => $company_id,
+                            'quotation_id' => $quotation_id,
+                            'quotation_item_id' => $quotation_item_id,
+                            'supplier_id' => $supplier_id,
+                            'unit_price' => 0,
+                            'lead_time_days' => null,
+                            'freight_value' => 0,
+                            'payment_terms' => '',
+                            'notes' => '',
+                            'created_at' => $now,
+                            'created_by' => $this->login_user->id,
+                            'deleted' => 0
+                        ));
+                    }
                 }
+            }
+
+            $removed_item_ids = array_values(array_diff($existing_item_ids, $kept_item_ids));
+            if ($removed_item_ids) {
+                $db->table($items_table)
+                    ->whereIn('id', $removed_item_ids)
+                    ->where('quotation_id', $quotation_id)
+                    ->where('company_id', $company_id)
+                    ->update(array('deleted' => 1, 'updated_at' => $now));
+                $db->table($prices_table)
+                    ->whereIn('quotation_item_id', $removed_item_ids)
+                    ->where('quotation_id', $quotation_id)
+                    ->where('company_id', $company_id)
+                    ->update(array('deleted' => 1, 'is_winner' => 0));
             }
 
             if ($db->transStatus() === false) {
                 $db->transRollback();
                 return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
             }
-
             $db->transCommit();
 
             return $this->response->setJSON(array(
                 'success' => true,
                 'id' => $quotation_id,
-                'redirect' => get_uri('purchases_quotations/view/' . $quotation_id)
+                'redirect' => get_uri('purchases_quotations/view/' . $quotation_id),
+                'message' => app_lang('record_saved')
             ));
         } catch (\Throwable $e) {
-            if (isset($db) && $db && method_exists($db, 'transStatus')) {
+            if (isset($db) && $db) {
                 try {
-                    if ($db->transStatus() !== false) {
-                        $db->transRollback();
-                    }
+                    $db->transRollback();
                 } catch (\Throwable $rollback_exception) {
                 }
             }
+            return $this->response->setJSON(array('success' => false, 'message' => $e->getMessage()));
+        }
+    }
+
+    public function delete()
+    {
+        try {
+            if (!$this->_has_manage_permission()) {
+                return $this->_json_permission_denied();
+            }
+
+            $id = (int)$this->request->getPost('id');
+            $quotation = $this->_get_quotation($id);
+            if (!$quotation || !$this->_is_standalone_quotation($quotation)) {
+                return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
+            }
+            if ($this->_quotation_has_order($id)) {
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => 'Não é possível excluir uma cotação que já possui pedido de compra.'
+                ));
+            }
+
+            $db = db_connect('default');
+            $company_id = $this->_get_company_id();
+            $db->transBegin();
+
+            $db->table($db->prefixTable('purchases_quotation_item_prices'))
+                ->where('quotation_id', $id)
+                ->where('company_id', $company_id)
+                ->update(array('deleted' => 1, 'is_winner' => 0));
+            $db->table($db->prefixTable('purchases_quotation_items'))
+                ->where('quotation_id', $id)
+                ->where('company_id', $company_id)
+                ->update(array('deleted' => 1, 'updated_at' => get_my_local_time()));
+            $db->table($db->prefixTable('purchases_quotation_suppliers'))
+                ->where('quotation_id', $id)
+                ->where('company_id', $company_id)
+                ->update(array('deleted' => 1));
+            $db->table($db->prefixTable('purchases_quotations'))
+                ->where('id', $id)
+                ->where('company_id', $company_id)
+                ->update(array('deleted' => 1, 'updated_at' => get_my_local_time()));
+
+            if ($db->transStatus() === false) {
+                $db->transRollback();
+                return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+            }
+            $db->transCommit();
+            $this->_log_status_change('quotation', $id, (string)$quotation->status, 'deleted', 'Cotação excluída.');
+
+            return $this->response->setJSON(array('success' => true, 'message' => app_lang('record_deleted')));
+        } catch (\Throwable $e) {
             return $this->response->setJSON(array('success' => false, 'message' => $e->getMessage()));
         }
     }
@@ -1523,7 +1709,7 @@ class Purchase_quotations extends Security_Controller
             && $this->Purchases_quotations_model->has_column('note');
     }
 
-    private function _prepare_standalone_items($item_ids, $descriptions, $quantities, $units, $desired_dates, $notes)
+    private function _prepare_standalone_items($item_ids, $descriptions, $quantities, $units, $desired_dates, $notes, $quotation_item_ids = array())
     {
         $item_ids = is_array($item_ids) ? $item_ids : array();
         $descriptions = is_array($descriptions) ? $descriptions : array();
@@ -1531,9 +1717,10 @@ class Purchase_quotations extends Security_Controller
         $units = is_array($units) ? $units : array();
         $desired_dates = is_array($desired_dates) ? $desired_dates : array();
         $notes = is_array($notes) ? $notes : array();
+        $quotation_item_ids = is_array($quotation_item_ids) ? $quotation_item_ids : array();
 
         $rows = array();
-        $total_rows = max(count($item_ids), count($descriptions), count($quantities), count($units), count($desired_dates), count($notes));
+        $total_rows = max(count($item_ids), count($descriptions), count($quantities), count($units), count($desired_dates), count($notes), count($quotation_item_ids));
         for ($i = 0; $i < $total_rows; $i++) {
             $description = trim((string) get_array_value($descriptions, $i));
             $quantity = unformat_currency(get_array_value($quantities, $i, 0));
@@ -1551,6 +1738,7 @@ class Purchase_quotations extends Security_Controller
             }
 
             $rows[] = array(
+                'quotation_item_id' => (int)get_array_value($quotation_item_ids, $i),
                 'item_id' => $item_id ?: null,
                 'description' => $description,
                 'quantity' => $quantity,
@@ -1577,11 +1765,50 @@ class Purchase_quotations extends Security_Controller
             esc($status),
             esc($data->winner_supplier_name ? $data->winner_supplier_name : '-'),
             format_to_datetime($data->created_at, false),
-            anchor(get_uri('purchases_quotations/view/' . $data->id), "<i data-feather='eye' class='icon-16'></i>", array(
-                'class' => 'btn btn-sm btn-default',
-                'title' => app_lang('purchases_view_quotation')
-            ))
+            $this->_get_standalone_actions($data)
         );
+    }
+
+    private function _get_standalone_actions($data)
+    {
+        $actions = anchor(get_uri('purchases_quotations/view/' . $data->id), "<i data-feather='eye' class='icon-16'></i>", array(
+            'class' => 'btn btn-sm btn-default',
+            'title' => app_lang('purchases_view_quotation')
+        ));
+
+        if ($this->_has_manage_permission() && $data->status === 'draft') {
+            $actions .= ' ' . anchor(get_uri('purchases_quotations/edit/' . $data->id), "<i data-feather='edit' class='icon-16'></i>", array(
+                'class' => 'btn btn-sm btn-default',
+                'title' => app_lang('edit')
+            ));
+        }
+
+        if ($this->_has_manage_permission() && !$this->_quotation_has_order((int)$data->id)) {
+            $actions .= ' ' . js_anchor("<i data-feather='x' class='icon-16'></i>", array(
+                'class' => 'btn btn-sm btn-default delete',
+                'title' => app_lang('delete'),
+                'data-id' => $data->id,
+                'data-action-url' => get_uri('purchases_quotations/delete'),
+                'data-action' => 'delete-confirmation'
+            ));
+        }
+
+        return $actions;
+    }
+
+    private function _quotation_has_order($quotation_id)
+    {
+        $db = db_connect('default');
+        $orders_table = $db->prefixTable('purchases_orders');
+        if (!$db->tableExists($orders_table) || !$db->fieldExists('quotation_id', $orders_table)) {
+            return false;
+        }
+
+        return $db->table($orders_table)
+            ->where('quotation_id', (int)$quotation_id)
+            ->where('company_id', $this->_get_company_id())
+            ->where('deleted', 0)
+            ->countAllResults() > 0;
     }
 
     private function _get_max_delivery_date($rows)
