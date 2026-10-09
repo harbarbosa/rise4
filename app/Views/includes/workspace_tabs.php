@@ -226,6 +226,18 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
         }
     }
 
+    function menuIconForUrl(url) {
+        var matchedIcon = "file";
+        $(".sidebar a[href]").each(function () {
+            var $link = $(this);
+            if (safeUrl($link.attr("href")) === url) {
+                matchedIcon = menuIconName($link);
+                return false;
+            }
+        });
+        return matchedIcon;
+    }
+
     function tabIdForUrl(url) {
         var value = url.replace(window.location.origin, "").replace(/[^a-zA-Z0-9]/g, "_");
         var hash = 0;
@@ -406,7 +418,9 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
 
         stored.slice(0, 15).forEach(function (tab) {
             if (tab && tab.url) {
-                addTab(tab.url, tab.title || "Nova aba", tab.icon || "file", false);
+                var restoredUrl = safeUrl(tab.url);
+                var restoredIcon = tab.icon || (restoredUrl ? menuIconForUrl(restoredUrl) : "file");
+                addTab(tab.url, tab.title || "Nova aba", restoredIcon, false);
             }
         });
 
