@@ -305,4 +305,32 @@ if ($alter_errors) {
     $result["errors"] = array_merge($result["errors"], $alter_errors);
 }
 
+$product_components_table = $dbprefix . "proposal_product_components_custom";
+$product_components_sql = "CREATE TABLE IF NOT EXISTS `" . $product_components_table . "` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `company_id` INT(11) NOT NULL,
+    `parent_item_id` INT(11) NOT NULL,
+    `component_item_id` INT(11) NOT NULL,
+    `quantity` DECIMAL(16,4) NOT NULL DEFAULT 0,
+    `sort` INT(11) NOT NULL DEFAULT 0,
+    `created_by` INT(11) NULL,
+    `created_at` DATETIME NULL,
+    `updated_at` DATETIME NULL,
+    `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `company_parent_component` (`company_id`, `parent_item_id`, `component_item_id`),
+    KEY `parent_item_id` (`parent_item_id`),
+    KEY `component_item_id` (`component_item_id`),
+    KEY `company_id` (`company_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+
+$product_components_ok = $db->query($product_components_sql);
+$result["executed"][] = $product_components_sql;
+if ($product_components_ok) {
+    $result["tables"][] = $product_components_table;
+} else {
+    $result["success"] = false;
+    $result["errors"][] = "Failed: " . $product_components_sql . " | " . json_encode($db->error());
+}
+
 return $result;
