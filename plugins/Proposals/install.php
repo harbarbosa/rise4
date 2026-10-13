@@ -234,6 +234,15 @@ $columns_to_add[] = array(
 );
 
 $items_table = $dbprefix . "items";
+
+// Vincular cotações avulsas geradas pela proposta à sua origem.
+$purchases_quotations_table = $dbprefix . "purchases_quotations";
+$columns_to_add[] = array(
+    "table" => $purchases_quotations_table,
+    "column" => "source_proposal_id",
+    "sql" => "ALTER TABLE `" . $purchases_quotations_table . "` ADD COLUMN `source_proposal_id` INT(11) NULL AFTER `request_id`, ADD INDEX `source_proposal_id` (`source_proposal_id`)"
+);
+
 // Adicionar coluna description para seções (etapas da memória de cálculo)
 $sections_table = $dbprefix . "proposal_sections_custom";
 $columns_to_add[] = array(
