@@ -21,6 +21,7 @@ $routes->post('purchases_requests/reject', 'Purchase_requests::reject', ['namesp
 $routes->post('purchases_requests/convert', 'Purchase_requests::convert', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_requests/approve_requester', 'Purchase_requests::approve_requester', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_requests/approve_financial', 'Purchase_requests::approve_financial', ['namespace' => 'Purchases\\Controllers']);
+$routes->post('purchases_requests/change_quotation_winner', 'Purchase_requests::change_quotation_winner', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_requests/reject_approval', 'Purchase_requests::reject_approval', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_requests/reopen', 'Purchase_requests::reopen', ['namespace' => 'Purchases\\Controllers']);
 $routes->post('purchases_requests/delete', 'Purchase_requests::delete', ['namespace' => 'Purchases\\Controllers']);
