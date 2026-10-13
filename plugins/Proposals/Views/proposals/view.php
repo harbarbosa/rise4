@@ -5,6 +5,8 @@ $items = $items ?? array();
 $memory_items = $memory_items ?? array();
 $proposal_items = $proposal_items ?? array();
 $can_manage = $can_manage ?? false;
+$linked_quotation = $linked_quotation ?? null;
+$can_import_quotation_values = $can_import_quotation_values ?? false;
 
 if (!function_exists('proposals_render_section_options')) {
     function proposals_render_section_options($sections, $parent_id = null, $level = 0)
@@ -633,6 +635,21 @@ $requestable_items = array_values($requestable_items_map);
                                 )
                             );
                             ?>
+                            <?php if ($linked_quotation) { ?>
+                                <a href="<?php echo get_uri('purchases_quotations/view/' . (int)$linked_quotation->id); ?>"
+                                   class="btn btn-outline-primary me10">
+                                    <i data-feather="external-link" class="icon-16"></i>
+                                    Ver cotação <?php echo esc($linked_quotation->quotation_code ?? ('#' . (int)$linked_quotation->id)); ?>
+                                </a>
+                            <?php } ?>
+                            <?php if ($can_import_quotation_values) { ?>
+                                <button type="button"
+                                        class="btn btn-success me10"
+                                        id="proposal-import-quotation-values">
+                                    <i data-feather="download" class="icon-16"></i>
+                                    Importar valores da cotação
+                                </button>
+                            <?php } ?>
                         <?php } ?>
                         <strong><?php echo app_lang('proposals_total_cost'); ?>:</strong>
                         <span id="proposal-memory-total-cost">0,00</span>
@@ -960,6 +977,40 @@ $document_js_version = @filemtime(PLUGINPATH . 'Proposals/assets/js/proposals_do
         var tabStorageKey = "proposal-view-active-tab-" + proposalId;
         var $proposalTabs = $('.nav-tabs a[data-bs-toggle="tab"][href^="#proposal-"]');
         var savedTab = localStorage.getItem(tabStorageKey);
+
+        $("#proposal-import-quotation-values").on("click", function () {
+            if (!window.confirm("Importar os valores vencedores da cotação? Os custos e preços de venda dos itens correspondentes serão atualizados conforme o markup da proposta.")) {
+                return;
+            }
+
+            var $button = $(this);
+            $button.prop("disabled", true).addClass("disabled");
+            appAjaxRequest({
+                url: "<?php echo get_uri('propostas/import_quotation_values'); ?>",
+                type: "POST",
+                dataType: "json",
+                data: {
+                    proposal_id: <?php echo (int)($proposal_info->id ?? 0); ?>
+                },
+                success: function (result) {
+                    if (result && result.success) {
+                        appAlert.success(result.message || <?php echo json_encode(app_lang('record_saved')); ?>);
+                        setTimeout(function () {
+                            window.location.reload();
+                        }, 500);
+                        return;
+                    }
+
+                    appAlert.error((result && result.message) || <?php echo json_encode(app_lang('error_occurred')); ?>);
+                    $button.prop("disabled", false).removeClass("disabled");
+                },
+                error: function () {
+                    appAlert.error(<?php echo json_encode(app_lang('error_occurred')); ?>);
+                    $button.prop("disabled", false).removeClass("disabled");
+                }
+            });
+        });
+
         if (savedTab) {
             var $savedTabLink = $proposalTabs.filter('[href="' + savedTab + '"]');
 
