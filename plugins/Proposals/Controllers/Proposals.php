@@ -1203,6 +1203,7 @@ class Proposals extends Security_Controller
         $dashboard_data = $this->_get_dashboard_data($proposal);
         $settings = $this->Proposals_module_settings_model->get_settings($this->_get_company_id());
         $default_markup_percent = $settings && isset($settings->default_markup_percent) ? (float)$settings->default_markup_percent : 0;
+        $linked_quotation = $this->_get_linked_quotation_for_proposal($id);
         $Custom_fields_model = model('App\\Models\\Custom_fields_model');
         $custom_field_headers_of_task = $Custom_fields_model->get_custom_field_headers_for_table(
             "tasks",
@@ -1218,6 +1219,10 @@ class Proposals extends Security_Controller
             'memory_items' => $memory_items,
             'proposal_items' => $proposal_items,
             'default_markup_percent' => $default_markup_percent,
+            'linked_quotation' => $linked_quotation,
+            'can_import_quotation_values' => $linked_quotation
+                && (string)($linked_quotation->status ?? '') === 'finalized'
+                && $this->_has_manage_permission(),
             'can_manage' => $this->_has_manage_permission(),
             'status_options' => $this->_get_statuses_dropdown(false),
             'items_options_html' => $this->_get_items_options_html(),
@@ -2133,6 +2138,57 @@ class Proposals extends Security_Controller
         ));
     }
 
+    private function _get_linked_quotation_for_proposal($proposal_id)
+    {
+        $proposal_id = (int)$proposal_id;
+        if (!$proposal_id) {
+            return null;
+        }
+
+        $db = db_connect('default');
+        $table = $db->prefixTable('purchases_quotations');
+        if (!$db->tableExists($table)) {
+            return null;
+        }
+
+        $proposal_code = 'PR-' . str_pad($proposal_id, 6, '0', STR_PAD_LEFT);
+        $legacy_note = 'Gerada a partir da proposta ' . $proposal_code . '.';
+        $builder = $db->table($table)
+            ->where('company_id', $this->_get_company_id())
+            ->where('deleted', 0);
+
+        if ($db->fieldExists('source_proposal_id', $table)) {
+            $builder->groupStart()
+                ->where('source_proposal_id', $proposal_id)
+                ->orWhere('note', $legacy_note)
+                ->groupEnd();
+        } else {
+            $builder->where('note', $legacy_note);
+        }
+
+        $query = $builder->orderBy('id', 'DESC')->get(1);
+        return $query && method_exists($query, 'getRow') ? $query->getRow() : null;
+    }
+
+    private function _get_quotation_match_key($item)
+    {
+        $item_id = (int)($item->item_id ?? 0);
+        $item_type = strtolower(trim((string)($item->item_type ?? 'material')));
+        if ($item_id > 0 && $item_type !== 'service') {
+            return 'item:' . $item_id;
+        }
+
+        $description = trim((string)($item->description_override ?? ''));
+        if ($description === '') {
+            $description = trim((string)($item->description ?? ''));
+        }
+        if ($description === '') {
+            $description = trim((string)($item->item_title ?? ''));
+        }
+
+        return 'description:' . mb_strtolower($description);
+    }
+
     private function _get_grouped_memory_items_for_quotation($proposal_id)
     {
         $items_query = $this->Proposal_items_model->get_details(array(
@@ -2252,6 +2308,9 @@ class Proposals extends Security_Controller
                 'created_at' => get_my_local_time(),
                 'created_by' => $this->login_user->id
             );
+            if (in_array('source_proposal_id', $quotation_fields, true)) {
+                $quotation_data['source_proposal_id'] = $proposal_id;
+            }
 
             $db->transBegin();
             $quotation_id = $quotations_model->ci_save($quotation_data, 0);
@@ -2296,6 +2355,150 @@ class Proposals extends Security_Controller
             ));
         } catch (\Throwable $e) {
             log_message('error', 'Error sending proposal memory to quotation: ' . $e->getMessage());
+            return $this->response->setJSON(array('success' => false, 'message' => $e->getMessage()));
+        }
+    }
+
+    public function import_quotation_values()
+    {
+        if (!$this->_has_manage_permission()) {
+            return $this->_json_permission_denied();
+        }
+
+        $proposal_id = (int)$this->request->getPost('proposal_id');
+        $proposal = $this->_get_proposal_for_company($proposal_id);
+        if (!$proposal) {
+            return $this->response->setJSON(array('success' => false, 'message' => app_lang('record_not_found')));
+        }
+
+        try {
+            $quotation = $this->_get_linked_quotation_for_proposal($proposal_id);
+            if (!$quotation) {
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => 'Nenhuma cotação vinculada foi encontrada para esta proposta.'
+                ));
+            }
+            if ((string)($quotation->status ?? '') !== 'finalized') {
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => 'Finalize a cotação antes de importar os valores.'
+                ));
+            }
+
+            $company_id = $this->_get_company_id();
+            $quotation_items_model = model('Purchases\\Models\\Purchases_quotation_items_model');
+            $quotation_prices_model = model('Purchases\\Models\\Purchases_quotation_item_prices_model');
+
+            $items_query = $quotation_items_model->get_details(array(
+                'quotation_id' => (int)$quotation->id,
+                'company_id' => $company_id
+            ));
+            $prices_query = $quotation_prices_model->get_details(array(
+                'quotation_id' => (int)$quotation->id,
+                'company_id' => $company_id
+            ));
+            $quotation_items = ($items_query && method_exists($items_query, 'getResult')) ? $items_query->getResult() : array();
+            $quotation_prices = ($prices_query && method_exists($prices_query, 'getResult')) ? $prices_query->getResult() : array();
+
+            $winner_prices = array();
+            foreach ($quotation_prices as $price) {
+                if (!(int)($price->is_winner ?? 0)) {
+                    continue;
+                }
+                $quotation_item_id = (int)($price->quotation_item_id ?? 0);
+                $request_item_id = (int)($price->request_item_id ?? 0);
+                if ($quotation_item_id) {
+                    $winner_prices['quotation_item:' . $quotation_item_id] = $price;
+                } elseif ($request_item_id) {
+                    $winner_prices['request_item:' . $request_item_id] = $price;
+                }
+            }
+
+            $quoted_costs = array();
+            foreach ($quotation_items as $quotation_item) {
+                $quotation_item_id = (int)($quotation_item->id ?? 0);
+                $request_item_id = (int)($quotation_item->request_item_id ?? 0);
+                $price = $quotation_item_id
+                    ? get_array_value($winner_prices, 'quotation_item:' . $quotation_item_id)
+                    : null;
+                if (!$price && $request_item_id) {
+                    $price = get_array_value($winner_prices, 'request_item:' . $request_item_id);
+                }
+                if (!$price || (float)($price->unit_price ?? 0) <= 0) {
+                    continue;
+                }
+
+                $quoted_quantity = (float)($quotation_item->qty ?? 0);
+                $freight_per_unit = $quoted_quantity > 0
+                    ? ((float)($price->freight_value ?? 0) / $quoted_quantity)
+                    : 0;
+                $quoted_costs[$this->_get_quotation_match_key($quotation_item)] = round(
+                    (float)$price->unit_price + $freight_per_unit,
+                    4
+                );
+            }
+
+            if (!count($quoted_costs)) {
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => 'A cotação finalizada não possui valores vencedores válidos para importar.'
+                ));
+            }
+
+            $proposal_items_query = $this->Proposal_items_model->get_details(array('proposal_id' => $proposal_id));
+            $proposal_items = ($proposal_items_query && method_exists($proposal_items_query, 'getResult'))
+                ? $proposal_items_query->getResult()
+                : array();
+
+            $db = db_connect('default');
+            $db->transBegin();
+            $updated_count = 0;
+            foreach ($proposal_items as $proposal_item) {
+                $match_key = $this->_get_quotation_match_key($proposal_item);
+                if (!array_key_exists($match_key, $quoted_costs)) {
+                    continue;
+                }
+
+                $cost_unit = (float)$quoted_costs[$match_key];
+                $markup_percent = (float)($proposal_item->markup_percent ?? 0);
+                $sale_unit = round($cost_unit * (1 + ($markup_percent / 100)), 4);
+                $quantity = (float)($proposal_item->qty ?? 0);
+                $update_data = array(
+                    'cost_unit' => $cost_unit,
+                    'sale_unit' => $sale_unit,
+                    'total' => round($quantity * $sale_unit, 2)
+                );
+
+                if ($this->Proposal_items_model->ci_save($update_data, (int)$proposal_item->id) !== false) {
+                    $updated_count++;
+                }
+            }
+
+            if ($db->transStatus() === false) {
+                $db->transRollback();
+                return $this->response->setJSON(array('success' => false, 'message' => app_lang('error_occurred')));
+            }
+            $db->transCommit();
+
+            if (!$updated_count) {
+                return $this->response->setJSON(array(
+                    'success' => false,
+                    'message' => 'Nenhum item da cotação corresponde aos materiais atuais da proposta.'
+                ));
+            }
+
+            $this->Proposals_model->calculate_totals($proposal_id);
+            $this->_log_activity('quotation_values_imported', $proposal_id);
+
+            return $this->response->setJSON(array(
+                'success' => true,
+                'updated_count' => $updated_count,
+                'quotation_id' => (int)$quotation->id,
+                'message' => $updated_count . ' item(ns) atualizado(s) com os valores vencedores da cotação.'
+            ));
+        } catch (\Throwable $e) {
+            log_message('error', 'Error importing quotation values into proposal: ' . $e->getMessage());
             return $this->response->setJSON(array('success' => false, 'message' => $e->getMessage()));
         }
     }
