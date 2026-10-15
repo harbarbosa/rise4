@@ -555,6 +555,38 @@ foreach ($suppliers as $supplier) {
             return total;
         };
 
+        var hasManualWinner = function (itemKey) {
+            return $('#quotation-prices-form .js-manual-winner[data-item-key="' + itemKey + '"]').length > 0;
+        };
+
+        var selectLowestForItem = function (itemKey) {
+            if (!itemKey || hasManualWinner(itemKey)) {
+                return;
+            }
+
+            var bestSupplierId = null;
+            var bestTotal = null;
+            $('.js-quotation-price-row[data-item-key="' + itemKey + '"]').each(function () {
+                var $row = $(this);
+                var unitPrice = parseNumericFieldValue($row.find(".js-unit-price").val());
+                if (unitPrice <= 0) {
+                    return;
+                }
+
+                var total = (getQtyForItem(itemKey) * unitPrice)
+                    + parseNumericFieldValue($row.find(".js-freight-value").val());
+                if (bestTotal === null || total < bestTotal) {
+                    bestTotal = total;
+                    bestSupplierId = $row.data("supplier-id");
+                }
+            });
+
+            if (bestSupplierId !== null) {
+                $('.js-winner-supplier[data-item-key="' + itemKey + '"][data-supplier-id="' + bestSupplierId + '"]')
+                    .prop("checked", true);
+            }
+        };
+
         var updateSummaryTotals = function () {
             var totalsBySupplier = {};
             var winnerTotalsBySupplier = {};
@@ -589,10 +621,24 @@ foreach ($suppliers as $supplier) {
         };
 
         $(document).on("input blur", ".js-quotation-qty, .js-unit-price, .js-freight-value", function () {
+            var $field = $(this);
+            var itemKey = $field.data("item-key")
+                || $field.closest(".js-quotation-price-row").data("item-key");
+            selectLowestForItem(itemKey);
             updateSummaryTotals();
         });
 
         $(document).on("change", ".js-winner-supplier", function () {
+            var $winner = $(this);
+            var itemKey = $winner.data("item-key");
+            $('#quotation-prices-form .js-manual-winner[data-item-key="' + itemKey + '"]').remove();
+            $("<input>", {
+                type: "hidden",
+                name: "manual_winner[" + itemKey + "]",
+                value: $winner.val(),
+                "class": "js-manual-winner",
+                "data-item-key": itemKey
+            }).appendTo("#quotation-prices-form");
             updateSummaryTotals();
         });
 
