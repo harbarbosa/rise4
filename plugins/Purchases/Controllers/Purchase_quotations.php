@@ -826,7 +826,7 @@ class Purchase_quotations extends Security_Controller
             $freight_values = $this->request->getPost('freight_value');
             $payment_terms = $this->request->getPost('payment_terms');
             $notes = $this->request->getPost('notes');
-            $winner_suppliers = $this->request->getPost('winner_supplier');
+            $manual_winners = $this->request->getPost('manual_winner');
 
             if (is_array($unit_prices)) {
                 foreach ($unit_prices as $supplier_id => $items) {
@@ -848,18 +848,32 @@ class Purchase_quotations extends Security_Controller
                 }
             }
 
-            if (is_array($winner_suppliers)) {
+            // Recalcular sempre os vencedores usando o menor custo total válido
+            // (quantidade x preço unitário + frete). Os rádios já marcados na
+            // tela não devem impedir a atualização automática.
+            $this->_auto_select_winners($id);
+
+            // Preservar somente uma escolha que o usuário alterou
+            // explicitamente nesta edição.
+            if (is_array($manual_winners)) {
                 $db = db_connect('default');
                 $prices_table = $db->prefixTable('purchases_quotation_item_prices');
-                foreach ($winner_suppliers as $item_key => $supplier_id) {
+                foreach ($manual_winners as $item_key => $supplier_id) {
                     $supplier_id = (int)$supplier_id;
                     $quotation_item = $this->_get_quotation_item_by_key($id, $item_key);
                     if (!$quotation_item || !$supplier_id) {
                         continue;
                     }
 
+                    $selected_price = $this->_get_price_row_by_key($id, $item_key, $supplier_id);
+                    if (!$selected_price || (float)($selected_price->unit_price ?? 0) <= 0) {
+                        continue;
+                    }
+
                     $reset = $db->table($prices_table)->where('quotation_id', $id);
-                    $set = $db->table($prices_table)->where('quotation_id', $id)->where('supplier_id', $supplier_id);
+                    $set = $db->table($prices_table)
+                        ->where('quotation_id', $id)
+                        ->where('supplier_id', $supplier_id);
                     if ($this->_is_item_key_quotation($item_key)) {
                         $reset->where('quotation_item_id', (int)$quotation_item->id);
                         $set->where('quotation_item_id', (int)$quotation_item->id);
@@ -871,8 +885,6 @@ class Purchase_quotations extends Security_Controller
                     $reset->update(array('is_winner' => 0));
                     $set->update(array('is_winner' => 1));
                 }
-            } else {
-                $this->_auto_select_winners($id);
             }
 
             return $this->response->setJSON(array('success' => true, 'message' => app_lang('record_saved')));
