@@ -48,6 +48,8 @@ $routes->post('projectanalizer/cost_centers/sync', 'ProjectAnalizer::sync_cost_c
 $routes->get('projectanalizer/project_materials', 'Project_materials::projects', ['namespace' => 'ProjectAnalizer\\Controllers']);
 $routes->get('projectanalizer/project_materials/(:num)', 'Project_materials::index/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/project_materials/add', 'Project_materials::add', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/project_materials/update_material', 'Project_materials::update_material', ['namespace' => 'ProjectAnalizer\\Controllers']);
+$routes->post('projectanalizer/project_materials/delete_material', 'Project_materials::delete_material', ['namespace' => 'ProjectAnalizer\\Controllers']);
 $routes->post('projectanalizer/project_materials/allocate', 'Project_materials::allocate', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/project_materials/allocate_batch', 'Project_materials::allocate_batch', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/project_materials/remove_allocation', 'Project_materials::remove_allocation', ['namespace' => 'ProjectAnalizer\Controllers']);
