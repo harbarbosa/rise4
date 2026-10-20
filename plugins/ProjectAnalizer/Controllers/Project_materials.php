@@ -96,6 +96,127 @@ class Project_materials extends Security_Controller
         return $this->response->setJSON(array('success' => (bool)$id, 'message' => $id ? app_lang('record_saved') : app_lang('error_occurred')));
     }
 
+    public function update_material()
+    {
+        $project_id = (int)$this->request->getPost('project_id');
+        $material_id = (int)$this->request->getPost('project_material_id');
+        $quantity = $this->_decimal($this->request->getPost('quantity'));
+        if (!$this->_get_project($project_id) || !$material_id || $quantity <= 0) {
+            return $this->_error('Informe uma quantidade válida.');
+        }
+
+        $db = db_connect('default');
+        $materials_table = $db->prefixTable('pa_project_materials');
+        $allocations_table = $db->prefixTable('pa_project_task_materials');
+        $links_table = $db->prefixTable('pa_project_material_request_items');
+        $requests_table = $db->prefixTable('purchases_requests');
+
+        $query = $db->query(
+            "SELECT * FROM $materials_table WHERE id=? AND project_id=? AND deleted=0 FOR UPDATE",
+            array($material_id, $project_id)
+        );
+        $material = $query ? $query->getRow() : null;
+        if (!$material || $material->source !== 'manual') {
+            return $this->_error('Somente materiais adicionados manualmente podem ser editados.');
+        }
+
+        $allocated_query = $db->table($allocations_table)
+            ->selectSum('quantity', 'total')
+            ->where('project_material_id', $material_id)
+            ->where('deleted', 0)
+            ->get();
+        $allocated_row = $allocated_query ? $allocated_query->getRow() : null;
+        $allocated = $allocated_row ? (float)$allocated_row->total : 0;
+
+        $requested_query = $db->query(
+            "SELECT COALESCE(SUM(link.quantity),0) total
+             FROM $links_table link
+             INNER JOIN $requests_table request ON request.id=link.purchase_request_id
+             WHERE link.project_material_id=? AND link.deleted=0
+               AND request.deleted=0 AND request.status NOT IN ('rejected','cancelled')",
+            array($material_id)
+        );
+        $requested_row = $requested_query ? $requested_query->getRow() : null;
+        $requested = $requested_row ? (float)$requested_row->total : 0;
+        $minimum = max($allocated, $requested);
+
+        if ($quantity + 0.00001 < $minimum) {
+            return $this->_error(
+                'A quantidade não pode ser menor que ' .
+                number_format($minimum, 3, ',', '.') .
+                ', pois esse total já está associado ou requisitado.'
+            );
+        }
+
+        $ok = $db->table($materials_table)->where('id', $material_id)->update(array(
+            'additional_quantity' => $quantity,
+            'updated_at' => get_my_local_time()
+        ));
+
+        return $this->response->setJSON(array(
+            'success' => (bool)$ok,
+            'message' => $ok ? 'Quantidade atualizada com sucesso.' : app_lang('error_occurred')
+        ));
+    }
+
+    public function delete_material()
+    {
+        $project_id = (int)$this->request->getPost('project_id');
+        $material_id = (int)$this->request->getPost('project_material_id');
+        if (!$this->_get_project($project_id) || !$material_id) {
+            return $this->_error(app_lang('invalid_request'));
+        }
+
+        $db = db_connect('default');
+        $materials_table = $db->prefixTable('pa_project_materials');
+        $allocations_table = $db->prefixTable('pa_project_task_materials');
+        $links_table = $db->prefixTable('pa_project_material_request_items');
+        $requests_table = $db->prefixTable('purchases_requests');
+
+        $material_query = $db->table($materials_table)
+            ->where('id', $material_id)
+            ->where('project_id', $project_id)
+            ->where('deleted', 0)
+            ->get();
+        $material = $material_query ? $material_query->getRow() : null;
+        if (!$material || $material->source !== 'manual') {
+            return $this->_error('Somente materiais adicionados manualmente podem ser excluídos.');
+        }
+
+        $allocation = $db->table($allocations_table)
+            ->select('id')
+            ->where('project_material_id', $material_id)
+            ->where('deleted', 0)
+            ->limit(1)
+            ->get();
+        if ($allocation && $allocation->getRow()) {
+            return $this->_error('Este material está associado a uma tarefa. Desassocie-o antes de excluir.');
+        }
+
+        $request_query = $db->query(
+            "SELECT link.id
+             FROM $links_table link
+             INNER JOIN $requests_table request ON request.id=link.purchase_request_id
+             WHERE link.project_material_id=? AND link.deleted=0
+               AND request.deleted=0 AND request.status NOT IN ('rejected','cancelled')
+             LIMIT 1",
+            array($material_id)
+        );
+        if ($request_query && $request_query->getRow()) {
+            return $this->_error('Este material possui uma requisição de compra ativa e não pode ser excluído.');
+        }
+
+        $ok = $db->table($materials_table)->where('id', $material_id)->update(array(
+            'deleted' => 1,
+            'updated_at' => get_my_local_time()
+        ));
+
+        return $this->response->setJSON(array(
+            'success' => (bool)$ok,
+            'message' => $ok ? 'Material excluído com sucesso.' : app_lang('error_occurred')
+        ));
+    }
+
     public function allocate()
     {
         $project_id = (int)$this->request->getPost('project_id');
