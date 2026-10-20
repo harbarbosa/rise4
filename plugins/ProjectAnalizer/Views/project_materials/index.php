@@ -53,7 +53,7 @@
     <?php } ?>
     <div class="table-responsive">
         <table class="table table-hover mb0">
-            <thead><tr><th class="w50"><input type="checkbox" id="batch-material-check-all" class="form-check-input" title="Selecionar para associação"></th><th>Material</th><th>Origem</th><th class="text-end">Previsto</th><th class="text-end">Adicional</th><th class="text-end">Total</th><th class="text-end">Disponível p/ tarefas</th><th class="text-center">Solicitar</th><th>Qtd. compra</th><th>Qtd. em lote</th><th>Associar individualmente</th></tr></thead>
+            <thead><tr><th class="w50"><input type="checkbox" id="batch-material-check-all" class="form-check-input" title="Selecionar para associação"></th><th>Material</th><th>Origem</th><th class="text-end">Previsto</th><th class="text-end">Adicional</th><th class="text-end">Total</th><th class="text-end">Disponível p/ tarefas</th><th class="text-center">Solicitar</th><th>Qtd. compra</th><th>Qtd. em lote</th><th>Associar individualmente</th><th class="text-end">Ações</th></tr></thead>
             <tbody>
             <?php foreach ($materials as $material) { $total=(float)$material->planned_quantity+(float)$material->additional_quantity; $available=max(0,$total-(float)$material->allocated_quantity); $request_available=max(0,$total-(float)$material->requested_quantity); ?>
                 <tr>
@@ -78,9 +78,15 @@
                             <button class="btn btn-default" type="submit">Associar</button>
                         </form>
                     </td>
+                    <td class="text-end text-nowrap">
+                        <?php if ($material->source === 'manual') { ?>
+                            <button type="button" class="btn btn-default btn-sm edit-project-material" data-material-id="<?php echo (int)$material->id; ?>" data-quantity="<?php echo number_format((float)$material->additional_quantity,4,'.',''); ?>" title="Editar quantidade"><i data-feather="edit-2" class="icon-16"></i></button>
+                            <button type="button" class="btn btn-danger btn-sm delete-project-material" data-material-id="<?php echo (int)$material->id; ?>" title="Excluir material"><i data-feather="trash-2" class="icon-16"></i></button>
+                        <?php } ?>
+                    </td>
                 </tr>
             <?php } ?>
-            <?php if (!$materials) { ?><tr><td colspan="11" class="text-center p30 text-off">Nenhum material planejado para este projeto.</td></tr><?php } ?>
+            <?php if (!$materials) { ?><tr><td colspan="12" class="text-center p30 text-off">Nenhum material planejado para este projeto.</td></tr><?php } ?>
             </tbody>
         </table>
     </div>
@@ -108,6 +114,8 @@ $(function(){
     function send($form,url,data){var $b=$form.find('button[type=submit]');$b.prop('disabled',true);appAjaxRequest({url:url,type:'POST',dataType:'json',data:data||$form.serialize(),success:function(r){if(r&&r.success){if(r.redirect_to){window.location.href=r.redirect_to;}else{location.reload();}}else{appAlert.error((r&&r.message)||'Erro');$b.prop('disabled',false);}},error:function(){appAlert.error('Erro ao processar.');$b.prop('disabled',false);}});}
     $('#project-material-add-form').on('submit',function(e){e.preventDefault();send($(this),'<?php echo_uri('projectanalizer/project_materials/add'); ?>');});
     $('.project-material-allocation-form').on('submit',function(e){e.preventDefault();send($(this),'<?php echo_uri('projectanalizer/project_materials/allocate'); ?>');});
+    $('.edit-project-material').on('click',function(){var $button=$(this),quantity=prompt('Informe a nova quantidade total do material:', $button.data('quantity'));if(quantity===null)return;quantity=$.trim(quantity);if(!quantity){appAlert.error('Informe uma quantidade válida.');return;}$button.prop('disabled',true);appAjaxRequest({url:'<?php echo_uri('projectanalizer/project_materials/update_material'); ?>',type:'POST',dataType:'json',data:{project_id:'<?php echo (int)$project_id; ?>',project_material_id:$button.data('material-id'),quantity:quantity},success:function(r){if(r&&r.success){appAlert.success(r.message);location.reload();}else{appAlert.error((r&&r.message)||'Erro');$button.prop('disabled',false);}},error:function(xhr){appAlert.error((xhr.responseJSON&&xhr.responseJSON.message)||'Erro ao processar.');$button.prop('disabled',false);}});});
+    $('.delete-project-material').on('click',function(){var $button=$(this);if(!confirm('Deseja excluir este material do projeto?'))return;$button.prop('disabled',true);appAjaxRequest({url:'<?php echo_uri('projectanalizer/project_materials/delete_material'); ?>',type:'POST',dataType:'json',data:{project_id:'<?php echo (int)$project_id; ?>',project_material_id:$button.data('material-id')},success:function(r){if(r&&r.success){appAlert.success(r.message);location.reload();}else{appAlert.error((r&&r.message)||'Erro');$button.prop('disabled',false);}},error:function(xhr){appAlert.error((xhr.responseJSON&&xhr.responseJSON.message)||'Erro ao processar.');$button.prop('disabled',false);}});});
     $('#batch-material-check-all').on('change',function(){$('.batch-material-check:not(:disabled)').prop('checked',this.checked).trigger('change');});
     $('.batch-material-check').on('change',function(){var $q=$(this).closest('tr').find('.batch-material-quantity');$q.prop('disabled',!this.checked);if(this.checked&&!$q.val()){$q.val($q.data('max'));}else if(!this.checked){$q.val('');}});
     $('#project-material-batch-form').on('submit',function(e){e.preventDefault();var $f=$(this),data={project_id:$f.find('[name=project_id]').val(),task_id:$f.find('[name=task_id]').val(),project_material_id:[],quantity:[]};$('.batch-material-check:checked').each(function(){data.project_material_id.push($(this).val());data.quantity.push($(this).closest('tr').find('.batch-material-quantity').val());});send($f,'<?php echo_uri('projectanalizer/project_materials/allocate_batch'); ?>',data);});
