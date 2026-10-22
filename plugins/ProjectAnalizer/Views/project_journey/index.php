@@ -167,6 +167,128 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
     </div>
 </div>
 
+<?php
+$materialStatusLabels = [
+    "planned" => "Planejado", "allocated" => "Associado", "requested" => "Solicitado",
+    "purchased" => "Comprado", "partially_received" => "Recebido parcialmente",
+    "available" => "Disponível", "partially_used" => "Utilizado parcialmente", "used" => "Utilizado"
+];
+$materialMilestones = [];
+$materialTasks = [];
+foreach ($material_flow["rows"] as $flowRow) {
+    $materialMilestones[$flowRow["milestone_id"]] = $flowRow["milestone"];
+    $materialTasks[$flowRow["task_id"]] = $flowRow["task"];
+}
+?>
+<div class="card mt20">
+    <div class="page-title clearfix">
+        <h4>Fluxo de materiais e compras</h4>
+        <div class="title-button-group">
+            <a href="<?php echo get_uri("projectanalizer/project_materials/".$project_id); ?>" class="btn btn-default">
+                <i data-feather="package" class="icon-16"></i> Gerenciar materiais e requisições
+            </a>
+        </div>
+    </div>
+    <div class="card-body pb0">
+        <div class="row text-center">
+            <?php
+            $materialCards = [
+                ["Associado", "allocated", "primary"], ["Solicitado", "requested", "info"],
+                ["Comprado", "purchased", "warning"], ["Recebido", "received", "success"],
+                ["Utilizado", "used", "secondary"], ["A solicitar", "to_request", "danger"]
+            ];
+            foreach ($materialCards as $cardItem):
+            ?>
+                <div class="col-md-2 col-6 mb15">
+                    <div class="p10 border rounded">
+                        <div class="text-muted"><?php echo $cardItem[0]; ?></div>
+                        <strong class="text-<?php echo $cardItem[2]; ?>"><?php echo number_format((float)($material_flow["totals"][$cardItem[1]] ?? 0), 3, ",", "."); ?></strong>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php if (($material_flow["totals"]["critical"] ?? 0) > 0): ?>
+            <div class="alert alert-warning">
+                <i data-feather="alert-triangle" class="icon-16"></i>
+                <?php echo (int)$material_flow["totals"]["critical"]; ?> material(is) estão bloqueando tarefas já liberadas.
+            </div>
+        <?php endif; ?>
+        <div class="row mb15">
+            <div class="col-md-4">
+                <select id="material-milestone-filter" class="form-control">
+                    <option value="">Todas as etapas</option>
+                    <?php foreach ($materialMilestones as $id => $title): ?><option value="<?php echo (int)$id; ?>"><?php echo esc($title); ?></option><?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <select id="material-task-filter" class="form-control">
+                    <option value="">Todas as tarefas</option>
+                    <?php foreach ($materialTasks as $id => $title): ?><option value="<?php echo (int)$id; ?>"><?php echo esc($title); ?></option><?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb0" id="material-flow-table">
+            <thead>
+                <tr>
+                    <th>Etapa / tarefa</th><th>Material</th><th>Associado</th><th>Solicitado</th>
+                    <th>Comprado</th><th>Recebido</th><th>Disponível</th><th>Utilizado</th>
+                    <th>Status</th><th class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php if (!$material_flow["rows"]): ?>
+                <tr><td colspan="10" class="text-center text-muted p20">Nenhum material associado às tarefas.</td></tr>
+            <?php endif; ?>
+            <?php foreach ($material_flow["rows"] as $flowRow): ?>
+                <tr data-milestone-id="<?php echo $flowRow["milestone_id"]; ?>" data-task-id="<?php echo $flowRow["task_id"]; ?>" class="<?php echo $flowRow["critical"] ? "table-warning" : ""; ?>">
+                    <td>
+                        <strong><?php echo esc($flowRow["milestone"]); ?></strong>
+                        <div><small><?php echo esc($flowRow["task"]); ?></small></div>
+                    </td>
+                    <td>
+                        <?php echo esc($flowRow["material"]); ?>
+                        <div><small class="text-muted"><?php echo esc($flowRow["unit"]); ?></small></div>
+                        <?php if ($flowRow["request_codes"]): ?><div><small class="text-muted"><?php echo esc(implode(", ", $flowRow["request_codes"])); ?></small></div><?php endif; ?>
+                    </td>
+                    <td><?php echo number_format($flowRow["allocated"], 3, ",", "."); ?></td>
+                    <td>
+                        <?php echo number_format($flowRow["requested"], 3, ",", "."); ?>
+                        <?php if ($flowRow["to_request"] > 0): ?><div><small class="text-danger">Falta <?php echo number_format($flowRow["to_request"], 3, ",", "."); ?></small></div><?php endif; ?>
+                    </td>
+                    <td>
+                        <?php echo number_format($flowRow["purchased"], 3, ",", "."); ?>
+                        <?php if ($flowRow["pending_purchase"] > 0): ?><div><small class="text-warning">Cotação/OC pendente</small></div><?php endif; ?>
+                    </td>
+                    <td>
+                        <?php echo number_format($flowRow["received"], 3, ",", "."); ?>
+                        <?php if ($flowRow["pending_delivery"] > 0): ?><div><small class="text-warning">Aguardando <?php echo number_format($flowRow["pending_delivery"], 3, ",", "."); ?></small></div><?php endif; ?>
+                    </td>
+                    <td><?php echo number_format($flowRow["available"], 3, ",", "."); ?></td>
+                    <td><?php echo number_format($flowRow["used"], 3, ",", "."); ?></td>
+                    <td>
+                        <span class="badge bg-<?php echo $flowRow["critical"] ? "warning text-dark" : ($flowRow["material_ready"] ? "success" : "secondary"); ?>">
+                            <?php echo esc($materialStatusLabels[$flowRow["status"]] ?? $flowRow["status"]); ?>
+                        </span>
+                        <?php if ($flowRow["critical"]): ?><div><small class="text-danger">Bloqueia execução</small></div><?php endif; ?>
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <button class="btn btn-default btn-sm material-stock"
+                                data-material-id="<?php echo $flowRow["material_id"]; ?>"
+                                data-current="<?php echo $flowRow["stock_quantity"]; ?>">Saldo</button>
+                        <button class="btn btn-primary btn-sm material-use"
+                                data-allocation-id="<?php echo $flowRow["allocation_id"]; ?>"
+                                data-available="<?php echo $flowRow["available"]; ?>"
+                                <?php echo $flowRow["available"] <= 0 || $flowRow["remaining_use"] <= 0 ? "disabled" : ""; ?>>Utilizar</button>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <script>
 $(document).ready(function () {
     $(".select2").select2();
@@ -250,5 +372,52 @@ $(document).ready(function () {
         if (confirm("Deseja revogar a liberação desta tarefa?")) {
             taskAction("<?php echo get_uri('projectanalizer/journey/task_revoke'); ?>", {task_id: $(this).data("task-id")});
         }
+    });
+
+    function materialAction(url, data) {
+        appLoader.show();
+        $.ajax({
+            url: url,
+            type: "POST",
+            dataType: "json",
+            data: $.extend({project_id: <?php echo (int) $project_id; ?>}, data),
+            success: function (result) {
+                appLoader.hide();
+                if (result.success) {
+                    appAlert.success(result.message, {duration: 10000});
+                    location.reload();
+                } else {
+                    appAlert.error(result.message);
+                }
+            },
+            error: function () {
+                appLoader.hide();
+                appAlert.error("Não foi possível atualizar o fluxo de materiais.");
+            }
+        });
+    }
+
+    $("#material-milestone-filter, #material-task-filter").on("change", function () {
+        var milestoneId = $("#material-milestone-filter").val();
+        var taskId = $("#material-task-filter").val();
+        $("#material-flow-table tbody tr[data-task-id]").each(function () {
+            var show = (!milestoneId || String($(this).data("milestone-id")) === String(milestoneId))
+                && (!taskId || String($(this).data("task-id")) === String(taskId));
+            $(this).toggle(show);
+        });
+    });
+
+    $(".material-stock").on("click", function () {
+        var quantity = prompt("Informe a quantidade disponível no estoque do projeto:", $(this).data("current"));
+        if (quantity !== null && quantity !== "") {
+            materialAction("<?php echo get_uri('projectanalizer/journey/material_stock'); ?>", {material_id: $(this).data("material-id"), quantity: quantity});
+        }
+    });
+
+    $(".material-use").on("click", function () {
+        var quantity = prompt("Quantidade utilizada (disponível: " + $(this).data("available") + "):");
+        if (!quantity) return;
+        var notes = prompt("Observação da utilização (opcional):") || "";
+        materialAction("<?php echo get_uri('projectanalizer/journey/material_usage'); ?>", {allocation_id: $(this).data("allocation-id"), quantity: quantity, notes: notes});
     });
 </script>
