@@ -121,7 +121,7 @@ $(document).ready(function () {
 
     function advanceJourney(override, reason) {
         appLoader.show();
-        appAjaxRequest({
+        $.ajax({
             url: "<?php echo get_uri('projectanalizer/journey/advance'); ?>",
             type: "POST",
             dataType: "json",
