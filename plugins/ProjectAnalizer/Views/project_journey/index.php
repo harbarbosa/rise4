@@ -98,6 +98,7 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                     <th>Datas</th>
                     <th>Responsável</th>
                     <th>Peso</th>
+                    <th>Materiais</th>
                     <th>Impedimento</th>
                     <th>Liberação</th>
                     <th class="text-end">Ações</th>
@@ -105,7 +106,7 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
             </thead>
             <tbody>
             <?php if (!$task_readiness): ?>
-                <tr><td colspan="8" class="text-center text-muted p20">Nenhuma tarefa cadastrada.</td></tr>
+                <tr><td colspan="9" class="text-center text-muted p20">Nenhuma tarefa cadastrada.</td></tr>
             <?php endif; ?>
             <?php foreach ($task_readiness as $task): ?>
                 <tr class="<?php echo $task["blocked"] ? "table-warning" : ""; ?>">
@@ -125,6 +126,12 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                         <span class="<?php echo $task["weight_valid"] ? "text-success" : "text-warning"; ?>">
                             <?php echo number_format($task["weight"], 2, ",", "."); ?>%
                         </span>
+                    </td>
+                    <td>
+                        <span class="badge bg-<?php echo $task["material_ready"] ? "success" : "warning text-dark"; ?>">
+                            <?php echo $task["material_ready"] ? "Disponíveis" : "Pendentes"; ?>
+                        </span>
+                        <?php if ($task["material_pending"] > 0): ?><div><small><?php echo number_format($task["material_pending"], 3, ",", "."); ?> pendente</small></div><?php endif; ?>
                     </td>
                     <td>
                         <?php if ($task["blocked"]): ?>
