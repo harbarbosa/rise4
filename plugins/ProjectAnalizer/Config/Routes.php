@@ -54,9 +54,9 @@ $routes->post('projectanalizer/project_materials/allocate', 'Project_materials::
 $routes->post('projectanalizer/project_materials/allocate_batch', 'Project_materials::allocate_batch', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/project_materials/remove_allocation', 'Project_materials::remove_allocation', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/project_materials/create_request', 'Project_materials::create_request', ['namespace' => 'ProjectAnalizer\Controllers']);
-$routes->get('projectanalizer/journey/(:num)', 'Project_journey::index/$1', ['namespace' => 'ProjectAnalizer\\Controllers']);
-$routes->post('projectanalizer/journey/save_manager', 'Project_journey::save_manager', ['namespace' => 'ProjectAnalizer\\Controllers']);
-$routes->post('projectanalizer/journey/advance', 'Project_journey::advance', ['namespace' => 'ProjectAnalizer\\Controllers']);
+$routes->get('projectanalizer/journey/(:num)', 'Project_journey::index/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/journey/save_manager', 'Project_journey::save_manager', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/journey/advance', 'Project_journey::advance', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/ai_generate_plan/(:num)', 'ProjectAnalizer::ai_generate_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/ai_apply_plan/(:num)', 'ProjectAnalizer::ai_apply_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/(:any)', 'ProjectAnalizer::$1', ['namespace' => 'ProjectAnalizer\Controllers']);
