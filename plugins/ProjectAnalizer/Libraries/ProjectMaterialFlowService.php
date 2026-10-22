@@ -204,7 +204,7 @@ class ProjectMaterialFlowService
             $taskSummary[$taskId]["received"] += $received;
             $taskSummary[$taskId]["delivered"] += $delivered;
             $taskSummary[$taskId]["used"] += $used;
-            $taskSummary[$taskId]["pending"] += $toRequest + $pendingPurchase + $pendingDelivery;
+            $taskSummary[$taskId]["pending"] += $toRequest + $pendingPurchase + $pendingReceipt + $remainingDelivery;
             if ($critical) $taskSummary[$taskId]["critical"]++;
             if (!$materialReady) $taskSummary[$taskId]["ready"] = false;
 
