@@ -138,9 +138,16 @@ class ProjectJourneyService
         if ($phase === 4) {
             $materials = $this->countIfTable("pa_project_materials", ["project_id" => $projectId, "deleted" => 0]);
             $allocations = $this->countIfTable("pa_project_task_materials", ["project_id" => $projectId, "deleted" => 0]);
+            $flow = (new ProjectMaterialFlowService())->getFlow($projectId);
+            $critical = (int) ($flow["totals"]["critical"] ?? 0);
+            $toRequest = (float) ($flow["totals"]["to_request"] ?? 0);
+            $pendingDelivery = (float) ($flow["totals"]["pending_delivery"] ?? 0);
             return [
                 $this->check("material_review", "Lista de materiais revisada", true, true, get_uri("projectanalizer/project_materials/".$projectId), $materials." materiais"),
                 $this->check("material_allocation", "Materiais associados às tarefas", $materials === 0 || $allocations > 0, false, get_uri("projectanalizer/project_materials/".$projectId), $allocations." associações"),
+                $this->check("material_critical", "Nenhuma tarefa liberada possui material crítico pendente", $critical === 0, true, get_uri("projectanalizer/journey/".$projectId), $critical." críticos"),
+                $this->check("material_requests", "Quantidades ainda não solicitadas", $toRequest <= 0.0001, false, get_uri("projectanalizer/project_materials/".$projectId), number_format($toRequest, 3, ",", ".")),
+                $this->check("material_delivery", "Quantidades aguardando recebimento", $pendingDelivery <= 0.0001, false, get_uri("purchases_orders"), number_format($pendingDelivery, 3, ",", ".")),
             ];
         }
 
