@@ -173,4 +173,6 @@ $lang['material_quantity_exceeds_available'] = 'The quantity entered for %s exce
 
 $lang["project_materials"] = "Materials";
 
+$lang["project_journey"] = "Project journey";
+
 return $lang;
