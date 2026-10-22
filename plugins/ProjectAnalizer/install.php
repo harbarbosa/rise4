@@ -2,6 +2,7 @@
 
 $db = db_connect('default');
 $dbprefix = $db->getPrefix();
+$journeyTableExisted = $db->tableExists("pa_project_journeys");
 
 $result = array(
     "success" => true,
@@ -69,6 +70,32 @@ $statements = array(
         `purchase_request_id` INT(11) UNSIGNED NOT NULL, `purchase_request_item_id` INT(11) UNSIGNED NOT NULL, `quantity` DECIMAL(16,4) NOT NULL DEFAULT 0,
         `created_by` INT(11) NULL, `created_at` DATETIME NULL, `deleted` TINYINT(1) NOT NULL DEFAULT 0,
         PRIMARY KEY (`id`), KEY `allocation_id` (`allocation_id`), KEY `purchase_request_id` (`purchase_request_id`), KEY `project_task` (`project_id`,`task_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+    "CREATE TABLE IF NOT EXISTS `{$dbprefix}pa_project_journeys` (
+        `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+        `project_id` INT(11) UNSIGNED NOT NULL,
+        `manager_id` INT(11) UNSIGNED NULL,
+        `current_phase` TINYINT(2) UNSIGNED NOT NULL DEFAULT 1,
+        `status` VARCHAR(20) NOT NULL DEFAULT 'active',
+        `legacy_unlocked` TINYINT(1) NOT NULL DEFAULT 0,
+        `created_by` INT(11) UNSIGNED NULL,
+        `created_at` DATETIME NULL,
+        `updated_at` DATETIME NULL,
+        `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+        PRIMARY KEY (`id`), UNIQUE KEY `project_id` (`project_id`), KEY `manager_id` (`manager_id`), KEY `phase_status` (`current_phase`, `status`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+    "CREATE TABLE IF NOT EXISTS `{$dbprefix}pa_project_journey_history` (
+        `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+        `project_id` INT(11) UNSIGNED NOT NULL,
+        `journey_id` INT(11) UNSIGNED NOT NULL,
+        `action` VARCHAR(40) NOT NULL,
+        `phase_from` TINYINT(2) UNSIGNED NULL,
+        `phase_to` TINYINT(2) UNSIGNED NULL,
+        `details` TEXT NULL,
+        `created_by` INT(11) UNSIGNED NULL,
+        `created_at` DATETIME NULL,
+        `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+        PRIMARY KEY (`id`), KEY `project_id` (`project_id`), KEY `journey_id` (`journey_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
 );
 
@@ -79,6 +106,22 @@ foreach ($statements as $statement) {
             $result["errors"][] = json_encode($db->error());
         }
     } catch (\Throwable $e) {
+        $result["success"] = false;
+        $result["errors"][] = $e->getMessage();
+    }
+}
+
+// Na primeira instalação da jornada, projetos já existentes permanecem totalmente liberados.
+if (!$journeyTableExisted) {
+    try {
+        $now = date("Y-m-d H:i:s");
+        $db->query("INSERT INTO `{$dbprefix}pa_project_journeys`
+            (`project_id`, `current_phase`, `status`, `legacy_unlocked`, `created_at`, `updated_at`, `deleted`)
+            SELECT p.id, 7, 'active', 1, ?, ?, 0
+            FROM `{$dbprefix}projects` p
+            LEFT JOIN `{$dbprefix}pa_project_journeys` j ON j.project_id = p.id AND j.deleted = 0
+            WHERE p.deleted = 0 AND j.id IS NULL", array($now, $now));
+    } catch (\\Throwable $e) {
         $result["success"] = false;
         $result["errors"][] = $e->getMessage();
     }
@@ -104,7 +147,7 @@ foreach ($approvalColumns as $column => $definition) {
     }
 }
 
-foreach (array("pa_tools", "pa_task_materials", "pa_task_tools", "pa_project_materials", "pa_project_task_materials", "pa_project_material_request_items") as $table) {
+foreach (array("pa_tools", "pa_task_materials", "pa_task_tools", "pa_project_materials", "pa_project_task_materials", "pa_project_material_request_items", "pa_project_journeys", "pa_project_journey_history") as $table) {
     $full_table = $dbprefix . $table;
     // Query the database directly because tableExists() can keep a cached list
     // populated by a previously executed plugin installer in the same request.
