@@ -163,6 +163,23 @@ class Project_journey extends Security_Controller
         );
     }
 
+    public function material_delivery()
+    {
+        $projectId = (int) $this->request->getPost("project_id");
+        $allocationId = (int) $this->request->getPost("allocation_id");
+        $quantity = $this->_parseQuantity($this->request->getPost("quantity"));
+        $notes = trim((string) $this->request->getPost("notes"));
+        $this->init_project_permission_checker($projectId);
+
+        if (!$this->can_edit_projects($projectId)) {
+            return $this->response->setJSON(["success" => false, "message" => app_lang("error_occurred")]);
+        }
+
+        return $this->response->setJSON(
+            $this->materialFlowService->recordDelivery($projectId, $allocationId, $quantity, $notes, $this->login_user->id)
+        );
+    }
+
     public function material_usage()
     {
         $projectId = (int) $this->request->getPost("project_id");
