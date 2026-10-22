@@ -96,15 +96,32 @@ class ProjectJourneyService
         if ($phase === 3) {
             $tasks = $this->rows("tasks", ["project_id" => $projectId, "deleted" => 0]);
             $complete = count($tasks) > 0;
+            $datesValid = count($tasks) > 0;
+            $weights = [];
             foreach ($tasks as $task) {
-                if (empty($task->milestone_id) || empty($task->start_date) || empty($task->deadline) || empty($task->assigned_to)) {
-                    $complete = false;
+                $validation = $this->validateTask($task, $project);
+                if (!$validation["basic"]) $complete = false;
+                if (!$validation["dates_valid"]) $datesValid = false;
+                $milestoneId = (int) ($task->milestone_id ?? 0);
+                if ($milestoneId) {
+                    $weights[$milestoneId] = ($weights[$milestoneId] ?? 0) + (float) ($task->percentage ?? 0);
+                }
+            }
+
+            $milestones = $this->rows("milestones", ["project_id" => $projectId, "deleted" => 0]);
+            $weightsValid = count($milestones) > 0;
+            foreach ($milestones as $milestone) {
+                if (abs(($weights[(int) $milestone->id] ?? 0) - 100) > 0.01) {
+                    $weightsValid = false;
                     break;
                 }
             }
+
             return [
                 $this->check("tasks", "Projeto possui tarefas", count($tasks) > 0, true, get_uri("projectanalizer/tasks/".$projectId)),
-                $this->check("task_plan", "Todas as tarefas têm etapa, datas e responsável", $complete, true, get_uri("projectanalizer/tasks/".$projectId)),
+                $this->check("task_plan", "Todas as tarefas têm etapa, datas, responsável e peso", $complete, true, get_uri("projectanalizer/tasks/".$projectId)),
+                $this->check("task_dates", "Datas das tarefas são válidas e estão dentro do período do projeto", $datesValid, true, get_uri("projectanalizer/tasks/".$projectId)),
+                $this->check("task_weights", "Pesos das tarefas totalizam 100% em cada etapa", $weightsValid, true, get_uri("projectanalizer/tasks/".$projectId)),
             ];
         }
 
@@ -212,21 +229,178 @@ class ProjectJourneyService
 
     public function getTaskReadiness($projectId)
     {
-        $tasks = $this->rows("tasks", ["project_id" => (int) $projectId, "deleted" => 0]);
+        $projectId = (int) $projectId;
+        $project = $this->db->table("projects")->where(["id" => $projectId, "deleted" => 0])->get()->getRow();
+        $tasks = $this->rows("tasks", ["project_id" => $projectId, "deleted" => 0]);
         $rows = [];
+
         foreach ($tasks as $task) {
             $taskId = (int) $task->id;
+            $validation = $this->validateTask($task, $project);
+            $state = $this->getTaskJourneyState($taskId);
+            $blocked = $state && (int) $state->blocked === 1;
+            $released = $state && (int) $state->released === 1;
+            $readyToRelease = $validation["valid"] && !$blocked;
+            $effectiveReleased = $released && $readyToRelease;
+
             $rows[] = [
                 "id" => $taskId,
                 "title" => $task->title ?? ("Tarefa #".$taskId),
-                "dates" => !empty($task->start_date) && !empty($task->deadline),
-                "assigned" => !empty($task->assigned_to),
+                "milestone" => $validation["milestone"],
+                "dates" => $validation["dates"],
+                "dates_valid" => $validation["dates_valid"],
+                "assigned" => $validation["assigned"],
+                "weight" => (float) ($task->percentage ?? 0),
+                "weight_valid" => $validation["weight"],
                 "materials" => $this->countIfTable("pa_project_task_materials", ["task_id" => $taskId, "deleted" => 0]),
                 "activities" => $this->countIfTable("project_time", ["task_id" => $taskId, "deleted" => 0]),
+                "blocked" => $blocked,
+                "blocker_reason" => $state->blocker_reason ?? "",
+                "released" => $effectiveReleased,
+                "release_notes" => $state->release_notes ?? "",
+                "ready_to_release" => $readyToRelease,
                 "completed" => (string) ($task->status_id ?? "") === "3",
+                "missing" => $validation["missing"],
             ];
         }
         return $rows;
+    }
+
+    public function setTaskBlock($projectId, $taskId, $blocked, $reason, $userId)
+    {
+        $task = $this->getProjectTask($projectId, $taskId);
+        if (!$task) return ["success" => false, "message" => "Tarefa inválida para este projeto."];
+        if ($blocked && !$reason) return ["success" => false, "message" => "Informe o motivo do bloqueio."];
+
+        $data = [
+            "project_id" => (int) $projectId,
+            "task_id" => (int) $taskId,
+            "blocked" => $blocked ? 1 : 0,
+            "blocker_reason" => $blocked ? $reason : null,
+            "blocked_by" => $blocked ? (int) $userId : null,
+            "blocked_at" => $blocked ? date("Y-m-d H:i:s") : null,
+            "updated_at" => date("Y-m-d H:i:s"),
+            "deleted" => 0,
+        ];
+        $saved = $this->upsertTaskJourneyState($taskId, $data, $userId);
+        return ["success" => (bool) $saved, "message" => $blocked ? "Tarefa bloqueada." : "Bloqueio removido."];
+    }
+
+    public function releaseTask($projectId, $taskId, $userId, $override = false, $notes = "")
+    {
+        $task = $this->getProjectTask($projectId, $taskId);
+        if (!$task) return ["success" => false, "message" => "Tarefa inválida para este projeto."];
+
+        $project = $this->db->table("projects")->where(["id" => (int) $projectId, "deleted" => 0])->get()->getRow();
+        $validation = $this->validateTask($task, $project);
+        $state = $this->getTaskJourneyState($taskId);
+        if ($state && (int) $state->blocked === 1 && !$override) {
+            return ["success" => false, "message" => "Remova o bloqueio antes de liberar a tarefa."];
+        }
+        if (!$validation["valid"] && !$override) {
+            return ["success" => false, "message" => "Complete o planejamento da tarefa: ".implode(", ", $validation["missing"])."."];
+        }
+
+        $data = [
+            "project_id" => (int) $projectId,
+            "task_id" => (int) $taskId,
+            "released" => 1,
+            "release_notes" => $notes ?: null,
+            "released_by" => (int) $userId,
+            "released_at" => date("Y-m-d H:i:s"),
+            "updated_at" => date("Y-m-d H:i:s"),
+            "deleted" => 0,
+        ];
+        if ($override) {
+            $data["blocked"] = 0;
+            $data["blocker_reason"] = null;
+        }
+        $saved = $this->upsertTaskJourneyState($taskId, $data, $userId);
+        return ["success" => (bool) $saved, "message" => "Tarefa liberada para as próximas fases."];
+    }
+
+    public function revokeTaskRelease($projectId, $taskId, $userId)
+    {
+        $task = $this->getProjectTask($projectId, $taskId);
+        if (!$task) return ["success" => false, "message" => "Tarefa inválida para este projeto."];
+        $saved = $this->upsertTaskJourneyState($taskId, [
+            "project_id" => (int) $projectId,
+            "task_id" => (int) $taskId,
+            "released" => 0,
+            "release_notes" => null,
+            "released_by" => null,
+            "released_at" => null,
+            "updated_at" => date("Y-m-d H:i:s"),
+            "deleted" => 0,
+        ], $userId);
+        return ["success" => (bool) $saved, "message" => "Liberação da tarefa removida."];
+    }
+
+    private function validateTask($task, $project)
+    {
+        $milestone = !empty($task->milestone_id);
+        $dates = !empty($task->start_date) && !empty($task->deadline);
+        $assigned = !empty($task->assigned_to);
+        $weight = (float) ($task->percentage ?? 0) > 0;
+        $datesValid = $dates;
+
+        $start = $dates ? substr((string) $task->start_date, 0, 10) : "";
+        $end = $dates ? substr((string) $task->deadline, 0, 10) : "";
+        if ($dates && $end < $start) $datesValid = false;
+        if ($dates && $project) {
+            $projectStart = substr((string) ($project->start_date ?? ""), 0, 10);
+            $projectEnd = substr((string) ($project->deadline ?? ""), 0, 10);
+            if ($projectStart && $projectStart !== "0000-00-00" && $start < $projectStart) $datesValid = false;
+            if ($projectEnd && $projectEnd !== "0000-00-00" && $end > $projectEnd) $datesValid = false;
+        }
+
+        $missing = [];
+        if (!$milestone) $missing[] = "etapa";
+        if (!$dates) $missing[] = "datas";
+        elseif (!$datesValid) $missing[] = "datas fora do período";
+        if (!$assigned) $missing[] = "responsável";
+        if (!$weight) $missing[] = "peso";
+
+        return [
+            "milestone" => $milestone,
+            "dates" => $dates,
+            "dates_valid" => $datesValid,
+            "assigned" => $assigned,
+            "weight" => $weight,
+            "basic" => $milestone && $dates && $assigned && $weight,
+            "valid" => $milestone && $dates && $datesValid && $assigned && $weight,
+            "missing" => $missing,
+        ];
+    }
+
+    private function getProjectTask($projectId, $taskId)
+    {
+        if (!$this->db->tableExists("tasks")) return null;
+        $query = $this->db->table("tasks")->where([
+            "id" => (int) $taskId,
+            "project_id" => (int) $projectId,
+            "deleted" => 0,
+        ])->get();
+        return $query ? $query->getRow() : null;
+    }
+
+    private function getTaskJourneyState($taskId)
+    {
+        if (!$this->db->tableExists("pa_task_journey_status")) return null;
+        $query = $this->db->table("pa_task_journey_status")->where(["task_id" => (int) $taskId, "deleted" => 0])->get();
+        return $query ? $query->getRow() : null;
+    }
+
+    private function upsertTaskJourneyState($taskId, $data, $userId)
+    {
+        if (!$this->db->tableExists("pa_task_journey_status")) return false;
+        $existing = $this->getTaskJourneyState($taskId);
+        if ($existing) {
+            return $this->db->table("pa_task_journey_status")->where("id", $existing->id)->update($data);
+        }
+        $data["created_by"] = (int) $userId;
+        $data["created_at"] = date("Y-m-d H:i:s");
+        return $this->db->table("pa_task_journey_status")->insert($data);
     }
 
     private function check($key, $label, $passed, $required = true, $url = "", $detail = "")
