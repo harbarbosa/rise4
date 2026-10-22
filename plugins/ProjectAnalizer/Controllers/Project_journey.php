@@ -93,4 +93,53 @@ class Project_journey extends Security_Controller
         $result = $this->journeyService->advance($projectId, $this->login_user->id, $override, $reason);
         return $this->response->setJSON($result);
     }
+
+    public function task_block()
+    {
+        $projectId = (int) $this->request->getPost("project_id");
+        $taskId = (int) $this->request->getPost("task_id");
+        $blocked = (bool) $this->request->getPost("blocked");
+        $reason = trim((string) $this->request->getPost("reason"));
+        $this->init_project_permission_checker($projectId);
+
+        if (!$this->can_edit_projects($projectId)) {
+            return $this->response->setJSON(["success" => false, "message" => app_lang("error_occurred")]);
+        }
+
+        return $this->response->setJSON(
+            $this->journeyService->setTaskBlock($projectId, $taskId, $blocked, $reason, $this->login_user->id)
+        );
+    }
+
+    public function task_release()
+    {
+        $projectId = (int) $this->request->getPost("project_id");
+        $taskId = (int) $this->request->getPost("task_id");
+        $override = (bool) $this->request->getPost("override");
+        $notes = trim((string) $this->request->getPost("notes"));
+        $this->init_project_permission_checker($projectId);
+
+        if (!$this->can_edit_projects($projectId) || ($override && !$this->login_user->is_admin)) {
+            return $this->response->setJSON(["success" => false, "message" => app_lang("error_occurred")]);
+        }
+
+        return $this->response->setJSON(
+            $this->journeyService->releaseTask($projectId, $taskId, $this->login_user->id, $override, $notes)
+        );
+    }
+
+    public function task_revoke()
+    {
+        $projectId = (int) $this->request->getPost("project_id");
+        $taskId = (int) $this->request->getPost("task_id");
+        $this->init_project_permission_checker($projectId);
+
+        if (!$this->can_edit_projects($projectId)) {
+            return $this->response->setJSON(["success" => false, "message" => app_lang("error_occurred")]);
+        }
+
+        return $this->response->setJSON(
+            $this->journeyService->revokeTaskRelease($projectId, $taskId, $this->login_user->id)
+        );
+    }
 }
