@@ -65,6 +65,18 @@ class ProjectMaterialFlowService
             }
         }
 
+        $deliveryByAllocation = [];
+        $deliveryByMaterial = [];
+        if ($this->db->tableExists("pa_project_material_deliveries")) {
+            foreach ($this->rows("pa_project_material_deliveries", ["project_id" => $projectId, "deleted" => 0]) as $delivery) {
+                $allocationId = (int) $delivery->allocation_id;
+                $materialId = (int) $delivery->project_material_id;
+                $quantity = (float) $delivery->quantity;
+                $deliveryByAllocation[$allocationId] = ($deliveryByAllocation[$allocationId] ?? 0) + $quantity;
+                $deliveryByMaterial[$materialId] = ($deliveryByMaterial[$materialId] ?? 0) + $quantity;
+            }
+        }
+
         $linksByAllocation = [];
         foreach ($links as $link) {
             $request = $requestMap[(int) $link->purchase_request_id] ?? null;
@@ -124,24 +136,27 @@ class ProjectMaterialFlowService
                 }
             }
 
+            $delivered = (float) ($deliveryByAllocation[$allocationId] ?? 0);
             $used = (float) ($usageByAllocation[$allocationId] ?? 0);
             $manualStock = (float) ($material->stock_quantity ?? 0);
             $materialReceived = (float) ($receivedByMaterial[$materialId] ?? 0);
-            $materialUsed = (float) ($usageByMaterial[$materialId] ?? 0);
-            $globalAvailable = max(0, $manualStock + $materialReceived - $materialUsed);
-            $remainingUse = max(0, $allocated - $used);
-            $availableForTask = min($remainingUse, $globalAvailable);
+            $materialDelivered = (float) ($deliveryByMaterial[$materialId] ?? 0);
+            $projectAvailable = max(0, $manualStock + $materialReceived - $materialDelivered);
+            $remainingDelivery = max(0, $allocated - $delivered);
+            $remainingUse = max(0, $delivered - $used);
+            $availableForTask = $remainingUse;
             $toRequest = max(0, $allocated - $requested);
             $pendingPurchase = max(0, $requested - $purchased);
-            $pendingDelivery = max(0, $purchased - $received);
-            $materialReady = $remainingUse <= 0.0001 || $availableForTask + 0.0001 >= $remainingUse;
+            $pendingReceipt = max(0, $purchased - $received);
+            $materialReady = $allocated <= 0.0001 || $delivered + 0.0001 >= $allocated;
             $taskState = $this->getTaskState($taskId);
             $taskReleased = $taskState && (int) $taskState->released === 1 && (int) $taskState->blocked === 0;
             $critical = $taskReleased && !$materialReady;
 
             $status = "planned";
-            if ($used > 0) $status = $remainingUse <= 0.0001 ? "used" : "partially_used";
-            elseif ($received > 0 || $globalAvailable > 0) $status = $materialReady ? "available" : "partially_received";
+            if ($used > 0) $status = $used + 0.0001 >= $allocated ? "used" : "partially_used";
+            elseif ($delivered > 0) $status = $materialReady ? "delivered" : "partially_delivered";
+            elseif ($received > 0 || $projectAvailable > 0) $status = "received";
             elseif ($purchased > 0) $status = "purchased";
             elseif ($requested > 0) $status = "requested";
             elseif ($allocated > 0) $status = "allocated";
@@ -161,11 +176,14 @@ class ProjectMaterialFlowService
                 "requested" => $requested,
                 "purchased" => $purchased,
                 "received" => $received,
+                "delivered" => $delivered,
                 "used" => $used,
+                "project_available" => $projectAvailable,
                 "available" => $availableForTask,
                 "to_request" => $toRequest,
                 "pending_purchase" => $pendingPurchase,
-                "pending_delivery" => $pendingDelivery,
+                "pending_delivery" => $pendingReceipt,
+                "remaining_delivery" => $remainingDelivery,
                 "remaining_use" => $remainingUse,
                 "status" => $status,
                 "critical" => $critical,
@@ -177,19 +195,20 @@ class ProjectMaterialFlowService
             if (!isset($taskSummary[$taskId])) {
                 $taskSummary[$taskId] = [
                     "task_id" => $taskId, "task" => $task->title, "milestone" => $row["milestone"],
-                    "allocated" => 0, "requested" => 0, "received" => 0, "used" => 0,
+                    "allocated" => 0, "requested" => 0, "received" => 0, "delivered" => 0, "used" => 0,
                     "pending" => 0, "critical" => 0, "ready" => true,
                 ];
             }
             $taskSummary[$taskId]["allocated"] += $allocated;
             $taskSummary[$taskId]["requested"] += $requested;
             $taskSummary[$taskId]["received"] += $received;
+            $taskSummary[$taskId]["delivered"] += $delivered;
             $taskSummary[$taskId]["used"] += $used;
             $taskSummary[$taskId]["pending"] += $toRequest + $pendingPurchase + $pendingDelivery;
             if ($critical) $taskSummary[$taskId]["critical"]++;
             if (!$materialReady) $taskSummary[$taskId]["ready"] = false;
 
-            foreach (["allocated", "requested", "purchased", "received", "used", "to_request", "pending_delivery"] as $key) {
+            foreach (["allocated", "requested", "purchased", "received", "delivered", "used", "to_request", "pending_delivery"] as $key) {
                 $totals[$key] += $row[$key];
             }
             if ($critical) $totals["critical"]++;
@@ -216,6 +235,48 @@ class ProjectMaterialFlowService
             "updated_at" => date("Y-m-d H:i:s"),
         ]);
         return ["success" => (bool) $ok, "message" => "Saldo disponível atualizado."];
+    }
+
+    public function recordDelivery($projectId, $allocationId, $quantity, $notes, $userId)
+    {
+        $quantity = round((float) $quantity, 4);
+        if ($quantity <= 0) return ["success" => false, "message" => "Informe uma quantidade entregue maior que zero."];
+        if (!$this->db->tableExists("pa_project_material_deliveries")) {
+            return ["success" => false, "message" => "Atualize o plugin para habilitar entregas às tarefas."];
+        }
+
+        $allocationQuery = $this->db->table("pa_project_task_materials")->where([
+            "id" => (int) $allocationId, "project_id" => (int) $projectId, "deleted" => 0,
+        ])->get();
+        $allocation = $allocationQuery ? $allocationQuery->getRow() : null;
+        if (!$allocation) return ["success" => false, "message" => "Associação de material inválida."];
+
+        $flow = $this->getFlow($projectId);
+        $row = null;
+        foreach ($flow["rows"] as $candidate) {
+            if ((int) $candidate["allocation_id"] === (int) $allocationId) { $row = $candidate; break; }
+        }
+        if (!$row) return ["success" => false, "message" => "Não foi possível calcular o saldo do material."];
+        if ($quantity > $row["remaining_delivery"] + 0.0001) {
+            return ["success" => false, "message" => "A entrega excede a quantidade associada à tarefa."];
+        }
+        if ($quantity > $row["project_available"] + 0.0001) {
+            return ["success" => false, "message" => "A entrega excede o saldo físico disponível no projeto."];
+        }
+
+        $ok = $this->db->table("pa_project_material_deliveries")->insert([
+            "project_id" => (int) $projectId,
+            "task_id" => (int) $allocation->task_id,
+            "project_material_id" => (int) $allocation->project_material_id,
+            "allocation_id" => (int) $allocationId,
+            "quantity" => $quantity,
+            "notes" => $notes ?: null,
+            "delivered_by" => (int) $userId,
+            "delivered_at" => date("Y-m-d H:i:s"),
+            "created_at" => date("Y-m-d H:i:s"),
+            "deleted" => 0,
+        ]);
+        return ["success" => (bool) $ok, "message" => "Material entregue à tarefa."];
     }
 
     public function recordUsage($projectId, $allocationId, $quantity, $notes, $userId)
@@ -329,6 +390,6 @@ class ProjectMaterialFlowService
 
     private function emptyTotals()
     {
-        return ["allocated" => 0, "requested" => 0, "purchased" => 0, "received" => 0, "used" => 0, "to_request" => 0, "pending_delivery" => 0, "critical" => 0];
+        return ["allocated" => 0, "requested" => 0, "purchased" => 0, "received" => 0, "delivered" => 0, "used" => 0, "to_request" => 0, "pending_delivery" => 0, "critical" => 0];
     }
 }
