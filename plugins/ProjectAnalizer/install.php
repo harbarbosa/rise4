@@ -136,6 +136,24 @@ $statements = array(
         KEY `task_id` (`task_id`),
         KEY `project_material_id` (`project_material_id`),
         KEY `allocation_id` (`allocation_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+    "CREATE TABLE IF NOT EXISTS `{$dbprefix}pa_project_material_deliveries` (
+        `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+        `project_id` INT(11) UNSIGNED NOT NULL,
+        `task_id` INT(11) UNSIGNED NOT NULL,
+        `project_material_id` INT(11) UNSIGNED NOT NULL,
+        `allocation_id` INT(11) UNSIGNED NOT NULL,
+        `quantity` DECIMAL(16,4) NOT NULL DEFAULT 0,
+        `notes` TEXT NULL,
+        `delivered_by` INT(11) UNSIGNED NULL,
+        `delivered_at` DATETIME NULL,
+        `created_at` DATETIME NULL,
+        `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+        PRIMARY KEY (`id`),
+        KEY `project_id` (`project_id`),
+        KEY `task_id` (`task_id`),
+        KEY `project_material_id` (`project_material_id`),
+        KEY `allocation_id` (`allocation_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
 
 );
@@ -199,7 +217,7 @@ foreach ($approvalColumns as $column => $definition) {
     }
 }
 
-foreach (array("pa_tools", "pa_task_materials", "pa_task_tools", "pa_project_materials", "pa_project_task_materials", "pa_project_material_request_items", "pa_project_journeys", "pa_project_journey_history", "pa_task_journey_status", "pa_project_material_usage") as $table) {
+foreach (array("pa_tools", "pa_task_materials", "pa_task_tools", "pa_project_materials", "pa_project_task_materials", "pa_project_material_request_items", "pa_project_journeys", "pa_project_journey_history", "pa_task_journey_status", "pa_project_material_usage", "pa_project_material_deliveries") as $table) {
     $full_table = $dbprefix . $table;
     // Query the database directly because tableExists() can keep a cached list
     // populated by a previously executed plugin installer in the same request.
