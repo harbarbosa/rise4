@@ -1248,7 +1248,6 @@ class Purchase_quotations extends Security_Controller
                     $order_item_data = array(
                         'company_id' => $this->_get_company_id(),
                         'order_id' => $order_id,
-                        'request_item_id' => $row['item']->request_item_id,
                         'item_id' => $row['item']->item_id,
                         'description' => $row['item']->request_description,
                         'unit' => $row['item']->request_unit,
@@ -1258,6 +1257,10 @@ class Purchase_quotations extends Security_Controller
                         'created_at' => get_my_local_time(),
                         'created_by' => $this->login_user->id
                     );
+                    $db_for_order_item = db_connect('default');
+                    if ($db_for_order_item->fieldExists('request_item_id', $db_for_order_item->prefixTable('purchases_order_items'))) {
+                        $order_item_data['request_item_id'] = $row['item']->request_item_id;
+                    }
                     $save_item_ok = $this->Purchases_order_items_model->ci_save($order_item_data, 0);
                     if (!$save_item_ok) {
                         $db = db_connect('default');
