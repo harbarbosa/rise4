@@ -117,11 +117,21 @@ class ProjectJourneyService
                 }
             }
 
+            $releasedCount = 0;
+            foreach ($tasks as $task) {
+                $state = $this->getTaskJourneyState((int) $task->id);
+                $validation = $this->validateTask($task, $project);
+                if ($state && (int) $state->released === 1 && (int) $state->blocked === 0 && $validation["valid"]) {
+                    $releasedCount++;
+                }
+            }
+
             return [
                 $this->check("tasks", "Projeto possui tarefas", count($tasks) > 0, true, get_uri("projectanalizer/tasks/".$projectId)),
-                $this->check("task_plan", "Todas as tarefas têm etapa, datas, responsável e peso", $complete, true, get_uri("projectanalizer/tasks/".$projectId)),
-                $this->check("task_dates", "Datas das tarefas são válidas e estão dentro do período do projeto", $datesValid, true, get_uri("projectanalizer/tasks/".$projectId)),
-                $this->check("task_weights", "Pesos das tarefas totalizam 100% em cada etapa", $weightsValid, true, get_uri("projectanalizer/tasks/".$projectId)),
+                $this->check("task_release", "Ao menos uma tarefa está planejada e liberada", $releasedCount > 0, true, get_uri("projectanalizer/journey/".$projectId), $releasedCount." liberadas"),
+                $this->check("task_plan", "Todas as tarefas têm etapa, datas, responsável e peso", $complete, false, get_uri("projectanalizer/tasks/".$projectId)),
+                $this->check("task_dates", "Datas das tarefas são válidas e estão dentro do período do projeto", $datesValid, false, get_uri("projectanalizer/tasks/".$projectId)),
+                $this->check("task_weights", "Pesos das tarefas totalizam 100% em cada etapa", $weightsValid, false, get_uri("projectanalizer/tasks/".$projectId)),
             ];
         }
 
