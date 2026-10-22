@@ -1248,6 +1248,7 @@ class Purchase_quotations extends Security_Controller
                     $order_item_data = array(
                         'company_id' => $this->_get_company_id(),
                         'order_id' => $order_id,
+                        'request_item_id' => $row['item']->request_item_id,
                         'item_id' => $row['item']->item_id,
                         'description' => $row['item']->request_description,
                         'unit' => $row['item']->request_unit,
