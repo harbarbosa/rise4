@@ -57,6 +57,9 @@ $routes->post('projectanalizer/project_materials/create_request', 'Project_mater
 $routes->get('projectanalizer/journey/(:num)', 'Project_journey::index/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/journey/save_manager', 'Project_journey::save_manager', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/journey/advance', 'Project_journey::advance', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/journey/task_block', 'Project_journey::task_block', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/journey/task_release', 'Project_journey::task_release', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/journey/task_revoke', 'Project_journey::task_revoke', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/ai_generate_plan/(:num)', 'ProjectAnalizer::ai_generate_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/ai_apply_plan/(:num)', 'ProjectAnalizer::ai_apply_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->get('projectanalizer/(:any)', 'ProjectAnalizer::$1', ['namespace' => 'ProjectAnalizer\Controllers']);
