@@ -25,7 +25,7 @@ class Project_journey extends Security_Controller
         }
 
         $this->init_project_permission_checker($projectId);
-        if (!$this->can_view_projects()) {
+        if (!$this->can_manage_all_projects() && !$this->is_user_a_project_member) {
             app_redirect("forbidden");
         }
 
@@ -61,7 +61,7 @@ class Project_journey extends Security_Controller
         $managerId = (int) $this->request->getPost("manager_id");
         $this->init_project_permission_checker($projectId);
 
-        if (!$this->can_edit_projects()) {
+        if (!$this->can_edit_projects($projectId)) {
             return $this->response->setJSON(["success" => false, "message" => app_lang("error_occurred")]);
         }
 
@@ -86,7 +86,7 @@ class Project_journey extends Security_Controller
         $reason = trim((string) $this->request->getPost("reason"));
         $this->init_project_permission_checker($projectId);
 
-        if (!$this->can_edit_projects() || ($override && !$this->login_user->is_admin)) {
+        if (!$this->can_edit_projects($projectId) || ($override && !$this->login_user->is_admin)) {
             return $this->response->setJSON(["success" => false, "message" => app_lang("error_occurred")]);
         }
 
