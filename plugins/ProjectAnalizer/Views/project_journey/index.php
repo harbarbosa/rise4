@@ -177,7 +177,8 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
 <?php
 $materialStatusLabels = [
     "planned" => "Planejado", "allocated" => "Associado", "requested" => "Solicitado",
-    "purchased" => "Comprado", "partially_received" => "Recebido parcialmente",
+    "purchased" => "Comprado", "partially_received" => "Recebido parcialmente", "received" => "Recebido",
+    "partially_delivered" => "Entregue parcialmente", "delivered" => "Entregue à tarefa",
     "available" => "Disponível", "partially_used" => "Utilizado parcialmente", "used" => "Utilizado"
 ];
 $materialMilestones = [];
@@ -202,7 +203,7 @@ foreach ($material_flow["rows"] as $flowRow) {
             $materialCards = [
                 ["Associado", "allocated", "primary"], ["Solicitado", "requested", "info"],
                 ["Comprado", "purchased", "warning"], ["Recebido", "received", "success"],
-                ["Utilizado", "used", "secondary"], ["A solicitar", "to_request", "danger"]
+                ["Entregue", "delivered", "primary"], ["Utilizado", "used", "secondary"], ["A solicitar", "to_request", "danger"]
             ];
             foreach ($materialCards as $cardItem):
             ?>
@@ -240,13 +241,13 @@ foreach ($material_flow["rows"] as $flowRow) {
             <thead>
                 <tr>
                     <th>Etapa / tarefa</th><th>Material</th><th>Associado</th><th>Solicitado</th>
-                    <th>Comprado</th><th>Recebido</th><th>Disponível</th><th>Utilizado</th>
+                    <th>Comprado</th><th>Recebido</th><th>Entregue</th><th>Na tarefa</th><th>Utilizado</th>
                     <th>Status</th><th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody>
             <?php if (!$material_flow["rows"]): ?>
-                <tr><td colspan="10" class="text-center text-muted p20">Nenhum material associado às tarefas.</td></tr>
+                <tr><td colspan="11" class="text-center text-muted p20">Nenhum material associado às tarefas.</td></tr>
             <?php endif; ?>
             <?php foreach ($material_flow["rows"] as $flowRow): ?>
                 <tr data-milestone-id="<?php echo $flowRow["milestone_id"]; ?>" data-task-id="<?php echo $flowRow["task_id"]; ?>" class="<?php echo $flowRow["critical"] ? "table-warning" : ""; ?>">
@@ -272,6 +273,10 @@ foreach ($material_flow["rows"] as $flowRow) {
                         <?php echo number_format($flowRow["received"], 3, ",", "."); ?>
                         <?php if ($flowRow["pending_delivery"] > 0): ?><div><small class="text-warning">Aguardando <?php echo number_format($flowRow["pending_delivery"], 3, ",", "."); ?></small></div><?php endif; ?>
                     </td>
+                    <td>
+                        <?php echo number_format($flowRow["delivered"], 3, ",", "."); ?>
+                        <?php if ($flowRow["remaining_delivery"] > 0): ?><div><small class="text-muted">Falta entregar <?php echo number_format($flowRow["remaining_delivery"], 3, ",", "."); ?></small></div><?php endif; ?>
+                    </td>
                     <td><?php echo number_format($flowRow["available"], 3, ",", "."); ?></td>
                     <td><?php echo number_format($flowRow["used"], 3, ",", "."); ?></td>
                     <td>
@@ -284,6 +289,10 @@ foreach ($material_flow["rows"] as $flowRow) {
                         <button class="btn btn-default btn-sm material-stock"
                                 data-material-id="<?php echo $flowRow["material_id"]; ?>"
                                 data-current="<?php echo $flowRow["stock_quantity"]; ?>">Saldo</button>
+                        <button class="btn btn-info btn-sm material-deliver"
+                                data-allocation-id="<?php echo $flowRow["allocation_id"]; ?>"
+                                data-available="<?php echo $flowRow["project_available"]; ?>"
+                                <?php echo $flowRow["project_available"] <= 0 || $flowRow["remaining_delivery"] <= 0 ? "disabled" : ""; ?>>Entregar</button>
                         <button class="btn btn-primary btn-sm material-use"
                                 data-allocation-id="<?php echo $flowRow["allocation_id"]; ?>"
                                 data-available="<?php echo $flowRow["available"]; ?>"
@@ -419,6 +428,13 @@ $(document).ready(function () {
         if (quantity !== null && quantity !== "") {
             materialAction("<?php echo get_uri('projectanalizer/journey/material_stock'); ?>", {material_id: $(this).data("material-id"), quantity: quantity});
         }
+    });
+
+    $(".material-deliver").on("click", function () {
+        var quantity = prompt("Quantidade entregue à tarefa (disponível no projeto: " + $(this).data("available") + "):");
+        if (!quantity) return;
+        var notes = prompt("Observação da entrega (opcional):") || "";
+        materialAction("<?php echo get_uri('projectanalizer/journey/material_delivery'); ?>", {allocation_id: $(this).data("allocation-id"), quantity: quantity, notes: notes});
     });
 
     $(".material-use").on("click", function () {
