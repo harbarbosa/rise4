@@ -216,4 +216,6 @@ $lang["material_quantity_exceeds_available"] = "A quantidade informada para %s e
 
 $lang["project_materials"] = "Materiais";
 
+$lang["project_journey"] = "Jornada do projeto";
+
 return $lang;
