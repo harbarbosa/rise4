@@ -56,7 +56,7 @@ $statements = array(
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
     "CREATE TABLE IF NOT EXISTS `{$dbprefix}pa_project_materials` (
         `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT, `project_id` INT(11) UNSIGNED NOT NULL, `proposal_id` INT(11) UNSIGNED NULL, `proposal_item_id` INT(11) UNSIGNED NULL, `item_id` INT(11) UNSIGNED NULL,
-        `description` VARCHAR(500) NOT NULL, `unit` VARCHAR(50) NOT NULL DEFAULT 'UN', `planned_quantity` DECIMAL(16,4) NOT NULL DEFAULT 0, `additional_quantity` DECIMAL(16,4) NOT NULL DEFAULT 0,
+        `description` VARCHAR(500) NOT NULL, `unit` VARCHAR(50) NOT NULL DEFAULT 'UN', `planned_quantity` DECIMAL(16,4) NOT NULL DEFAULT 0, `additional_quantity` DECIMAL(16,4) NOT NULL DEFAULT 0, `stock_quantity` DECIMAL(16,4) NOT NULL DEFAULT 0,
         `source` VARCHAR(20) NOT NULL DEFAULT 'proposal', `source_key` VARCHAR(255) NOT NULL, `created_by` INT(11) NULL, `created_at` DATETIME NULL, `updated_at` DATETIME NULL, `deleted` TINYINT(1) NOT NULL DEFAULT 0,
         PRIMARY KEY (`id`), UNIQUE KEY `project_source` (`project_id`,`source_key`), KEY `project_id` (`project_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
@@ -118,6 +118,24 @@ $statements = array(
         KEY `project_id` (`project_id`),
         KEY `project_released` (`project_id`, `released`),
         KEY `project_blocked` (`project_id`, `blocked`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+    "CREATE TABLE IF NOT EXISTS `{$dbprefix}pa_project_material_usage` (
+        `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+        `project_id` INT(11) UNSIGNED NOT NULL,
+        `task_id` INT(11) UNSIGNED NOT NULL,
+        `project_material_id` INT(11) UNSIGNED NOT NULL,
+        `allocation_id` INT(11) UNSIGNED NOT NULL,
+        `quantity` DECIMAL(16,4) NOT NULL DEFAULT 0,
+        `notes` TEXT NULL,
+        `used_by` INT(11) UNSIGNED NULL,
+        `used_at` DATETIME NULL,
+        `created_at` DATETIME NULL,
+        `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+        PRIMARY KEY (`id`),
+        KEY `project_id` (`project_id`),
+        KEY `task_id` (`task_id`),
+        KEY `project_material_id` (`project_material_id`),
+        KEY `allocation_id` (`allocation_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
 
 );
@@ -150,6 +168,17 @@ if (!$journeyTableExisted) {
     }
 }
 
+// Saldo físico informado para materiais já disponíveis no projeto.
+try {
+    $projectMaterialsTable = $dbprefix . "pa_project_materials";
+    if (!$db->fieldExists("stock_quantity", $projectMaterialsTable)) {
+        $db->query("ALTER TABLE `{$projectMaterialsTable}` ADD `stock_quantity` DECIMAL(16,4) NOT NULL DEFAULT 0 AFTER `additional_quantity`");
+    }
+} catch (\Throwable $e) {
+    $result["success"] = false;
+    $result["errors"][] = $e->getMessage();
+}
+
 // Campos de aprovação dos lançamentos de atividade (timesheets).
 $projectTimeTable = $dbprefix . "project_time";
 $approvalColumns = array(
@@ -170,7 +199,7 @@ foreach ($approvalColumns as $column => $definition) {
     }
 }
 
-foreach (array("pa_tools", "pa_task_materials", "pa_task_tools", "pa_project_materials", "pa_project_task_materials", "pa_project_material_request_items", "pa_project_journeys", "pa_project_journey_history", "pa_task_journey_status") as $table) {
+foreach (array("pa_tools", "pa_task_materials", "pa_task_tools", "pa_project_materials", "pa_project_task_materials", "pa_project_material_request_items", "pa_project_journeys", "pa_project_journey_history", "pa_task_journey_status", "pa_project_material_usage") as $table) {
     $full_table = $dbprefix . $table;
     // Query the database directly because tableExists() can keep a cached list
     // populated by a previously executed plugin installer in the same request.
