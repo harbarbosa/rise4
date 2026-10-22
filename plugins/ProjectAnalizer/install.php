@@ -96,7 +96,30 @@ $statements = array(
         `created_at` DATETIME NULL,
         `deleted` TINYINT(1) NOT NULL DEFAULT 0,
         PRIMARY KEY (`id`), KEY `project_id` (`project_id`), KEY `journey_id` (`journey_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+    "CREATE TABLE IF NOT EXISTS `{$dbprefix}pa_task_journey_status` (
+        `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+        `project_id` INT(11) UNSIGNED NOT NULL,
+        `task_id` INT(11) UNSIGNED NOT NULL,
+        `blocked` TINYINT(1) NOT NULL DEFAULT 0,
+        `blocker_reason` TEXT NULL,
+        `blocked_by` INT(11) UNSIGNED NULL,
+        `blocked_at` DATETIME NULL,
+        `released` TINYINT(1) NOT NULL DEFAULT 0,
+        `release_notes` TEXT NULL,
+        `released_by` INT(11) UNSIGNED NULL,
+        `released_at` DATETIME NULL,
+        `created_by` INT(11) UNSIGNED NULL,
+        `created_at` DATETIME NULL,
+        `updated_at` DATETIME NULL,
+        `deleted` TINYINT(1) NOT NULL DEFAULT 0,
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `task_id` (`task_id`),
+        KEY `project_id` (`project_id`),
+        KEY `project_released` (`project_id`, `released`),
+        KEY `project_blocked` (`project_id`, `blocked`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+
 );
 
 foreach ($statements as $statement) {
@@ -147,7 +170,7 @@ foreach ($approvalColumns as $column => $definition) {
     }
 }
 
-foreach (array("pa_tools", "pa_task_materials", "pa_task_tools", "pa_project_materials", "pa_project_task_materials", "pa_project_material_request_items", "pa_project_journeys", "pa_project_journey_history") as $table) {
+foreach (array("pa_tools", "pa_task_materials", "pa_task_tools", "pa_project_materials", "pa_project_task_materials", "pa_project_material_request_items", "pa_project_journeys", "pa_project_journey_history", "pa_task_journey_status") as $table) {
     $full_table = $dbprefix . $table;
     // Query the database directly because tableExists() can keep a cached list
     // populated by a previously executed plugin installer in the same request.
