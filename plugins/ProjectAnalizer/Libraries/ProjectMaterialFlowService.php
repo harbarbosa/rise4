@@ -156,6 +156,7 @@ class ProjectMaterialFlowService
                 "task" => $task->title,
                 "milestone_id" => (int) ($task->milestone_id ?? 0),
                 "milestone" => $milestone->title ?? "Sem etapa",
+                "stock_quantity" => $manualStock,
                 "allocated" => $allocated,
                 "requested" => $requested,
                 "purchased" => $purchased,
