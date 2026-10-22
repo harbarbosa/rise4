@@ -133,6 +133,18 @@ try {
         }
     }
 
+    $order_items_table = $db->prefixTable('purchases_order_items');
+    $order_item_fields = $db->getFieldNames($order_items_table);
+    if (is_array($order_item_fields) && !in_array('request_item_id', $order_item_fields)) {
+        $statement = "ALTER TABLE `{$order_items_table}` ADD `request_item_id` INT(11) NULL AFTER `order_id`, ADD INDEX `request_item_id` (`request_item_id`)";
+        $ok = $db->query($statement);
+        $result["executed"][] = $statement;
+        if (!$ok) {
+            $result["success"] = false;
+            $result["errors"][] = "Failed: " . $statement;
+        }
+    }
+
     $quote_prices_table = $db->prefixTable('purchases_quotation_item_prices');
     $quote_fields = $db->getFieldNames($quote_prices_table);
     if (is_array($quote_fields)) {
