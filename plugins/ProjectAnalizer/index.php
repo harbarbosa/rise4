@@ -229,7 +229,7 @@ app_hooks()->add_filter('app_filter_team_members_project_details_tab', function 
     $project_tabs_of_hook_of_staff["project_items"] = "projectanalizer/projectitens/".$project_id;
 
     try {
-        $journey_service = new \\ProjectAnalizer\\Libraries\\ProjectJourneyService();
+        $journey_service = new \ProjectAnalizer\Libraries\ProjectJourneyService();
         $journey = $journey_service->getJourney((int) $project_id);
         $allowed_tabs = $journey_service->getAllowedTabs((int) $journey->current_phase);
         $controlled_tabs = array("tasks", "tasks_kanban", "etapas", "evolucao_ff", "revenues_expenses_section", "evolution_project", "execution_schedule", "teamactivities", "materials", "project_items");
@@ -238,7 +238,7 @@ app_hooks()->add_filter('app_filter_team_members_project_details_tab', function 
                 unset($project_tabs_of_hook_of_staff[$controlled_tab]);
             }
         }
-    } catch (\\Throwable $e) {
+    } catch (\Throwable $e) {
         log_message("error", "[ProjectAnalizer Journey] ".$e->getMessage());
     }
 
