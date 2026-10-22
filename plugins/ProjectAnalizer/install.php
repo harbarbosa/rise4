@@ -121,7 +121,7 @@ if (!$journeyTableExisted) {
             FROM `{$dbprefix}projects` p
             LEFT JOIN `{$dbprefix}pa_project_journeys` j ON j.project_id = p.id AND j.deleted = 0
             WHERE p.deleted = 0 AND j.id IS NULL", array($now, $now));
-    } catch (\\Throwable $e) {
+    } catch (\Throwable $e) {
         $result["success"] = false;
         $result["errors"][] = $e->getMessage();
     }
