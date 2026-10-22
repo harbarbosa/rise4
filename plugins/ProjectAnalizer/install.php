@@ -197,6 +197,17 @@ try {
     $result["errors"][] = $e->getMessage();
 }
 
+// Mantém o vínculo entre o item requisitado, a ordem de compra e o recebimento.
+try {
+    $purchaseOrderItemsTable = $dbprefix . "purchases_order_items";
+    if ($db->tableExists($purchaseOrderItemsTable) && !$db->fieldExists("request_item_id", $purchaseOrderItemsTable)) {
+        $db->query("ALTER TABLE `{$purchaseOrderItemsTable}` ADD `request_item_id` INT(11) NULL AFTER `order_id`, ADD INDEX `request_item_id` (`request_item_id`)");
+    }
+} catch (\Throwable $e) {
+    $result["success"] = false;
+    $result["errors"][] = $e->getMessage();
+}
+
 // Campos de aprovação dos lançamentos de atividade (timesheets).
 $projectTimeTable = $dbprefix . "project_time";
 $approvalColumns = array(
