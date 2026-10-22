@@ -250,6 +250,11 @@ class ProjectJourneyService
         $project = $this->db->table("projects")->where(["id" => $projectId, "deleted" => 0])->get()->getRow();
         $tasks = $this->rows("tasks", ["project_id" => $projectId, "deleted" => 0]);
         $rows = [];
+        $materialFlow = (new ProjectMaterialFlowService())->getFlow($projectId);
+        $materialByTask = [];
+        foreach ($materialFlow["tasks"] as $materialTask) {
+            $materialByTask[(int) $materialTask["task_id"]] = $materialTask;
+        }
 
         foreach ($tasks as $task) {
             $taskId = (int) $task->id;
@@ -270,6 +275,9 @@ class ProjectJourneyService
                 "weight" => (float) ($task->percentage ?? 0),
                 "weight_valid" => $validation["weight"],
                 "materials" => $this->countIfTable("pa_project_task_materials", ["task_id" => $taskId, "deleted" => 0]),
+                "material_ready" => !isset($materialByTask[$taskId]) || (bool) $materialByTask[$taskId]["ready"],
+                "material_critical" => isset($materialByTask[$taskId]) ? (int) $materialByTask[$taskId]["critical"] : 0,
+                "material_pending" => isset($materialByTask[$taskId]) ? (float) $materialByTask[$taskId]["pending"] : 0,
                 "activities" => $this->countIfTable("project_time", ["task_id" => $taskId, "deleted" => 0]),
                 "blocked" => $blocked,
                 "blocker_reason" => $state->blocker_reason ?? "",
