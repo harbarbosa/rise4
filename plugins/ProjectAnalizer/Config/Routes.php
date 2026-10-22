@@ -61,6 +61,7 @@ $routes->post('projectanalizer/journey/task_block', 'Project_journey::task_block
 $routes->post('projectanalizer/journey/task_release', 'Project_journey::task_release', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/journey/task_revoke', 'Project_journey::task_revoke', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/journey/material_stock', 'Project_journey::material_stock', ['namespace' => 'ProjectAnalizer\Controllers']);
+$routes->post('projectanalizer/journey/material_delivery', 'Project_journey::material_delivery', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/journey/material_usage', 'Project_journey::material_usage', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/ai_generate_plan/(:num)', 'ProjectAnalizer::ai_generate_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
 $routes->post('projectanalizer/ai_apply_plan/(:num)', 'ProjectAnalizer::ai_apply_plan/$1', ['namespace' => 'ProjectAnalizer\Controllers']);
