@@ -4,16 +4,19 @@ namespace ProjectAnalizer\Controllers;
 
 use App\Controllers\Security_Controller;
 use ProjectAnalizer\Libraries\ProjectJourneyService;
+use ProjectAnalizer\Libraries\ProjectMaterialFlowService;
 
 class Project_journey extends Security_Controller
 {
     private $journeyService;
+    private $materialFlowService;
 
     public function __construct()
     {
         parent::__construct();
         $this->access_only_team_members();
         $this->journeyService = new ProjectJourneyService();
+        $this->materialFlowService = new ProjectMaterialFlowService();
     }
 
     public function index($projectId = 0)
@@ -50,6 +53,7 @@ class Project_journey extends Security_Controller
             "current_checks" => $checksByPhase[(int) $journey->current_phase] ?? [],
             "can_advance" => $this->journeyService->canAdvance($projectId, (int) $journey->current_phase),
             "task_readiness" => $this->journeyService->getTaskReadiness($projectId),
+            "material_flow" => $this->materialFlowService->getFlow($projectId),
             "managers" => $managers,
             "is_admin" => (bool) $this->login_user->is_admin,
         ]);
@@ -141,5 +145,48 @@ class Project_journey extends Security_Controller
         return $this->response->setJSON(
             $this->journeyService->revokeTaskRelease($projectId, $taskId, $this->login_user->id)
         );
+    }
+
+    public function material_stock()
+    {
+        $projectId = (int) $this->request->getPost("project_id");
+        $materialId = (int) $this->request->getPost("material_id");
+        $quantity = $this->_parseQuantity($this->request->getPost("quantity"));
+        $this->init_project_permission_checker($projectId);
+
+        if (!$this->can_edit_projects($projectId)) {
+            return $this->response->setJSON(["success" => false, "message" => app_lang("error_occurred")]);
+        }
+
+        return $this->response->setJSON(
+            $this->materialFlowService->setStock($projectId, $materialId, $quantity, $this->login_user->id)
+        );
+    }
+
+    public function material_usage()
+    {
+        $projectId = (int) $this->request->getPost("project_id");
+        $allocationId = (int) $this->request->getPost("allocation_id");
+        $quantity = $this->_parseQuantity($this->request->getPost("quantity"));
+        $notes = trim((string) $this->request->getPost("notes"));
+        $this->init_project_permission_checker($projectId);
+
+        if (!$this->can_edit_projects($projectId)) {
+            return $this->response->setJSON(["success" => false, "message" => app_lang("error_occurred")]);
+        }
+
+        return $this->response->setJSON(
+            $this->materialFlowService->recordUsage($projectId, $allocationId, $quantity, $notes, $this->login_user->id)
+        );
+    }
+
+    private function _parseQuantity($value)
+    {
+        $value = trim((string) $value);
+        if (strpos($value, ",") !== false) {
+            $value = str_replace(".", "", $value);
+            $value = str_replace(",", ".", $value);
+        }
+        return is_numeric($value) ? (float) $value : 0;
     }
 }
