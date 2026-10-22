@@ -85,22 +85,81 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
 </div>
 
 <div class="card mt20">
-    <div class="page-title clearfix"><h4>Prontidão por tarefa</h4></div>
+    <div class="page-title clearfix">
+        <h4>Planejamento e prontidão das tarefas</h4>
+        <div class="title-button-group"><small class="text-muted">A liberação é individual: uma tarefa pronta pode avançar sem aguardar as demais.</small></div>
+    </div>
     <div class="table-responsive">
         <table class="table table-hover mb0">
-            <thead><tr><th>Tarefa</th><th>Datas</th><th>Responsável</th><th>Materiais</th><th>Atividades</th><th>Situação</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Tarefa</th>
+                    <th>Etapa</th>
+                    <th>Datas</th>
+                    <th>Responsável</th>
+                    <th>Peso</th>
+                    <th>Impedimento</th>
+                    <th>Liberação</th>
+                    <th class="text-end">Ações</th>
+                </tr>
+            </thead>
             <tbody>
             <?php if (!$task_readiness): ?>
-                <tr><td colspan="6" class="text-center text-muted p20">Nenhuma tarefa cadastrada.</td></tr>
+                <tr><td colspan="8" class="text-center text-muted p20">Nenhuma tarefa cadastrada.</td></tr>
             <?php endif; ?>
             <?php foreach ($task_readiness as $task): ?>
-                <tr>
-                    <td><?php echo esc($task["title"]); ?></td>
-                    <td><i data-feather="<?php echo $task["dates"] ? "check" : "alert-circle"; ?>" class="icon-16 <?php echo $task["dates"] ? "text-success" : "text-warning"; ?>"></i></td>
-                    <td><i data-feather="<?php echo $task["assigned"] ? "check" : "alert-circle"; ?>" class="icon-16 <?php echo $task["assigned"] ? "text-success" : "text-warning"; ?>"></i></td>
-                    <td><?php echo (int) $task["materials"]; ?> associados</td>
-                    <td><?php echo (int) $task["activities"]; ?> lançadas</td>
-                    <td><span class="badge bg-<?php echo $task["completed"] ? "success" : "secondary"; ?>"><?php echo $task["completed"] ? "Concluída" : "Pendente"; ?></span></td>
+                <tr class="<?php echo $task["blocked"] ? "table-warning" : ""; ?>">
+                    <td>
+                        <strong><?php echo esc($task["title"]); ?></strong>
+                        <?php if ($task["missing"]): ?>
+                            <div><small class="text-danger">Pendente: <?php echo esc(implode(", ", $task["missing"])); ?></small></div>
+                        <?php endif; ?>
+                    </td>
+                    <td><i data-feather="<?php echo $task["milestone"] ? "check-circle" : "alert-circle"; ?>" class="icon-16 <?php echo $task["milestone"] ? "text-success" : "text-warning"; ?>"></i></td>
+                    <td>
+                        <i data-feather="<?php echo $task["dates_valid"] ? "check-circle" : "alert-circle"; ?>" class="icon-16 <?php echo $task["dates_valid"] ? "text-success" : "text-warning"; ?>"></i>
+                        <?php if ($task["dates"] && !$task["dates_valid"]): ?><small class="text-danger">Fora do período</small><?php endif; ?>
+                    </td>
+                    <td><i data-feather="<?php echo $task["assigned"] ? "check-circle" : "alert-circle"; ?>" class="icon-16 <?php echo $task["assigned"] ? "text-success" : "text-warning"; ?>"></i></td>
+                    <td>
+                        <span class="<?php echo $task["weight_valid"] ? "text-success" : "text-warning"; ?>">
+                            <?php echo number_format($task["weight"], 2, ",", "."); ?>%
+                        </span>
+                    </td>
+                    <td>
+                        <?php if ($task["blocked"]): ?>
+                            <span class="badge bg-warning text-dark">Bloqueada</span>
+                            <div><small><?php echo esc($task["blocker_reason"]); ?></small></div>
+                        <?php else: ?>
+                            <span class="badge bg-light text-muted">Sem impedimento</span>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if ($task["released"]): ?>
+                            <span class="badge bg-success">Liberada</span>
+                        <?php elseif ($task["ready_to_release"]): ?>
+                            <span class="badge bg-info">Pronta para liberar</span>
+                        <?php else: ?>
+                            <span class="badge bg-secondary">Planejamento pendente</span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <?php if ($task["blocked"]): ?>
+                            <button class="btn btn-default btn-sm task-unblock" data-task-id="<?php echo $task["id"]; ?>">Remover bloqueio</button>
+                        <?php else: ?>
+                            <button class="btn btn-default btn-sm task-block" data-task-id="<?php echo $task["id"]; ?>">Registrar impedimento</button>
+                        <?php endif; ?>
+
+                        <?php if ($task["released"]): ?>
+                            <button class="btn btn-outline-danger btn-sm task-revoke" data-task-id="<?php echo $task["id"]; ?>">Revogar</button>
+                        <?php elseif ($task["ready_to_release"]): ?>
+                            <button class="btn btn-primary btn-sm task-release" data-task-id="<?php echo $task["id"]; ?>">Liberar tarefa</button>
+                        <?php elseif ($is_admin): ?>
+                            <button class="btn btn-outline-danger btn-sm task-force-release" data-task-id="<?php echo $task["id"]; ?>">Forçar liberação</button>
+                        <?php else: ?>
+                            <button class="btn btn-primary btn-sm" disabled>Liberação pendente</button>
+                        <?php endif; ?>
+                    </td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
@@ -148,4 +207,48 @@ $(document).ready(function () {
         if (reason) advanceJourney(true, reason);
     });
 });
+
+    function taskAction(url, data) {
+        appLoader.show();
+        $.ajax({
+            url: url,
+            type: "POST",
+            dataType: "json",
+            data: $.extend({project_id: <?php echo (int) $project_id; ?>}, data),
+            success: function (result) {
+                appLoader.hide();
+                if (result.success) {
+                    appAlert.success(result.message, {duration: 10000});
+                    location.reload();
+                } else {
+                    appAlert.error(result.message);
+                }
+            },
+            error: function () {
+                appLoader.hide();
+                appAlert.error("Não foi possível atualizar a tarefa.");
+            }
+        });
+    }
+
+    $(".task-block").on("click", function () {
+        var reason = prompt("Descreva o impedimento desta tarefa:");
+        if (reason) taskAction("<?php echo get_uri('projectanalizer/journey/task_block'); ?>", {task_id: $(this).data("task-id"), blocked: 1, reason: reason});
+    });
+    $(".task-unblock").on("click", function () {
+        taskAction("<?php echo get_uri('projectanalizer/journey/task_block'); ?>", {task_id: $(this).data("task-id"), blocked: 0, reason: ""});
+    });
+    $(".task-release").on("click", function () {
+        var notes = prompt("Observação da liberação (opcional):") || "";
+        taskAction("<?php echo get_uri('projectanalizer/journey/task_release'); ?>", {task_id: $(this).data("task-id"), override: 0, notes: notes});
+    });
+    $(".task-force-release").on("click", function () {
+        var notes = prompt("Justifique a liberação administrativa:");
+        if (notes) taskAction("<?php echo get_uri('projectanalizer/journey/task_release'); ?>", {task_id: $(this).data("task-id"), override: 1, notes: notes});
+    });
+    $(".task-revoke").on("click", function () {
+        if (confirm("Deseja revogar a liberação desta tarefa?")) {
+            taskAction("<?php echo get_uri('projectanalizer/journey/task_revoke'); ?>", {task_id: $(this).data("task-id")});
+        }
+    });
 </script>
