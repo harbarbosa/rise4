@@ -342,6 +342,8 @@ foreach ($material_flow["rows"] as $flowRow) {
     </div>
 </div>
 
+</div>
+
 <script>
 $(document).ready(function () {
     $("#journey-manager-form").appForm({
