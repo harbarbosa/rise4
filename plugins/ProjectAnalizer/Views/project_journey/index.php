@@ -10,80 +10,117 @@ foreach ($current_checks as $check) {
 }
 $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 100;
 ?>
-<div class="card">
-    <div class="page-title clearfix">
-        <h1><i data-feather="map"></i> Jornada do projeto</h1>
-        <div class="title-button-group">
-            <span class="badge bg-primary p10">Fase <?php echo $currentPhase; ?> de 7: <?php echo esc($phases[$currentPhase]); ?></span>
-        </div>
-    </div>
-    <div class="card-body">
-        <div class="row mb20">
-            <div class="col-md-8">
-                <div class="progress" style="height: 12px;">
-                    <div class="progress-bar" role="progressbar" style="width: <?php echo $progress; ?>%"></div>
-                </div>
-                <small class="text-muted"><?php echo $passedRequired; ?> de <?php echo $totalRequired; ?> itens obrigatórios concluídos nesta fase</small>
-            </div>
-            <div class="col-md-4">
-                <?php echo form_open(get_uri("projectanalizer/journey/save_manager"), ["id" => "journey-manager-form", "class" => "general-form"]); ?>
-                <input type="hidden" name="project_id" value="<?php echo $project_id; ?>">
-                <div class="input-group">
-                    <?php echo form_dropdown("manager_id", $managers, $journey->manager_id ?? "", "class='select2 form-control' aria-label='Gerente do projeto'"); ?>
-                    <button class="btn btn-default" type="submit"><i data-feather="save" class="icon-16"></i></button>
-                </div>
-                <?php echo form_close(); ?>
-            </div>
+<style>
+#project-journey .journey-card{background:#fff;border:1px solid #e7e9ec;border-radius:8px;overflow:hidden;margin-bottom:20px}
+#project-journey .journey-title{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:18px 20px;border-bottom:1px solid #e7e9ec}
+#project-journey .journey-title h1{font-size:20px;line-height:1.3;margin:0;font-weight:600}
+#project-journey .journey-phase-badge{display:inline-block;background:#1c7ed6;color:#fff;border-radius:20px;padding:7px 13px;font-size:12px;font-weight:600;white-space:nowrap}
+#project-journey .journey-body{padding:20px}
+#project-journey .journey-summary{display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:24px;align-items:end;margin-bottom:22px}
+#project-journey .journey-progress-track{height:12px;background:#e9ecef;border-radius:10px;overflow:hidden;margin-bottom:7px}
+#project-journey .journey-progress-value{height:100%;background:#1c7ed6;border-radius:10px;transition:width .25s ease}
+#project-journey .journey-progress-text{color:#6c757d;font-size:12px}
+#project-journey .journey-manager label{display:block;font-size:12px;font-weight:600;color:#495057;margin-bottom:6px}
+#project-journey .journey-manager-row{display:flex;gap:8px}
+#project-journey .journey-manager-row select{display:block;width:100%;height:38px;padding:6px 10px;border:1px solid #ced4da;border-radius:5px;background:#fff;color:#333}
+#project-journey .journey-manager-row button{height:38px;min-width:42px}
+#project-journey .journey-phase-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:24px}
+#project-journey .journey-phase{position:relative;min-height:94px;padding:15px;border:1px solid #dde2e6;border-radius:7px;background:#f8f9fa}
+#project-journey .journey-phase.is-current{border-color:#1c7ed6;background:#eef7ff;box-shadow:0 0 0 1px rgba(28,126,214,.08)}
+#project-journey .journey-phase.is-complete{border-color:#51cf66;background:#f3fff5}
+#project-journey .journey-phase-number{display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:50%;background:#adb5bd;color:#fff;font-size:12px;font-weight:700;margin-bottom:9px}
+#project-journey .is-current .journey-phase-number{background:#1c7ed6}
+#project-journey .is-complete .journey-phase-number{background:#37b24d}
+#project-journey .journey-phase-name{display:block;font-size:13px;font-weight:600;color:#343a40;margin-bottom:3px}
+#project-journey .journey-phase-state{font-size:11px;color:#868e96}
+#project-journey .journey-section-title{font-size:16px;font-weight:600;margin:0 0 10px}
+#project-journey .journey-checklist{border:1px solid #e7e9ec;border-radius:7px;overflow:hidden;margin-bottom:18px}
+#project-journey .journey-check{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:13px 15px;border-bottom:1px solid #edf0f2;background:#fff}
+#project-journey .journey-check:last-child{border-bottom:0}
+#project-journey .journey-check-main{display:flex;align-items:flex-start;gap:10px;min-width:0}
+#project-journey .journey-check-icon{font-size:18px;line-height:1;color:#f59f00}
+#project-journey .journey-check.is-done .journey-check-icon{color:#2f9e44}
+#project-journey .journey-check-label{font-size:13px;color:#343a40}
+#project-journey .journey-check-detail{display:block;font-size:11px;color:#868e96;margin-top:3px}
+#project-journey .journey-optional{display:inline-block;background:#f1f3f5;color:#6c757d;border-radius:10px;padding:2px 7px;font-size:10px;margin-left:6px}
+#project-journey .journey-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:991px){#project-journey .journey-phase-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:767px){#project-journey .journey-title{align-items:flex-start;flex-direction:column}#project-journey .journey-summary{grid-template-columns:1fr}#project-journey .journey-phase-grid{grid-template-columns:1fr}#project-journey .journey-check{align-items:flex-start;flex-direction:column}}
+</style>
+
+<div id="project-journey">
+    <div class="journey-card">
+        <div class="journey-title">
+            <h1><i data-feather="map" class="icon-18"></i> Jornada do projeto</h1>
+            <span class="journey-phase-badge">Fase <?php echo $currentPhase; ?> de 7 · <?php echo esc($phases[$currentPhase]); ?></span>
         </div>
 
-        <div class="row">
-            <?php foreach ($phases as $number => $label): 
-                $state = $number < $currentPhase ? "success" : ($number == $currentPhase ? "primary" : "light");
-            ?>
-                <div class="col-md-3 col-sm-6 mb15">
-                    <div class="card border border-<?php echo $state; ?> h-100">
-                        <div class="card-body p15">
-                            <div class="d-flex align-items-center">
-                                <span class="badge bg-<?php echo $state; ?> me-2"><?php echo $number; ?></span>
-                                <strong><?php echo esc($label); ?></strong>
-                            </div>
-                            <small class="text-muted">
-                                <?php echo $number < $currentPhase ? "Concluída" : ($number == $currentPhase ? "Em andamento" : "Bloqueada"); ?>
-                            </small>
+        <div class="journey-body">
+            <div class="journey-summary">
+                <div>
+                    <div class="journey-progress-track">
+                        <div class="journey-progress-value" style="width:<?php echo $progress; ?>%"></div>
+                    </div>
+                    <div class="journey-progress-text"><?php echo $passedRequired; ?> de <?php echo $totalRequired; ?> itens obrigatórios concluídos nesta fase</div>
+                </div>
+
+                <div class="journey-manager">
+                    <label for="journey-manager-select">Gerente responsável pelo projeto</label>
+                    <?php echo form_open(get_uri("projectanalizer/journey/save_manager"), ["id" => "journey-manager-form", "class" => "general-form"]); ?>
+                        <input type="hidden" name="project_id" value="<?php echo (int)$project_id; ?>">
+                        <div class="journey-manager-row">
+                            <?php echo form_dropdown("manager_id", $managers, $journey->manager_id ?? "", "id='journey-manager-select' class='form-control'"); ?>
+                            <button class="btn btn-default" type="submit" title="Salvar responsável"><i data-feather="save" class="icon-16"></i></button>
                         </div>
-                    </div>
+                    <?php echo form_close(); ?>
                 </div>
-            <?php endforeach; ?>
-        </div>
+            </div>
 
-        <h4 class="mt20">Checklist da fase atual</h4>
-        <div class="list-group mb20">
-            <?php foreach ($current_checks as $check): ?>
-                <div class="list-group-item d-flex justify-content-between align-items-center">
-                    <div>
-                        <i data-feather="<?php echo $check["passed"] ? "check-circle" : "circle"; ?>" class="icon-18 <?php echo $check["passed"] ? "text-success" : "text-warning"; ?>"></i>
-                        <span class="ms-2"><?php echo esc($check["label"]); ?></span>
-                        <?php if (!$check["required"]): ?><span class="badge bg-light text-muted ms-2">Recomendado</span><?php endif; ?>
-                        <?php if ($check["detail"]): ?><small class="text-muted ms-2"><?php echo esc($check["detail"]); ?></small><?php endif; ?>
+            <div class="journey-phase-grid">
+                <?php foreach ($phases as $number => $label):
+                    $phaseClass = $number < $currentPhase ? "is-complete" : ($number == $currentPhase ? "is-current" : "is-locked");
+                ?>
+                    <div class="journey-phase <?php echo $phaseClass; ?>">
+                        <span class="journey-phase-number"><?php echo $number; ?></span>
+                        <span class="journey-phase-name"><?php echo esc($label); ?></span>
+                        <span class="journey-phase-state"><?php echo $number < $currentPhase ? "Concluída" : ($number == $currentPhase ? "Em andamento" : "Bloqueada"); ?></span>
                     </div>
-                    <?php if (!$check["passed"] && $check["url"]): ?>
-                        <a href="<?php echo $check["url"]; ?>" class="btn btn-default btn-sm">Resolver</a>
+                <?php endforeach; ?>
+            </div>
+
+            <h4 class="journey-section-title">Checklist da fase atual</h4>
+            <div class="journey-checklist">
+                <?php foreach ($current_checks as $check): ?>
+                    <div class="journey-check <?php echo $check["passed"] ? "is-done" : ""; ?>">
+                        <div class="journey-check-main">
+                            <span class="journey-check-icon"><?php echo $check["passed"] ? "✓" : "!"; ?></span>
+                            <div>
+                                <span class="journey-check-label">
+                                    <?php echo esc($check["label"]); ?>
+                                    <?php if (!$check["required"]): ?><span class="journey-optional">Recomendado</span><?php endif; ?>
+                                </span>
+                                <?php if ($check["detail"]): ?><span class="journey-check-detail"><?php echo esc($check["detail"]); ?></span><?php endif; ?>
+                            </div>
+                        </div>
+                        <?php if (!$check["passed"] && $check["url"]): ?>
+                            <a href="<?php echo $check["url"]; ?>" class="btn btn-default btn-sm">Resolver</a>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <div class="journey-actions">
+                <?php if ($currentPhase < 7): ?>
+                    <button id="advance-journey" class="btn btn-primary" <?php echo $can_advance ? "" : "disabled"; ?>>
+                        <i data-feather="unlock" class="icon-16"></i> Concluir fase e liberar próximas abas
+                    </button>
+                    <?php if ($is_admin && !$can_advance): ?>
+                        <button id="override-journey" class="btn btn-default text-danger">Avançar como administrador</button>
                     <?php endif; ?>
-                </div>
-            <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
         </div>
-
-        <?php if ($currentPhase < 7): ?>
-            <button id="advance-journey" class="btn btn-primary" <?php echo $can_advance ? "" : "disabled"; ?>>
-                <i data-feather="unlock" class="icon-16"></i> Concluir fase e liberar próximas abas
-            </button>
-            <?php if ($is_admin && !$can_advance): ?>
-                <button id="override-journey" class="btn btn-outline-danger ms-2">Avançar como administrador</button>
-            <?php endif; ?>
-        <?php endif; ?>
     </div>
-</div>
-
 <div class="card mt20">
     <div class="page-title clearfix">
         <h4>Planejamento e prontidão das tarefas</h4>
@@ -307,7 +344,6 @@ foreach ($material_flow["rows"] as $flowRow) {
 
 <script>
 $(document).ready(function () {
-    $(".select2").select2();
     $("#journey-manager-form").appForm({
         isModal: false,
         onSuccess: function (result) {
@@ -344,7 +380,6 @@ $(document).ready(function () {
         var reason = prompt("Informe o motivo para avançar sem concluir os itens obrigatórios:");
         if (reason) advanceJourney(true, reason);
     });
-});
 
     function taskAction(url, data) {
         appLoader.show();
@@ -443,4 +478,5 @@ $(document).ready(function () {
         var notes = prompt("Observação da utilização (opcional):") || "";
         materialAction("<?php echo get_uri('projectanalizer/journey/material_usage'); ?>", {allocation_id: $(this).data("allocation-id"), quantity: quantity, notes: notes});
     });
+});
 </script>
