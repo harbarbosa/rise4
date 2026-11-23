@@ -345,7 +345,16 @@ foreach ($material_flow["rows"] as $flowRow) {
 </div>
 
 <script>
-$(document).ready(function () {
+(function initializeProjectJourney(attempt) {
+    if (!window.jQuery) {
+        if (attempt < 100) {
+            window.setTimeout(function () { initializeProjectJourney(attempt + 1); }, 50);
+        }
+        return;
+    }
+
+    var $ = window.jQuery;
+    $(function () {
     $("#journey-manager-form").appForm({
         isModal: false,
         onSuccess: function (result) {
@@ -480,5 +489,6 @@ $(document).ready(function () {
         var notes = prompt("Observação da utilização (opcional):") || "";
         materialAction("<?php echo get_uri('projectanalizer/journey/material_usage'); ?>", {allocation_id: $(this).data("allocation-id"), quantity: quantity, notes: notes});
     });
-});
+    });
+})(0);
 </script>
