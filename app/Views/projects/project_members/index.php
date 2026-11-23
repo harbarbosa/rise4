@@ -15,7 +15,16 @@
 </div>
 
 <script type="text/javascript">
-    $(document).ready(function () {
+(function initializeProjectMembers(attempt) {
+    if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.appTable) {
+        if (attempt < 100) {
+            window.setTimeout(function () { initializeProjectMembers(attempt + 1); }, 50);
+        }
+        return;
+    }
+
+    var $ = window.jQuery;
+    $(function () {
         $("#project-member-table").appTable({
             source: '<?php echo_uri("projects/project_member_list_data/" . $project_id) ?>',
             hideTools: true,
@@ -26,4 +35,5 @@
             ]
         });
     });
+})(0);
 </script>
