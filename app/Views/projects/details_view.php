@@ -237,9 +237,18 @@ load_js(array(
 ?>
 
 <script type="text/javascript">
+(function initializeProjectDetails(attempt) {
+    if (!window.jQuery) {
+        if (attempt < 100) {
+            window.setTimeout(function () { initializeProjectDetails(attempt + 1); }, 50);
+        }
+        return;
+    }
+
+    var $ = window.jQuery;
     RELOAD_PROJECT_VIEW_AFTER_UPDATE = true;
 
-    $(document).ready(function() {
+    $(function() {
         setTimeout(function() {
             var tab = "<?php echo $tab; ?>";
             if (tab === "comment") {
@@ -267,6 +276,7 @@ load_js(array(
         }
 
     });
+})(0);
 </script>
 
 <?php echo view("tasks/sub_tasks_helper_js"); ?>
