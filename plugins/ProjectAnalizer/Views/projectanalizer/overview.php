@@ -19,7 +19,16 @@
         </div>
     </div>
     <script>
-        $(function () {
+        (function initializeAiProjectPlan(attempt) {
+            if (!window.jQuery) {
+                if (attempt < 100) {
+                    window.setTimeout(function () { initializeAiProjectPlan(attempt + 1); }, 50);
+                }
+                return;
+            }
+
+            var $ = window.jQuery;
+            $(function () {
             var currentPlan = null;
             var safe = function (value) { return $("<div>").text(value || "").html(); };
             function renderPlan(plan) {
@@ -46,6 +55,7 @@
             $("#ai-project-plan-send").on("click", function () { var input = $("#ai-project-plan-message"), message = input.val().trim(); if (!message) return; input.val(""); requestPlan(message); });
             $(document).on("click", "#apply-ai-project-plan", function () { var button = $(this); if (!currentPlan || !confirm("<?php echo app_lang("confirm_apply_ai_plan"); ?>")) return; button.prop("disabled", true); appAjaxRequest({url: "<?php echo get_uri("projectanalizer/ai_apply_plan/" . $project_id); ?>", type: "POST", data: {plan: JSON.stringify(currentPlan)}, dataType: "json", success: function (response) { if (response.success) { appAlert.success(response.message); setTimeout(function () { location.reload(); }, 1000); } else { appAlert.error(response.message); button.prop("disabled", false); } }, error: function () { appAlert.error("<?php echo app_lang("error_occurred"); ?>"); button.prop("disabled", false); } }); });
         });
+        })(0);
     </script>
 
     <div class="row">
