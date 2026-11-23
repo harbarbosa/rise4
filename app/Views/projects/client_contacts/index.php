@@ -15,7 +15,16 @@
 </div>
 
 <script type="text/javascript">
-    $(document).ready(function () {
+(function initializeProjectClientContacts(attempt) {
+    if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.appTable) {
+        if (attempt < 100) {
+            window.setTimeout(function () { initializeProjectClientContacts(attempt + 1); }, 50);
+        }
+        return;
+    }
+
+    var $ = window.jQuery;
+    $(function () {
         $("#project-client-contacts-table").appTable({
             source: '<?php echo_uri("projects/project_member_list_data/" . $project_id . "/client_contacts") ?>',
             hideTools: true,
@@ -26,4 +35,5 @@
             ]
         });
     });
+})(0);
 </script>
