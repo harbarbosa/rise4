@@ -28,15 +28,23 @@
 </div>
 
 <script type="text/javascript">
-    $(document).ready(function () {
+(function initializeProjectProgressChart(attempt) {
+    if (!window.jQuery || !window.Chart) {
+        if (attempt < 100) {
+            window.setTimeout(function () { initializeProjectProgressChart(attempt + 1); }, 50);
+        }
+        return;
+    }
+
+    var $ = window.jQuery;
+    $(function () {
         var project_progress = <?php echo $project_progress; ?>;
         var projectProgressChart = document.getElementById("project-progress-chart");
 
         var textDirection = "<?php echo app_lang("text_direction"); ?>";
-        var textAlign = "";
-        if (textDirection === "rtl") {
-            var textAlign = "center";
-        }
+        var textAlign = "center";
+
+        if (!projectProgressChart) return;
 
         new Chart(projectProgressChart, {
             type: 'doughnut',
@@ -93,4 +101,5 @@
             }
         });
     });
+})(0);
 </script>
