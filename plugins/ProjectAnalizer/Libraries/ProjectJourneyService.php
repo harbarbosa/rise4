@@ -98,10 +98,18 @@ class ProjectJourneyService
             $complete = count($tasks) > 0;
             $datesValid = count($tasks) > 0;
             $weights = [];
+            $taskIssues = [];
+            $dateIssues = [];
             foreach ($tasks as $task) {
                 $validation = $this->validateTask($task, $project);
-                if (!$validation["basic"]) $complete = false;
-                if (!$validation["dates_valid"]) $datesValid = false;
+                if (!$validation["basic"]) {
+                    $complete = false;
+                    $taskIssues[] = ($task->title ?? ("Tarefa #".$task->id)).": ".implode(", ", $validation["missing"]);
+                }
+                if (!$validation["dates_valid"]) {
+                    $datesValid = false;
+                    $dateIssues[] = ($task->title ?? ("Tarefa #".$task->id)).": ".(!empty($validation["dates"]) ? "datas fora do período do projeto" : "datas não informadas");
+                }
                 $milestoneId = (int) ($task->milestone_id ?? 0);
                 if ($milestoneId) {
                     $weights[$milestoneId] = ($weights[$milestoneId] ?? 0) + (float) ($task->percentage ?? 0);
@@ -110,10 +118,12 @@ class ProjectJourneyService
 
             $milestones = $this->rows("milestones", ["project_id" => $projectId, "deleted" => 0]);
             $weightsValid = count($milestones) > 0;
+            $weightIssues = [];
             foreach ($milestones as $milestone) {
-                if (abs(($weights[(int) $milestone->id] ?? 0) - 100) > 0.01) {
+                $currentWeight = (float) ($weights[(int) $milestone->id] ?? 0);
+                if (abs($currentWeight - 100) > 0.01) {
                     $weightsValid = false;
-                    break;
+                    $weightIssues[] = ($milestone->title ?? ("Etapa #".$milestone->id)).": ".number_format($currentWeight, 2, ",", ".")."% de 100%";
                 }
             }
 
@@ -127,11 +137,11 @@ class ProjectJourneyService
             }
 
             return [
-                $this->check("tasks", "Projeto possui tarefas", count($tasks) > 0, true, get_uri("projectanalizer/tasks/".$projectId)),
-                $this->check("task_release", "Ao menos uma tarefa está planejada e liberada", $releasedCount > 0, true, get_uri("projectanalizer/journey/".$projectId), $releasedCount." liberadas"),
-                $this->check("task_plan", "Todas as tarefas têm etapa, datas, responsável e peso", $complete, false, get_uri("projectanalizer/tasks/".$projectId)),
-                $this->check("task_dates", "Datas das tarefas são válidas e estão dentro do período do projeto", $datesValid, false, get_uri("projectanalizer/tasks/".$projectId)),
-                $this->check("task_weights", "Pesos das tarefas totalizam 100% em cada etapa", $weightsValid, false, get_uri("projectanalizer/tasks/".$projectId)),
+                $this->check("tasks", "Projeto possui tarefas", count($tasks) > 0, true, get_uri("projectanalizer/tasks/".$projectId), count($tasks) > 0 ? count($tasks)." tarefa(s) cadastrada(s)" : "Nenhuma tarefa cadastrada"),
+                $this->check("task_release", "Ao menos uma tarefa está planejada e liberada", $releasedCount > 0, true, get_uri("projectanalizer/journey/".$projectId), $releasedCount." liberada(s)"),
+                $this->check("task_plan", "Todas as tarefas têm etapa, datas, responsável e peso", $complete, false, get_uri("projectanalizer/tasks/".$projectId), $taskIssues ? implode(" | ", $taskIssues) : "Planejamento básico preenchido"),
+                $this->check("task_dates", "Datas das tarefas são válidas e estão dentro do período do projeto", $datesValid, false, get_uri("projectanalizer/tasks/".$projectId), $dateIssues ? implode(" | ", $dateIssues) : "Datas válidas"),
+                $this->check("task_weights", "Pesos das tarefas totalizam 100% em cada etapa", $weightsValid, false, get_uri("projectanalizer/tasks/".$projectId), $weightIssues ? implode(" | ", $weightIssues) : "Pesos totalizam 100%"),
             ];
         }
 
