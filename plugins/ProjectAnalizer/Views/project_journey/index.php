@@ -37,6 +37,8 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
 #project-journey .journey-checklist{border:1px solid #e7e9ec;border-radius:7px;overflow:hidden;margin-bottom:18px}
 #project-journey .journey-check{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:13px 15px;border-bottom:1px solid #edf0f2;background:#fff}
 #project-journey .journey-check:last-child{border-bottom:0}
+#project-journey .journey-check[title]{cursor:help}
+#project-journey .journey-check-help{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;margin-left:6px;border-radius:50%;background:#e7f5ff;color:#1971c2;font-size:11px;font-weight:700;vertical-align:middle}
 #project-journey .journey-check-main{display:flex;align-items:flex-start;gap:10px;min-width:0}
 #project-journey .journey-check-icon{font-size:18px;line-height:1;color:#f59f00}
 #project-journey .journey-check.is-done .journey-check-icon{color:#2f9e44}
@@ -121,15 +123,48 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                 <?php endforeach; ?>
             </div>
 
+            <?php
+            $checkHelpTexts = [
+                "manager" => "Selecione o gerente responsável no campo acima e salve a alteração.",
+                "start_date" => "Abra os dados do projeto e informe uma data de início válida.",
+                "deadline" => "Abra os dados do projeto e informe a data prevista de término.",
+                "members" => "Acesse a equipe do projeto e vincule pelo menos um membro.",
+                "milestones" => "Acesse Etapas e cadastre a estrutura de execução do projeto.",
+                "milestone_weight" => "Ajuste os percentuais das etapas até que a soma seja exatamente 100%.",
+                "tasks" => "Acesse Tarefas e cadastre pelo menos uma tarefa para o projeto.",
+                "task_release" => "Na tabela Planejamento e prontidão, complete os campos obrigatórios da tarefa e clique em Liberar tarefa.",
+                "task_plan" => "Edite as tarefas indicadas e preencha etapa, datas, responsável e peso.",
+                "task_dates" => "Edite as datas das tarefas indicadas. Elas devem estar dentro do período de início e término do projeto.",
+                "task_weights" => "Edite o peso das tarefas para que cada etapa totalize exatamente 100%.",
+                "material_review" => "Acesse Materiais do projeto e confira a lista importada da proposta.",
+                "material_allocation" => "Associe os materiais às tarefas que irão utilizá-los.",
+                "material_critical" => "Na tabela Fluxo de materiais e compras, regularize o estoque, recebimento ou entrega dos itens críticos.",
+                "material_requests" => "Acesse Materiais e crie as requisições das quantidades ainda pendentes.",
+                "material_delivery" => "Acompanhe as ordens de compra e registre o recebimento dos materiais.",
+                "schedule" => "Acesse a Agenda de execução e cadastre pelo menos uma programação.",
+                "activity" => "Acesse Atividades e registre pelo menos um lançamento de execução.",
+                "monitoring" => "Acompanhe o percentual executado e o andamento de cada tarefa.",
+                "tasks_finished" => "Conclua todas as tarefas pendentes do projeto.",
+                "close_project" => "Revise as pendências finais antes de encerrar o projeto."
+            ];
+            ?>
             <h4 class="journey-section-title">Checklist da fase atual</h4>
             <div class="journey-checklist">
-                <?php foreach ($current_checks as $check): ?>
-                    <div class="journey-check <?php echo $check["passed"] ? "is-done" : ""; ?>">
+                <?php foreach ($current_checks as $check):
+                    $helpText = $checkHelpTexts[$check["key"]] ?? "Abra a tela indicada para corrigir esta pendência.";
+                    if (!empty($check["detail"])) {
+                        $helpText .= " Situação atual: ".$check["detail"].".";
+                    }
+                ?>
+                    <div class="journey-check <?php echo $check["passed"] ? "is-done" : ""; ?>"
+                         title="<?php echo esc($helpText); ?>"
+                         aria-label="<?php echo esc($check["label"].". ".$helpText); ?>">
                         <div class="journey-check-main">
                             <span class="journey-check-icon"><?php echo $check["passed"] ? "✓" : "!"; ?></span>
                             <div>
                                 <span class="journey-check-label">
                                     <?php echo esc($check["label"]); ?>
+                                    <span class="journey-check-help" aria-hidden="true">?</span>
                                     <?php if (!$check["required"]): ?><span class="journey-optional">Recomendado</span><?php endif; ?>
                                 </span>
                                 <?php if ($check["detail"]): ?><span class="journey-check-detail"><?php echo esc($check["detail"]); ?></span><?php endif; ?>
@@ -431,7 +466,8 @@ foreach ($material_flow["rows"] as $flowRow) {
         });
     }
 
-    $(document).on("click.projectJourney", ".journey-resolve-action[href^='#']", function () {
+    $(document).on("click.projectJourney", ".journey-resolve-action[href^='#']", function (event) {
+        event.preventDefault();
         var target = $($(this).attr("href"));
         if (!target.length) return;
 
