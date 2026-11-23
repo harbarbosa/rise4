@@ -44,8 +44,38 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
 #project-journey .journey-check-detail{display:block;font-size:11px;color:#868e96;margin-top:3px}
 #project-journey .journey-optional{display:inline-block;background:#f1f3f5;color:#6c757d;border-radius:10px;padding:2px 7px;font-size:10px;margin-left:6px}
 #project-journey .journey-actions{display:flex;gap:8px;flex-wrap:wrap}
+#project-journey .journey-panel{background:#fff;border:1px solid #e7e9ec;border-radius:8px;overflow:hidden;margin-top:20px}
+#project-journey .journey-panel-header{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:15px 18px;border-bottom:1px solid #e7e9ec;background:#fff}
+#project-journey .journey-panel-header h4{font-size:16px;line-height:1.3;margin:0;font-weight:600;color:#343a40}
+#project-journey .journey-panel-hint{font-size:12px;color:#868e96;text-align:right}
+#project-journey .journey-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+#project-journey .journey-table{width:100%;margin:0;border-collapse:collapse;background:#fff}
+#project-journey .journey-table th{padding:11px 12px;border-bottom:2px solid #e7e9ec;background:#f8f9fa;color:#495057;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;text-align:left}
+#project-journey .journey-table td{padding:12px;border-bottom:1px solid #edf0f2;color:#343a40;font-size:12px;vertical-align:middle}
+#project-journey .journey-table tbody tr:last-child td{border-bottom:0}
+#project-journey .journey-table tbody tr:hover{background:#fbfcfd}
+#project-journey .journey-table .table-warning{background:#fff9db}
+#project-journey .journey-table small{font-size:11px;line-height:1.35}
+#project-journey .journey-panel-body{padding:16px 18px}
+#project-journey .journey-panel .badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:10px;font-weight:600;line-height:1.2}
+#project-journey .journey-panel .bg-success{background:#d3f9d8!important;color:#237b36!important}
+#project-journey .journey-panel .bg-warning{background:#fff3bf!important;color:#8a6100!important}
+#project-journey .journey-panel .bg-info{background:#d0ebff!important;color:#1864ab!important}
+#project-journey .journey-panel .bg-secondary{background:#e9ecef!important;color:#495057!important}
+#project-journey .journey-panel .bg-light{background:#f1f3f5!important;color:#6c757d!important}
+#project-journey .journey-panel .text-end{text-align:right}
+#project-journey .journey-panel .text-nowrap{white-space:nowrap}
+#project-journey .journey-panel .text-muted{color:#868e96!important}
+#project-journey .journey-panel .text-danger{color:#e03131!important}
+#project-journey .journey-panel .text-warning{color:#e67700!important}
+#project-journey .journey-panel .text-success{color:#2f9e44!important}
+#project-journey .journey-filter-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:15px}
+#project-journey .journey-filter-row select{width:100%;height:38px;padding:6px 10px;border:1px solid #ced4da;border-radius:5px;background:#fff}
+#project-journey .journey-resolve-local{cursor:pointer}
+#project-journey .journey-highlight{animation:journey-highlight 1.8s ease}
+@keyframes journey-highlight{0%,100%{box-shadow:none}35%{box-shadow:0 0 0 4px rgba(28,126,214,.2)}}
 @media(max-width:991px){#project-journey .journey-phase-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:767px){#project-journey .journey-title{align-items:flex-start;flex-direction:column}#project-journey .journey-summary{grid-template-columns:1fr}#project-journey .journey-phase-grid{grid-template-columns:1fr}#project-journey .journey-check{align-items:flex-start;flex-direction:column}}
+@media(max-width:767px){#project-journey .journey-title{align-items:flex-start;flex-direction:column}#project-journey .journey-summary{grid-template-columns:1fr}#project-journey .journey-phase-grid{grid-template-columns:1fr}#project-journey .journey-check{align-items:flex-start;flex-direction:column}#project-journey .journey-panel-header{align-items:flex-start;flex-direction:column}#project-journey .journey-panel-hint{text-align:left}#project-journey .journey-filter-row{grid-template-columns:1fr}}
 </style>
 
 <div id="project-journey">
@@ -103,7 +133,19 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                             </div>
                         </div>
                         <?php if (!$check["passed"] && $check["url"]): ?>
-                            <a href="<?php echo $check["url"]; ?>" class="btn btn-default btn-sm">Resolver</a>
+                            <?php
+                            $localTargets = [
+                                "manager" => "#journey-manager-select",
+                                "task_release" => "#journey-task-readiness",
+                                "material_critical" => "#journey-material-flow"
+                            ];
+                            $localTarget = $localTargets[$check["key"]] ?? "";
+                            ?>
+                            <?php if ($localTarget): ?>
+                                <button type="button" class="btn btn-default btn-sm journey-resolve-local" data-target="<?php echo $localTarget; ?>">Resolver</button>
+                            <?php else: ?>
+                                <a href="<?php echo $check["url"]; ?>" class="btn btn-default btn-sm">Resolver</a>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
@@ -121,13 +163,13 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
             </div>
         </div>
     </div>
-<div class="card mt20">
-    <div class="page-title clearfix">
+<div class="journey-panel" id="journey-task-readiness">
+    <div class="journey-panel-header">
         <h4>Planejamento e prontidão das tarefas</h4>
-        <div class="title-button-group"><small class="text-muted">A liberação é individual: uma tarefa pronta pode avançar sem aguardar as demais.</small></div>
+        <div class="journey-panel-hint">A liberação é individual: uma tarefa pronta pode avançar sem aguardar as demais.</div>
     </div>
-    <div class="table-responsive">
-        <table class="table table-hover mb0">
+    <div class="journey-table-wrap">
+        <table class="journey-table">
             <thead>
                 <tr>
                     <th>Tarefa</th>
@@ -225,8 +267,8 @@ foreach ($material_flow["rows"] as $flowRow) {
     $materialTasks[$flowRow["task_id"]] = $flowRow["task"];
 }
 ?>
-<div class="card mt20">
-    <div class="page-title clearfix">
+<div class="journey-panel" id="journey-material-flow">
+    <div class="journey-panel-header">
         <h4>Fluxo de materiais e compras</h4>
         <div class="title-button-group">
             <a href="<?php echo get_uri("projectanalizer/project_materials/".$project_id); ?>" class="btn btn-default">
@@ -234,7 +276,7 @@ foreach ($material_flow["rows"] as $flowRow) {
             </a>
         </div>
     </div>
-    <div class="card-body pb0">
+    <div class="journey-panel-body">
         <div class="row text-center">
             <?php
             $materialCards = [
@@ -258,14 +300,14 @@ foreach ($material_flow["rows"] as $flowRow) {
                 <?php echo (int)$material_flow["totals"]["critical"]; ?> material(is) estão bloqueando tarefas já liberadas.
             </div>
         <?php endif; ?>
-        <div class="row mb15">
-            <div class="col-md-4">
+        <div class="journey-filter-row">
+            <div>
                 <select id="material-milestone-filter" class="form-control">
                     <option value="">Todas as etapas</option>
                     <?php foreach ($materialMilestones as $id => $title): ?><option value="<?php echo (int)$id; ?>"><?php echo esc($title); ?></option><?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div>
                 <select id="material-task-filter" class="form-control">
                     <option value="">Todas as tarefas</option>
                     <?php foreach ($materialTasks as $id => $title): ?><option value="<?php echo (int)$id; ?>"><?php echo esc($title); ?></option><?php endforeach; ?>
@@ -273,8 +315,8 @@ foreach ($material_flow["rows"] as $flowRow) {
             </div>
         </div>
     </div>
-    <div class="table-responsive">
-        <table class="table table-hover mb0" id="material-flow-table">
+    <div class="journey-table-wrap">
+        <table class="journey-table" id="material-flow-table">
             <thead>
                 <tr>
                     <th>Etapa / tarefa</th><th>Material</th><th>Associado</th><th>Solicitado</th>
@@ -385,6 +427,20 @@ foreach ($material_flow["rows"] as $flowRow) {
             }
         });
     }
+
+    $(".journey-resolve-local").on("click", function () {
+        var targetSelector = $(this).data("target");
+        var target = $(targetSelector);
+        if (!target.length) return;
+
+        $("html, body").animate({scrollTop: target.offset().top - 90}, 250);
+        target.addClass("journey-highlight");
+        window.setTimeout(function () { target.removeClass("journey-highlight"); }, 1900);
+
+        if (target.is("select, input, textarea, button")) {
+            target.trigger("focus");
+        }
+    });
 
     $("#advance-journey").on("click", function () { advanceJourney(false, ""); });
     $("#override-journey").on("click", function () {
