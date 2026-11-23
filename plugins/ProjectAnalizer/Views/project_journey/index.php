@@ -74,6 +74,7 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
 #project-journey .journey-resolve-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:6px 12px;border:1px solid #1c7ed6;border-radius:5px;background:#1c7ed6;color:#fff!important;font-size:12px;font-weight:600;line-height:1.2;text-decoration:none!important;white-space:nowrap;cursor:pointer;box-shadow:none}
 #project-journey .journey-resolve-action:hover,#project-journey .journey-resolve-action:focus{border-color:#1864ab;background:#1864ab;color:#fff!important;text-decoration:none!important;outline:0}
 #project-journey .journey-resolve-action svg{width:14px;height:14px;stroke:currentColor}
+#project-journey #journey-manager-select,#project-journey #journey-task-readiness,#project-journey #journey-material-flow{scroll-margin-top:90px}
 #project-journey .journey-highlight{animation:journey-highlight 1.8s ease}
 @keyframes journey-highlight{0%,100%{box-shadow:none}35%{box-shadow:0 0 0 4px rgba(28,126,214,.2)}}
 @media(max-width:991px){#project-journey .journey-phase-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -143,16 +144,11 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                             ];
                             $localTarget = $localTargets[$check["key"]] ?? "";
                             ?>
-                            <button type="button"
-                                    class="journey-resolve-action"
-                                    <?php if ($localTarget): ?>
-                                        data-target="<?php echo $localTarget; ?>"
-                                    <?php else: ?>
-                                        data-url="<?php echo esc($check["url"]); ?>"
-                                    <?php endif; ?>>
+                            <a class="journey-resolve-action"
+                               href="<?php echo $localTarget ? $localTarget : esc($check["url"]); ?>">
                                 <i data-feather="arrow-right-circle" class="icon-14"></i>
                                 <span>Resolver</span>
-                            </button>
+                            </a>
                         <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
@@ -435,30 +431,14 @@ foreach ($material_flow["rows"] as $flowRow) {
         });
     }
 
-    $(".journey-resolve-action").on("click", function () {
-        var targetSelector = $(this).data("target");
-        var destinationUrl = $(this).data("url");
+    $(document).on("click.projectJourney", ".journey-resolve-action[href^='#']", function () {
+        var target = $($(this).attr("href"));
+        if (!target.length) return;
 
-        if (targetSelector) {
-            var target = $(targetSelector);
-            if (!target.length) return;
-
-            $("html, body").animate({scrollTop: target.offset().top - 90}, 250);
-            target.addClass("journey-highlight");
-            window.setTimeout(function () { target.removeClass("journey-highlight"); }, 1900);
-
-            if (target.is("select, input, textarea, button")) {
-                target.trigger("focus");
-            }
-            return;
-        }
-
-        if (destinationUrl) {
-            var url = new URL(destinationUrl, window.location.href);
-            if (window.self !== window.top) {
-                url.searchParams.set("_workspace_tab", "1");
-            }
-            window.location.href = url.toString();
+        target.addClass("journey-highlight");
+        window.setTimeout(function () { target.removeClass("journey-highlight"); }, 1900);
+        if (target.is("select, input, textarea, button")) {
+            window.setTimeout(function () { target.trigger("focus"); }, 50);
         }
     });
 
