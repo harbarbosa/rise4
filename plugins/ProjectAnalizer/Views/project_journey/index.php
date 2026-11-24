@@ -28,7 +28,9 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
 #project-journey .journey-manager-row .select2-container .select2-choice .select2-arrow b{background-position:0 6px}
 #project-journey .journey-manager-row button{height:38px;min-width:42px}
 #project-journey .journey-phase-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:24px}
-#project-journey .journey-phase{position:relative;min-height:94px;padding:15px;border:1px solid #dde2e6;border-radius:7px;background:#f8f9fa}
+#project-journey .journey-phase{position:relative;min-height:94px;padding:15px;border:1px solid #dde2e6;border-radius:7px;background:#f8f9fa;text-align:left;width:100%;font:inherit;cursor:pointer;transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease}
+#project-journey .journey-phase:hover,#project-journey .journey-phase:focus{border-color:#1c7ed6;box-shadow:0 3px 10px rgba(0,0,0,.08);transform:translateY(-1px);outline:0}
+#project-journey .journey-phase.is-selected{box-shadow:0 0 0 3px rgba(28,126,214,.16)}
 #project-journey .journey-phase.is-current{border-color:#1c7ed6;background:#eef7ff;box-shadow:0 0 0 1px rgba(28,126,214,.08)}
 #project-journey .journey-phase.is-complete{border-color:#51cf66;background:#f3fff5}
 #project-journey .journey-phase-number{display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:50%;background:#adb5bd;color:#fff;font-size:12px;font-weight:700;margin-bottom:9px}
@@ -125,11 +127,11 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                 <?php foreach ($phases as $number => $label):
                     $phaseClass = $number < $currentPhase ? "is-complete" : ($number == $currentPhase ? "is-current" : "is-locked");
                 ?>
-                    <div class="journey-phase <?php echo $phaseClass; ?>">
+                    <button type="button" class="journey-phase <?php echo $phaseClass; ?>" data-journey-phase="<?php echo (int)$number; ?>" aria-label="Ver checklist da fase <?php echo (int)$number; ?>">
                         <span class="journey-phase-number"><?php echo $number; ?></span>
                         <span class="journey-phase-name"><?php echo esc($label); ?></span>
                         <span class="journey-phase-state"><?php echo $number < $currentPhase ? "Concluída" : ($number == $currentPhase ? "Em andamento" : "Bloqueada"); ?></span>
-                    </div>
+                    </button>
                 <?php endforeach; ?>
             </div>
 
@@ -158,8 +160,8 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                 "close_project" => "Revise as pendências finais antes de encerrar o projeto."
             ];
             ?>
-            <h4 class="journey-section-title">Checklist da fase atual</h4>
-            <div class="journey-checklist">
+            <h4 class="journey-section-title" id="journey-checklist-title">Checklist da fase atual</h4>
+            <div class="journey-checklist" id="journey-phase-checklist">
                 <?php foreach ($current_checks as $check):
                     $helpText = $checkHelpTexts[$check["key"]] ?? "Abra a tela indicada para corrigir esta pendência.";
                     if (!empty($check["detail"])) {
@@ -564,6 +566,66 @@ foreach ($material_flow["rows"] as $flowRow) {
     }
 
     var resolverModal = $("#journey-resolver-modal");
+    var journeyCurrentPhase = <?php echo (int)$currentPhase; ?>;
+    var journeyPhases = <?php echo json_encode($phases, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+    var journeyChecks = <?php echo json_encode($checks_by_phase, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+    var journeyHelpTexts = <?php echo json_encode($checkHelpTexts, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+    var journeyProjectTabs = {
+        milestones:"#project-etapas-section", milestone_weight:"#project-etapas-section",
+        tasks:"#project-tasks-section", task_plan:"#project-tasks-section", task_dates:"#project-tasks-section",
+        task_weights:"#project-tasks-section", material_review:"#project-materials-section",
+        material_allocation:"#project-materials-section", material_requests:"#project-materials-section",
+        schedule:"#project-execution_schedule-section", activity:"#project-teamactivities-section",
+        monitoring:"#project-tasks-section", tasks_finished:"#project-tasks-section"
+    };
+    var journeyLocalTargets = {manager:"#journey-manager-select", task_release:"#journey-task-readiness", material_critical:"#journey-material-flow"};
+
+    function escapeJourney(value) {
+        return $("<div>").text(value == null ? "" : String(value)).html();
+    }
+
+    function renderJourneyPhaseChecklist(phase) {
+        phase = parseInt(phase, 10);
+        var checks = journeyChecks[phase] || journeyChecks[String(phase)] || [];
+        var rows = [];
+
+        $.each(checks, function (_, check) {
+            var help = journeyHelpTexts[check.key] || "Abra o formulário indicado para corrigir esta pendência.";
+            if (check.detail) help += " Situação atual: " + check.detail + ".";
+            var optional = check.required ? "" : '<span class="journey-optional">Recomendado</span>';
+            var detail = check.detail ? '<span class="journey-check-detail">' + escapeJourney(check.detail) + '</span>' : "";
+            var resolve = "";
+
+            if (!check.passed && check.url) {
+                resolve = '<button type="button" class="journey-resolve-action journey-open-resolver"' +
+                    ' data-check-key="' + escapeJourney(check.key) + '"' +
+                    ' data-check-label="' + escapeJourney(check.label) + '"' +
+                    ' data-check-detail="' + escapeJourney(check.detail || "") + '"' +
+                    ' data-check-help="' + escapeJourney(help) + '"' +
+                    ' data-check-url="' + escapeJourney(check.url) + '"' +
+                    ' data-local-target="' + escapeJourney(journeyLocalTargets[check.key] || "") + '"' +
+                    ' data-project-tab="' + escapeJourney(journeyProjectTabs[check.key] || "") + '">' +
+                    '<i data-feather="edit-3" class="icon-14"></i><span>Resolver</span></button>';
+            }
+
+            rows.push('<div class="journey-check ' + (check.passed ? "is-done" : "") + '" title="' + escapeJourney(help) + '">' +
+                '<div class="journey-check-main"><span class="journey-check-icon">' + (check.passed ? "✓" : "!") + '</span>' +
+                '<div><span class="journey-check-label">' + escapeJourney(check.label) +
+                '<span class="journey-check-help" aria-hidden="true">?</span>' + optional + '</span>' + detail + '</div></div>' +
+                resolve + '</div>');
+        });
+
+        $("#journey-checklist-title").text(phase === journeyCurrentPhase ? "Checklist da fase atual" : "Checklist da fase " + phase + ": " + (journeyPhases[phase] || ""));
+        $("#journey-phase-checklist").html(rows.join("") || '<div class="p15 text-muted">Nenhum item configurado nesta fase.</div>');
+        $(".journey-phase").removeClass("is-selected").filter("[data-journey-phase='" + phase + "']").addClass("is-selected");
+        if (window.feather) feather.replace();
+    }
+
+    $(document).on("click.projectJourney", ".journey-phase", function () {
+        renderJourneyPhaseChecklist($(this).data("journey-phase"));
+    });
+
+    $(".journey-phase[data-journey-phase='" + journeyCurrentPhase + "']").addClass("is-selected");
 
     function refreshJourneyAfterSave() {
         resolverModal.modal("hide");
