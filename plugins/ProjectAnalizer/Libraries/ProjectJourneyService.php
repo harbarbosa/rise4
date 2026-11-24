@@ -152,18 +152,19 @@ class ProjectJourneyService
                 ? count($tasks)." tarefa(s), todas as etapas cobertas e com 100%"
                 : ($taskCoverageIssues ? implode(" | ", array_unique($taskCoverageIssues)) : "Nenhuma tarefa cadastrada");
 
-            $releasedCount = 0;
+            $planningApprovedCount = 0;
             foreach ($tasks as $task) {
                 $state = $this->getTaskJourneyState((int) $task->id);
                 $validation = $this->validateTask($task, $project);
                 if ($state && (int) $state->released === 1 && (int) $state->blocked === 0 && $validation["valid"]) {
-                    $releasedCount++;
+                    $planningApprovedCount++;
                 }
             }
+            $allPlanningApproved = count($tasks) > 0 && $planningApprovedCount === count($tasks);
 
             return [
                 $this->check("tasks", "Todas as etapas possuem tarefas com pesos totalizando 100%", $tasksChecklistPassed, true, get_uri("projectanalizer/tasks/".$projectId), $tasksChecklistDetail),
-                $this->check("task_release", "Ao menos uma tarefa está planejada e liberada", $releasedCount > 0, true, get_uri("projectanalizer/journey/".$projectId), $releasedCount." liberada(s)"),
+                $this->check("task_release", "Todas as tarefas estão com o planejamento aprovado", $allPlanningApproved, true, get_uri("projectanalizer/journey/".$projectId), $planningApprovedCount." de ".count($tasks)." aprovada(s)"),
                 $this->check("task_plan", "Todas as tarefas têm etapa, datas, responsável e peso", $complete, false, get_uri("projectanalizer/tasks/".$projectId), $taskIssues ? implode(" | ", $taskIssues) : "Planejamento básico preenchido"),
                 $this->check("task_dates", "Datas das tarefas são válidas e estão dentro do período do projeto", $datesValid, false, get_uri("projectanalizer/tasks/".$projectId), $dateIssues ? implode(" | ", $dateIssues) : "Datas válidas"),
                 $this->check("task_weights", "Pesos das tarefas totalizam 100% em cada etapa", $weightsValid, false, get_uri("projectanalizer/tasks/".$projectId), $weightIssues ? implode(" | ", $weightIssues) : "Pesos totalizam 100%"),
@@ -188,8 +189,18 @@ class ProjectJourneyService
 
         if ($phase === 5) {
             $schedules = $this->countIfTable("projectanalizer_execution_schedule", ["project_id" => $projectId, "deleted" => 0]);
+            $tasks = $this->rows("tasks", ["project_id" => $projectId, "deleted" => 0]);
+            $executionReleased = 0;
+            foreach ($tasks as $task) {
+                $state = $this->getTaskJourneyState((int) $task->id);
+                if ($state && !empty($state->execution_released) && empty($state->blocked)) {
+                    $executionReleased++;
+                }
+            }
+            $allExecutionReleased = count($tasks) > 0 && $executionReleased === count($tasks);
             return [
                 $this->check("schedule", "Ao menos uma programação de execução cadastrada", $schedules > 0, true, get_uri("projectanalizer/execution_schedule/".$projectId)),
+                $this->check("execution_release", "Todas as tarefas estão liberadas para execução", $allExecutionReleased, true, get_uri("projectanalizer/journey/".$projectId), $executionReleased." de ".count($tasks)." liberada(s) para execução"),
             ];
         }
 
@@ -285,6 +296,7 @@ class ProjectJourneyService
         $project = $this->db->table("projects")->where(["id" => $projectId, "deleted" => 0])->get()->getRow();
         $tasks = $this->rows("tasks", ["project_id" => $projectId, "deleted" => 0]);
         $rows = [];
+        $hasSchedule = $this->countIfTable("projectanalizer_execution_schedule", ["project_id" => $projectId, "deleted" => 0]) > 0;
         $materialFlow = (new ProjectMaterialFlowService())->getFlow($projectId);
         $materialByTask = [];
         foreach ($materialFlow["tasks"] as $materialTask) {
@@ -299,6 +311,15 @@ class ProjectJourneyService
             $released = $state && (int) $state->released === 1;
             $readyToRelease = $validation["valid"] && !$blocked;
             $effectiveReleased = $released && $readyToRelease;
+            $materialReady = !isset($materialByTask[$taskId]) || (bool) $materialByTask[$taskId]["ready"];
+            $executionReleased = $state && !empty($state->execution_released);
+            $readyForExecution = $effectiveReleased && $materialReady && $hasSchedule && !$blocked;
+            $effectiveExecutionReleased = $executionReleased && $readyForExecution;
+            $executionMissing = [];
+            if (!$effectiveReleased) $executionMissing[] = "planejamento não aprovado";
+            if (!$materialReady) $executionMissing[] = "materiais pendentes";
+            if (!$hasSchedule) $executionMissing[] = "programação não cadastrada";
+            if ($blocked) $executionMissing[] = "impedimento ativo";
 
             $rows[] = [
                 "id" => $taskId,
@@ -310,7 +331,7 @@ class ProjectJourneyService
                 "weight" => (float) ($task->percentage ?? 0),
                 "weight_valid" => $validation["weight"],
                 "materials" => $this->countIfTable("pa_project_task_materials", ["task_id" => $taskId, "deleted" => 0]),
-                "material_ready" => !isset($materialByTask[$taskId]) || (bool) $materialByTask[$taskId]["ready"],
+                "material_ready" => $materialReady,
                 "material_critical" => isset($materialByTask[$taskId]) ? (int) $materialByTask[$taskId]["critical"] : 0,
                 "material_pending" => isset($materialByTask[$taskId]) ? (float) $materialByTask[$taskId]["pending"] : 0,
                 "activities" => $this->countIfTable("project_time", ["task_id" => $taskId, "deleted" => 0]),
@@ -319,6 +340,10 @@ class ProjectJourneyService
                 "released" => $effectiveReleased,
                 "release_notes" => $state->release_notes ?? "",
                 "ready_to_release" => $readyToRelease,
+                "execution_released" => $effectiveExecutionReleased,
+                "execution_release_notes" => $state->execution_release_notes ?? "",
+                "ready_for_execution" => $readyForExecution,
+                "execution_missing" => $executionMissing,
                 "completed" => (string) ($task->status_id ?? "") === "3",
                 "missing" => $validation["missing"],
             ];
@@ -376,7 +401,7 @@ class ProjectJourneyService
             $data["blocker_reason"] = null;
         }
         $saved = $this->upsertTaskJourneyState($taskId, $data, $userId);
-        return ["success" => (bool) $saved, "message" => "Tarefa liberada para as próximas fases."];
+        return ["success" => (bool) $saved, "message" => "Planejamento da tarefa aprovado. A execução ainda depende de materiais e programação."];
     }
 
     public function revokeTaskRelease($projectId, $taskId, $userId)
@@ -393,7 +418,58 @@ class ProjectJourneyService
             "updated_at" => date("Y-m-d H:i:s"),
             "deleted" => 0,
         ], $userId);
-        return ["success" => (bool) $saved, "message" => "Liberação da tarefa removida."];
+        return ["success" => (bool) $saved, "message" => "Aprovação do planejamento removida."];
+    }
+
+    public function releaseTaskForExecution($projectId, $taskId, $userId, $notes = "")
+    {
+        $task = $this->getProjectTask($projectId, $taskId);
+        if (!$task) return ["success" => false, "message" => "Tarefa inválida para este projeto."];
+
+        $readiness = null;
+        foreach ($this->getTaskReadiness($projectId) as $row) {
+            if ((int) $row["id"] === (int) $taskId) {
+                $readiness = $row;
+                break;
+            }
+        }
+
+        if (!$readiness || empty($readiness["ready_for_execution"])) {
+            $missing = $readiness ? implode(", ", $readiness["execution_missing"]) : "pré-requisitos pendentes";
+            return ["success" => false, "message" => "A tarefa ainda não pode ser executada: ".$missing."."];
+        }
+
+        $saved = $this->upsertTaskJourneyState($taskId, [
+            "project_id" => (int) $projectId,
+            "task_id" => (int) $taskId,
+            "execution_released" => 1,
+            "execution_release_notes" => $notes ?: null,
+            "execution_released_by" => (int) $userId,
+            "execution_released_at" => date("Y-m-d H:i:s"),
+            "updated_at" => date("Y-m-d H:i:s"),
+            "deleted" => 0,
+        ], $userId);
+
+        return ["success" => (bool) $saved, "message" => "Tarefa liberada para execução."];
+    }
+
+    public function revokeTaskExecutionRelease($projectId, $taskId, $userId)
+    {
+        $task = $this->getProjectTask($projectId, $taskId);
+        if (!$task) return ["success" => false, "message" => "Tarefa inválida para este projeto."];
+
+        $saved = $this->upsertTaskJourneyState($taskId, [
+            "project_id" => (int) $projectId,
+            "task_id" => (int) $taskId,
+            "execution_released" => 0,
+            "execution_release_notes" => null,
+            "execution_released_by" => null,
+            "execution_released_at" => null,
+            "updated_at" => date("Y-m-d H:i:s"),
+            "deleted" => 0,
+        ], $userId);
+
+        return ["success" => (bool) $saved, "message" => "Liberação para execução removida."];
     }
 
     private function validateTask($task, $project)
