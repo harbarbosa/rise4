@@ -22,7 +22,10 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
 #project-journey .journey-progress-text{color:#6c757d;font-size:12px}
 #project-journey .journey-manager label{display:block;font-size:12px;font-weight:600;color:#495057;margin-bottom:6px}
 #project-journey .journey-manager-row{display:flex;gap:8px}
-#project-journey .journey-manager-row select{display:block;width:100%;height:38px;padding:6px 10px;border:1px solid #ced4da;border-radius:5px;background:#fff;color:#333}
+#project-journey .journey-manager-row select{width:100%}
+#project-journey .journey-manager-row .select2-container{flex:1 1 auto;width:100%!important;min-width:0}
+#project-journey .journey-manager-row .select2-container .select2-choice{height:38px;line-height:36px;border-color:#ced4da}
+#project-journey .journey-manager-row .select2-container .select2-choice .select2-arrow b{background-position:0 6px}
 #project-journey .journey-manager-row button{height:38px;min-width:42px}
 #project-journey .journey-phase-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:24px}
 #project-journey .journey-phase{position:relative;min-height:94px;padding:15px;border:1px solid #dde2e6;border-radius:7px;background:#f8f9fa}
@@ -72,7 +75,9 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
 #project-journey .journey-panel .text-warning{color:#e67700!important}
 #project-journey .journey-panel .text-success{color:#2f9e44!important}
 #project-journey .journey-filter-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:15px}
-#project-journey .journey-filter-row select{width:100%;height:38px;padding:6px 10px;border:1px solid #ced4da;border-radius:5px;background:#fff}
+#project-journey .journey-filter-row select{width:100%}
+#project-journey .journey-filter-row .select2-container{width:100%!important}
+#project-journey .journey-filter-row .select2-container .select2-choice{height:38px;line-height:36px;border-color:#ced4da}
 #project-journey .journey-resolve-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:6px 12px;border:1px solid #1c7ed6;border-radius:5px;background:#1c7ed6;color:#fff!important;font-size:12px;font-weight:600;line-height:1.2;text-decoration:none!important;white-space:nowrap;cursor:pointer;box-shadow:none}
 #project-journey .journey-resolve-action:hover,#project-journey .journey-resolve-action:focus{border-color:#1864ab;background:#1864ab;color:#fff!important;text-decoration:none!important;outline:0}
 #project-journey .journey-resolve-action svg{width:14px;height:14px;stroke:currentColor}
@@ -104,7 +109,7 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                     <?php echo form_open(get_uri("projectanalizer/journey/save_manager"), ["id" => "journey-manager-form", "class" => "general-form"]); ?>
                         <input type="hidden" name="project_id" value="<?php echo (int)$project_id; ?>">
                         <div class="journey-manager-row">
-                            <?php echo form_dropdown("manager_id", $managers, $journey->manager_id ?? "", "id='journey-manager-select' class='form-control'"); ?>
+                            <?php echo form_dropdown("manager_id", $managers, $journey->manager_id ?? "", "id='journey-manager-select' class='form-control select2'"); ?>
                             <button class="btn btn-default" type="submit" title="Salvar responsável"><i data-feather="save" class="icon-16"></i></button>
                         </div>
                     <?php echo form_close(); ?>
@@ -357,13 +362,13 @@ foreach ($material_flow["rows"] as $flowRow) {
         <?php endif; ?>
         <div class="journey-filter-row">
             <div>
-                <select id="material-milestone-filter" class="form-control">
+                <select id="material-milestone-filter" class="form-control select2">
                     <option value="">Todas as etapas</option>
                     <?php foreach ($materialMilestones as $id => $title): ?><option value="<?php echo (int)$id; ?>"><?php echo esc($title); ?></option><?php endforeach; ?>
                 </select>
             </div>
             <div>
-                <select id="material-task-filter" class="form-control">
+                <select id="material-task-filter" class="form-control select2">
                     <option value="">Todas as tarefas</option>
                     <?php foreach ($materialTasks as $id => $title): ?><option value="<?php echo (int)$id; ?>"><?php echo esc($title); ?></option><?php endforeach; ?>
                 </select>
@@ -452,6 +457,13 @@ foreach ($material_flow["rows"] as $flowRow) {
 
     var $ = window.jQuery;
     $(function () {
+    $("#project-journey .select2").each(function () {
+        var select = $(this);
+        if ($.fn.select2 && !select.data("select2") && !select.hasClass("select2-hidden-accessible")) {
+            select.select2();
+        }
+    });
+
     $("#journey-manager-form").appForm({
         isModal: false,
         onSuccess: function (result) {
