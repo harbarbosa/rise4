@@ -119,13 +119,38 @@ class ProjectJourneyService
             $milestones = $this->rows("milestones", ["project_id" => $projectId, "deleted" => 0]);
             $weightsValid = count($milestones) > 0;
             $weightIssues = [];
-            foreach ($milestones as $milestone) {
-                $currentWeight = (float) ($weights[(int) $milestone->id] ?? 0);
-                if (abs($currentWeight - 100) > 0.01) {
-                    $weightsValid = false;
-                    $weightIssues[] = ($milestone->title ?? ("Etapa #".$milestone->id)).": ".number_format($currentWeight, 2, ",", ".")."% de 100%";
+            $taskCountsByMilestone = [];
+            foreach ($tasks as $task) {
+                $taskMilestoneId = (int) ($task->milestone_id ?? 0);
+                if ($taskMilestoneId) {
+                    $taskCountsByMilestone[$taskMilestoneId] = ($taskCountsByMilestone[$taskMilestoneId] ?? 0) + 1;
                 }
             }
+
+            $allMilestonesHaveTasks = count($milestones) > 0;
+            $taskCoverageIssues = [];
+            foreach ($milestones as $milestone) {
+                $milestoneId = (int) $milestone->id;
+                $currentWeight = (float) ($weights[$milestoneId] ?? 0);
+                $taskCount = (int) ($taskCountsByMilestone[$milestoneId] ?? 0);
+                $milestoneTitle = $milestone->title ?? ("Etapa #".$milestoneId);
+
+                if ($taskCount === 0) {
+                    $allMilestonesHaveTasks = false;
+                    $taskCoverageIssues[] = $milestoneTitle.": nenhuma tarefa";
+                }
+
+                if (abs($currentWeight - 100) > 0.01) {
+                    $weightsValid = false;
+                    $weightIssues[] = $milestoneTitle.": ".number_format($currentWeight, 2, ",", ".")."% de 100%";
+                    $taskCoverageIssues[] = $milestoneTitle.": pesos somam ".number_format($currentWeight, 2, ",", ".")."%";
+                }
+            }
+
+            $tasksChecklistPassed = count($tasks) > 0 && $allMilestonesHaveTasks && $weightsValid;
+            $tasksChecklistDetail = $tasksChecklistPassed
+                ? count($tasks)." tarefa(s), todas as etapas cobertas e com 100%"
+                : ($taskCoverageIssues ? implode(" | ", array_unique($taskCoverageIssues)) : "Nenhuma tarefa cadastrada");
 
             $releasedCount = 0;
             foreach ($tasks as $task) {
@@ -137,7 +162,7 @@ class ProjectJourneyService
             }
 
             return [
-                $this->check("tasks", "Projeto possui tarefas", count($tasks) > 0, true, get_uri("projectanalizer/tasks/".$projectId), count($tasks) > 0 ? count($tasks)." tarefa(s) cadastrada(s)" : "Nenhuma tarefa cadastrada"),
+                $this->check("tasks", "Todas as etapas possuem tarefas com pesos totalizando 100%", $tasksChecklistPassed, true, get_uri("projectanalizer/tasks/".$projectId), $tasksChecklistDetail),
                 $this->check("task_release", "Ao menos uma tarefa está planejada e liberada", $releasedCount > 0, true, get_uri("projectanalizer/journey/".$projectId), $releasedCount." liberada(s)"),
                 $this->check("task_plan", "Todas as tarefas têm etapa, datas, responsável e peso", $complete, false, get_uri("projectanalizer/tasks/".$projectId), $taskIssues ? implode(" | ", $taskIssues) : "Planejamento básico preenchido"),
                 $this->check("task_dates", "Datas das tarefas são válidas e estão dentro do período do projeto", $datesValid, false, get_uri("projectanalizer/tasks/".$projectId), $dateIssues ? implode(" | ", $dateIssues) : "Datas válidas"),
