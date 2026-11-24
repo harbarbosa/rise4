@@ -144,7 +144,8 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                 "milestones" => "Acesse Etapas e cadastre a estrutura de execução do projeto.",
                 "milestone_weight" => "Ajuste os percentuais das etapas até que a soma seja exatamente 100%.",
                 "tasks" => "Acesse Tarefas e cadastre pelo menos uma tarefa para o projeto.",
-                "task_release" => "Na tabela Planejamento e prontidão, complete os campos obrigatórios da tarefa e clique em Liberar tarefa.",
+                "task_release" => "Na tabela Planejamento e prontidão, complete os campos obrigatórios e aprove o planejamento de todas as tarefas.",
+                "execution_release" => "Depois de aprovar o planejamento, disponibilizar os materiais e cadastrar a programação, libere cada tarefa para execução.",
                 "task_plan" => "Edite as tarefas indicadas e preencha etapa, datas, responsável e peso.",
                 "task_dates" => "Edite as datas das tarefas indicadas. Elas devem estar dentro do período de início e término do projeto.",
                 "task_weights" => "Edite o peso das tarefas para que cada etapa totalize exatamente 100%.",
@@ -239,7 +240,7 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
 <div class="journey-panel" id="journey-task-readiness">
     <div class="journey-panel-header">
         <h4>Planejamento e prontidão das tarefas</h4>
-        <div class="journey-panel-hint">A liberação é individual: uma tarefa pronta pode avançar sem aguardar as demais.</div>
+        <div class="journey-panel-hint">Primeiro aprove o planejamento. A execução só é liberada após materiais e programação estarem prontos.</div>
     </div>
     <div class="journey-table-wrap">
         <table class="journey-table">
@@ -252,13 +253,14 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                     <th>Peso</th>
                     <th>Materiais</th>
                     <th>Impedimento</th>
-                    <th>Liberação</th>
+                    <th>Planejamento</th>
+                    <th>Execução</th>
                     <th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody>
             <?php if (!$task_readiness): ?>
-                <tr><td colspan="9" class="text-center text-muted p20">Nenhuma tarefa cadastrada.</td></tr>
+                <tr><td colspan="10" class="text-center text-muted p20">Nenhuma tarefa cadastrada.</td></tr>
             <?php endif; ?>
             <?php foreach ($task_readiness as $task): ?>
                 <tr class="<?php echo $task["blocked"] ? "table-warning" : ""; ?>">
@@ -295,11 +297,23 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                     </td>
                     <td>
                         <?php if ($task["released"]): ?>
-                            <span class="badge bg-success">Liberada</span>
+                            <span class="badge bg-success">Aprovado</span>
                         <?php elseif ($task["ready_to_release"]): ?>
-                            <span class="badge bg-info">Pronta para liberar</span>
+                            <span class="badge bg-info">Pronto para aprovar</span>
                         <?php else: ?>
-                            <span class="badge bg-secondary">Planejamento pendente</span>
+                            <span class="badge bg-secondary">Pendente</span>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if ($task["execution_released"]): ?>
+                            <span class="badge bg-success">Liberada para execução</span>
+                        <?php elseif ($task["ready_for_execution"]): ?>
+                            <span class="badge bg-info">Pronta para execução</span>
+                        <?php else: ?>
+                            <span class="badge bg-secondary">Não liberada</span>
+                            <?php if ($task["execution_missing"]): ?>
+                                <div><small class="text-muted"><?php echo esc(implode(", ", $task["execution_missing"])); ?></small></div>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </td>
                     <td class="text-end text-nowrap">
@@ -310,13 +324,21 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                         <?php endif; ?>
 
                         <?php if ($task["released"]): ?>
-                            <button class="btn btn-outline-danger btn-sm task-revoke" data-task-id="<?php echo $task["id"]; ?>">Revogar</button>
+                            <button class="btn btn-outline-danger btn-sm task-revoke" data-task-id="<?php echo $task["id"]; ?>">Revogar planejamento</button>
                         <?php elseif ($task["ready_to_release"]): ?>
-                            <button class="btn btn-primary btn-sm task-release" data-task-id="<?php echo $task["id"]; ?>">Liberar tarefa</button>
+                            <button class="btn btn-primary btn-sm task-release" data-task-id="<?php echo $task["id"]; ?>">Aprovar planejamento</button>
                         <?php elseif ($is_admin): ?>
-                            <button class="btn btn-outline-danger btn-sm task-force-release" data-task-id="<?php echo $task["id"]; ?>">Forçar liberação</button>
+                            <button class="btn btn-outline-danger btn-sm task-force-release" data-task-id="<?php echo $task["id"]; ?>">Forçar aprovação</button>
                         <?php else: ?>
-                            <button class="btn btn-primary btn-sm" disabled>Liberação pendente</button>
+                            <button class="btn btn-primary btn-sm" disabled>Planejamento pendente</button>
+                        <?php endif; ?>
+
+                        <?php if ($task["execution_released"]): ?>
+                            <button class="btn btn-outline-danger btn-sm task-execution-revoke" data-task-id="<?php echo $task["id"]; ?>">Revogar execução</button>
+                        <?php elseif ($task["ready_for_execution"]): ?>
+                            <button class="btn btn-success btn-sm task-execution-release" data-task-id="<?php echo $task["id"]; ?>">Liberar para execução</button>
+                        <?php else: ?>
+                            <button class="btn btn-success btn-sm" disabled>Execução bloqueada</button>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -370,7 +392,7 @@ foreach ($material_flow["rows"] as $flowRow) {
         <?php if (($material_flow["totals"]["critical"] ?? 0) > 0): ?>
             <div class="alert alert-warning">
                 <i data-feather="alert-triangle" class="icon-16"></i>
-                <?php echo (int)$material_flow["totals"]["critical"]; ?> material(is) estão bloqueando tarefas já liberadas.
+                <?php echo (int)$material_flow["totals"]["critical"]; ?> material(is) estão impedindo a liberação das tarefas para execução.
             </div>
         <?php endif; ?>
         <div class="journey-filter-row">
@@ -579,7 +601,7 @@ foreach ($material_flow["rows"] as $flowRow) {
         schedule:"#project-execution_schedule-section", activity:"#project-teamactivities-section",
         monitoring:"#project-tasks-section", tasks_finished:"#project-tasks-section"
     };
-    var journeyLocalTargets = {manager:"#journey-manager-select", task_release:"#journey-task-readiness", material_critical:"#journey-material-flow"};
+    var journeyLocalTargets = {manager:"#journey-manager-select", task_release:"#journey-task-readiness", execution_release:"#journey-task-readiness", material_critical:"#journey-material-flow"};
 
     function escapeJourney(value) {
         return $("<div>").text(value == null ? "" : String(value)).html();
@@ -644,7 +666,7 @@ foreach ($material_flow["rows"] as $flowRow) {
     $(document).on("click.projectJourney", ".journey-open-resolver", function () {
         var button = $(this);
         var key = String(button.data("check-key") || "");
-        var taskKeys = ["task_release", "task_plan", "task_dates", "task_weights", "monitoring", "tasks_finished"];
+        var taskKeys = ["task_release", "execution_release", "task_plan", "task_dates", "task_weights", "monitoring", "tasks_finished"];
 
         $("#journey-resolver-label").text(button.data("check-label") || "");
         $("#journey-resolver-help").text(button.data("check-help") || "");
@@ -825,16 +847,26 @@ foreach ($material_flow["rows"] as $flowRow) {
         taskAction("<?php echo get_uri('projectanalizer/journey/task_block'); ?>", {task_id: $(this).data("task-id"), blocked: 0, reason: ""});
     });
     $(".task-release").on("click", function () {
-        var notes = prompt("Observação da liberação (opcional):") || "";
+        var notes = prompt("Observação da aprovação do planejamento (opcional):") || "";
         taskAction("<?php echo get_uri('projectanalizer/journey/task_release'); ?>", {task_id: $(this).data("task-id"), override: 0, notes: notes});
     });
     $(".task-force-release").on("click", function () {
-        var notes = prompt("Justifique a liberação administrativa:");
+        var notes = prompt("Justifique a aprovação administrativa do planejamento:");
         if (notes) taskAction("<?php echo get_uri('projectanalizer/journey/task_release'); ?>", {task_id: $(this).data("task-id"), override: 1, notes: notes});
     });
     $(".task-revoke").on("click", function () {
-        if (confirm("Deseja revogar a liberação desta tarefa?")) {
+        if (confirm("Deseja revogar a aprovação do planejamento desta tarefa?")) {
             taskAction("<?php echo get_uri('projectanalizer/journey/task_revoke'); ?>", {task_id: $(this).data("task-id")});
+        }
+    });
+
+    $(".task-execution-release").on("click", function () {
+        var notes = prompt("Observação da liberação para execução (opcional):") || "";
+        taskAction("<?php echo get_uri('projectanalizer/journey/task_execution_release'); ?>", {task_id: $(this).data("task-id"), notes: notes});
+    });
+    $(".task-execution-revoke").on("click", function () {
+        if (confirm("Deseja impedir novamente a execução desta tarefa?")) {
+            taskAction("<?php echo get_uri('projectanalizer/journey/task_execution_revoke'); ?>", {task_id: $(this).data("task-id")});
         }
     });
 
