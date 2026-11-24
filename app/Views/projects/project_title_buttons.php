@@ -9,6 +9,20 @@ if ($can_edit_timesheet_settings || $can_edit_slack_settings || $can_create_proj
     echo modal_anchor(get_uri("projects/settings_modal_form"), "<i data-feather='settings' class='icon-16 mr5'></i> " . app_lang('settings'), array("class" => "btn btn-default", "title" => app_lang('settings'), "data-post-project_id" => $project_info->id));
 }
 ?>
+<?php
+if ($can_edit_projects) {
+    echo modal_anchor(
+        get_uri("projects/modal_form"),
+        "<i data-feather='edit' class='icon-16 mr5'></i> " . app_lang("edit_project"),
+        array(
+            "class" => "btn btn-default project-edit-button",
+            "title" => app_lang("edit_project"),
+            "data-post-id" => $project_info->id
+        )
+    );
+}
+?>
+
 <?php if ($show_actions_dropdown) { ?>
     <div class="dropdown btn-group">
         <button class="btn btn-primary dropdown-toggle caret" type="button" data-bs-toggle="dropdown" aria-expanded="true">
