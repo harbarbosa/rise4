@@ -147,6 +147,37 @@ class Project_journey extends Security_Controller
         );
     }
 
+    public function task_execution_release()
+    {
+        $projectId = (int) $this->request->getPost("project_id");
+        $taskId = (int) $this->request->getPost("task_id");
+        $notes = trim((string) $this->request->getPost("notes"));
+        $this->init_project_permission_checker($projectId);
+
+        if (!$this->can_edit_projects($projectId)) {
+            return $this->response->setJSON(["success" => false, "message" => app_lang("error_occurred")]);
+        }
+
+        return $this->response->setJSON(
+            $this->journeyService->releaseTaskForExecution($projectId, $taskId, $this->login_user->id, $notes)
+        );
+    }
+
+    public function task_execution_revoke()
+    {
+        $projectId = (int) $this->request->getPost("project_id");
+        $taskId = (int) $this->request->getPost("task_id");
+        $this->init_project_permission_checker($projectId);
+
+        if (!$this->can_edit_projects($projectId)) {
+            return $this->response->setJSON(["success" => false, "message" => app_lang("error_occurred")]);
+        }
+
+        return $this->response->setJSON(
+            $this->journeyService->revokeTaskExecutionRelease($projectId, $taskId, $this->login_user->id)
+        );
+    }
+
     public function material_stock()
     {
         $projectId = (int) $this->request->getPost("project_id");
