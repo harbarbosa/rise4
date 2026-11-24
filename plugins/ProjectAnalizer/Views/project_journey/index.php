@@ -177,10 +177,27 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                                 "task_release" => "#journey-task-readiness",
                                 "material_critical" => "#journey-material-flow"
                             ];
+                            $projectTabTargets = [
+                                "milestones" => "#project-etapas-section",
+                                "milestone_weight" => "#project-etapas-section",
+                                "tasks" => "#project-tasks-section",
+                                "task_plan" => "#project-tasks-section",
+                                "task_dates" => "#project-tasks-section",
+                                "task_weights" => "#project-tasks-section",
+                                "material_review" => "#project-materials-section",
+                                "material_allocation" => "#project-materials-section",
+                                "material_requests" => "#project-materials-section",
+                                "schedule" => "#project-execution_schedule-section",
+                                "activity" => "#project-teamactivities-section",
+                                "monitoring" => "#project-tasks-section",
+                                "tasks_finished" => "#project-tasks-section"
+                            ];
                             $localTarget = $localTargets[$check["key"]] ?? "";
+                            $projectTabTarget = $projectTabTargets[$check["key"]] ?? "";
                             ?>
                             <a class="journey-resolve-action"
-                               href="<?php echo $localTarget ? $localTarget : esc($check["url"]); ?>">
+                               href="<?php echo $localTarget ? $localTarget : ($projectTabTarget ? "#" : esc($check["url"])); ?>"
+                               <?php if ($projectTabTarget): ?>data-project-tab="<?php echo esc($projectTabTarget); ?>"<?php endif; ?>>
                                 <i data-feather="arrow-right-circle" class="icon-14"></i>
                                 <span>Resolver</span>
                             </a>
@@ -309,7 +326,7 @@ foreach ($material_flow["rows"] as $flowRow) {
     <div class="journey-panel-header">
         <h4>Fluxo de materiais e compras</h4>
         <div class="title-button-group">
-            <a href="<?php echo get_uri("projectanalizer/project_materials/".$project_id); ?>" class="btn btn-default">
+            <a href="#" class="btn btn-default" data-project-tab="#project-materials-section">
                 <i data-feather="package" class="icon-16"></i> Gerenciar materiais e requisições
             </a>
         </div>
@@ -466,7 +483,20 @@ foreach ($material_flow["rows"] as $flowRow) {
         });
     }
 
-    $(document).on("click.projectJourney", ".journey-resolve-action[href^='#']", function (event) {
+    $(document).on("click.projectJourney", "[data-project-tab]", function (event) {
+        event.preventDefault();
+        var tabTarget = String($(this).data("project-tab") || "");
+        var projectTab = $("#project-tabs a[data-bs-target='" + tabTarget + "']").first();
+
+        if (!projectTab.length) {
+            appAlert.warning("Esta aba ainda não está liberada na fase atual da jornada.");
+            return;
+        }
+
+        projectTab.trigger("click");
+    });
+
+    $(document).on("click.projectJourney", ".journey-resolve-action[href^='#']:not([data-project-tab])", function (event) {
         event.preventDefault();
         var target = $($(this).attr("href"));
         if (!target.length) return;
