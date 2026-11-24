@@ -700,7 +700,22 @@ foreach ($material_flow["rows"] as $flowRow) {
             modalData = {project_id: <?php echo (int)$project_id; ?>};
         }
 
-        resolverModal.modal("hide");
+        function closeResolverModalCompletely(callback) {
+            resolverModal.one("hidden.bs.modal", function () {
+                $(".modal-backdrop").remove();
+                $("body").removeClass("modal-open").css("padding-right", "");
+                if (callback) callback();
+            });
+            resolverModal.modal("hide");
+
+            window.setTimeout(function () {
+                $(".modal-backdrop").remove();
+                $("body").removeClass("modal-open").css("padding-right", "");
+                if (resolverModal.hasClass("show")) {
+                    resolverModal.removeClass("show").hide().attr("aria-hidden", "true");
+                }
+            }, 350);
+        }
 
         if (modalUrl) {
             var opener = $("<a href='#' data-act='ajax-modal'></a>")
@@ -710,31 +725,35 @@ foreach ($material_flow["rows"] as $flowRow) {
                 opener.attr("data-post-" + name, value);
             });
             $("body").append(opener);
-            window.setTimeout(function () {
+            closeResolverModalCompletely(function () {
                 opener.trigger("click");
                 window.setTimeout(function () { opener.remove(); }, 500);
-            }, 250);
+            });
             return;
         }
 
         if (projectTab) {
-            window.setTimeout(function () {
+            closeResolverModalCompletely(function () {
                 $("#project-tabs a[data-bs-target='" + projectTab + "']").first().trigger("click");
-            }, 250);
+            });
             return;
         }
 
         if (localTarget) {
-            window.setTimeout(function () {
+            closeResolverModalCompletely(function () {
                 var target = $(localTarget);
                 target.addClass("journey-highlight");
                 target[0] && target[0].scrollIntoView({behavior: "smooth", block: "center"});
-            }, 250);
+            });
             return;
         }
 
         var url = String(action.data("check-url") || "");
-        if (url) window.location.href = url;
+        if (url) {
+            closeResolverModalCompletely(function () {
+                window.location.href = url;
+            });
+        }
     });
 
     $(document).ajaxSuccess(function (event, xhr, settings) {
