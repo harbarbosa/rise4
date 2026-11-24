@@ -81,6 +81,11 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
 #project-journey .journey-resolve-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:6px 12px;border:1px solid #1c7ed6;border-radius:5px;background:#1c7ed6;color:#fff!important;font-size:12px;font-weight:600;line-height:1.2;text-decoration:none!important;white-space:nowrap;cursor:pointer;box-shadow:none}
 #project-journey .journey-resolve-action:hover,#project-journey .journey-resolve-action:focus{border-color:#1864ab;background:#1864ab;color:#fff!important;text-decoration:none!important;outline:0}
 #project-journey .journey-resolve-action svg{width:14px;height:14px;stroke:currentColor}
+#journey-resolver-modal .journey-resolver-row{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:12px 0;border-bottom:1px solid #edf0f2}
+#journey-resolver-modal .journey-resolver-row:last-child{border-bottom:0}
+#journey-resolver-modal .journey-resolver-actions{display:flex;gap:8px;flex-wrap:wrap}
+#journey-resolver-modal .select2-container{width:100%!important}
+#journey-resolver-modal .hide{display:none!important}
 #project-journey #journey-manager-select,#project-journey #journey-task-readiness,#project-journey #journey-material-flow{scroll-margin-top:90px}
 #project-journey .journey-highlight{animation:journey-highlight 1.8s ease}
 @keyframes journey-highlight{0%,100%{box-shadow:none}35%{box-shadow:0 0 0 4px rgba(28,126,214,.2)}}
@@ -200,12 +205,18 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                             $localTarget = $localTargets[$check["key"]] ?? "";
                             $projectTabTarget = $projectTabTargets[$check["key"]] ?? "";
                             ?>
-                            <a class="journey-resolve-action"
-                               href="<?php echo $localTarget ? $localTarget : ($projectTabTarget ? "#" : esc($check["url"])); ?>"
-                               <?php if ($projectTabTarget): ?>data-project-tab="<?php echo esc($projectTabTarget); ?>"<?php endif; ?>>
-                                <i data-feather="arrow-right-circle" class="icon-14"></i>
+                            <button type="button"
+                                    class="journey-resolve-action journey-open-resolver"
+                                    data-check-key="<?php echo esc($check["key"]); ?>"
+                                    data-check-label="<?php echo esc($check["label"]); ?>"
+                                    data-check-detail="<?php echo esc($check["detail"] ?? ""); ?>"
+                                    data-check-help="<?php echo esc($helpText); ?>"
+                                    data-check-url="<?php echo esc($check["url"]); ?>"
+                                    data-local-target="<?php echo esc($localTarget); ?>"
+                                    data-project-tab="<?php echo esc($projectTabTarget); ?>">
+                                <i data-feather="edit-3" class="icon-14"></i>
                                 <span>Resolver</span>
-                            </a>
+                            </button>
                         <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
@@ -446,6 +457,63 @@ foreach ($material_flow["rows"] as $flowRow) {
 
 </div>
 
+<div class="modal fade" id="journey-resolver-modal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i data-feather="check-square" class="icon-18"></i> Corrigir pendência</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo app_lang("close"); ?>"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb20">
+                    <strong id="journey-resolver-label"></strong>
+                    <div id="journey-resolver-help" class="mt5"></div>
+                    <div id="journey-resolver-detail" class="mt5 text-muted"></div>
+                </div>
+
+                <div id="journey-resolver-manager" class="journey-resolver-section hide">
+                    <label for="journey-resolver-manager-select">Gerente responsável pelo projeto</label>
+                    <?php echo form_open(get_uri("projectanalizer/journey/save_manager"), ["id" => "journey-resolver-manager-form", "class" => "general-form"]); ?>
+                        <input type="hidden" name="project_id" value="<?php echo (int)$project_id; ?>">
+                        <?php echo form_dropdown("manager_id", $managers, $journey->manager_id ?? "", "id='journey-resolver-manager-select' class='form-control select2'"); ?>
+                        <div class="mt15 text-end">
+                            <button class="btn btn-primary" type="submit"><i data-feather="save" class="icon-16"></i> Salvar e atualizar</button>
+                        </div>
+                    <?php echo form_close(); ?>
+                </div>
+
+                <div id="journey-resolver-tasks" class="journey-resolver-section hide">
+                    <?php foreach ($task_readiness as $resolverTask): ?>
+                        <div class="journey-resolver-row">
+                            <div>
+                                <strong><?php echo esc($resolverTask["title"]); ?></strong>
+                                <?php if (!empty($resolverTask["missing"])): ?>
+                                    <div class="text-muted"><?php echo esc(implode(", ", $resolverTask["missing"])); ?></div>
+                                <?php endif; ?>
+                            </div>
+                            <?php echo modal_anchor(
+                                get_uri("projectanalizer/task_modal_form"),
+                                "<i data-feather='edit-3' class='icon-14'></i> Editar tarefa",
+                                ["class" => "btn btn-default btn-sm journey-nested-modal", "title" => "Editar tarefa", "data-post-id" => $resolverTask["id"], "data-post-project_id" => $project_id]
+                            ); ?>
+                        </div>
+                    <?php endforeach; ?>
+                    <?php if (!$task_readiness): ?><div class="text-muted">Nenhuma tarefa cadastrada.</div><?php endif; ?>
+                </div>
+
+                <div id="journey-resolver-generic" class="journey-resolver-section hide">
+                    <p id="journey-resolver-instruction">Use o formulário indicado para concluir esta correção.</p>
+                    <div class="journey-resolver-actions">
+                        <a href="#" id="journey-resolver-open-form" class="btn btn-primary">
+                            <i data-feather="edit-3" class="icon-16"></i> Abrir formulário de correção
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 (function initializeProjectJourney(attempt) {
     if (!window.jQuery) {
@@ -494,6 +562,124 @@ foreach ($material_flow["rows"] as $flowRow) {
             }
         });
     }
+
+    var resolverModal = $("#journey-resolver-modal");
+
+    function refreshJourneyAfterSave() {
+        resolverModal.modal("hide");
+        window.setTimeout(function () { window.location.reload(); }, 250);
+    }
+
+    $("#journey-resolver-manager-form").appForm({
+        isModal: false,
+        onSuccess: function (result) {
+            appAlert.success(result.message, {duration: 10000});
+            refreshJourneyAfterSave();
+        }
+    });
+
+    $(document).on("click.projectJourney", ".journey-open-resolver", function () {
+        var button = $(this);
+        var key = String(button.data("check-key") || "");
+        var taskKeys = ["task_release", "task_plan", "task_dates", "task_weights", "monitoring", "tasks_finished"];
+
+        $("#journey-resolver-label").text(button.data("check-label") || "");
+        $("#journey-resolver-help").text(button.data("check-help") || "");
+        $("#journey-resolver-detail").text(button.data("check-detail") ? "Situação atual: " + button.data("check-detail") : "");
+        $(".journey-resolver-section").addClass("hide");
+
+        if (key === "manager") {
+            $("#journey-resolver-manager").removeClass("hide");
+            window.setTimeout(function () {
+                var managerSelect = $("#journey-resolver-manager-select");
+                if ($.fn.select2 && !managerSelect.data("select2") && !managerSelect.hasClass("select2-hidden-accessible")) {
+                    managerSelect.select2({dropdownParent: resolverModal});
+                }
+            }, 100);
+        } else if (taskKeys.indexOf(key) !== -1) {
+            $("#journey-resolver-tasks").removeClass("hide");
+        } else {
+            $("#journey-resolver-generic").removeClass("hide");
+            $("#journey-resolver-open-form")
+                .data("check-key", key)
+                .data("check-url", button.data("check-url") || "")
+                .data("project-tab", button.data("project-tab") || "")
+                .data("local-target", button.data("local-target") || "");
+        }
+
+        resolverModal.modal("show");
+        if (window.feather) feather.replace();
+    });
+
+    $("#journey-resolver-open-form").on("click", function (event) {
+        event.preventDefault();
+        var action = $(this);
+        var key = String(action.data("check-key") || "");
+        var projectTab = String(action.data("project-tab") || "");
+        var localTarget = String(action.data("local-target") || "");
+        var modalUrl = "";
+        var modalData = {};
+
+        if (key === "start_date" || key === "deadline" || key === "close_project") {
+            modalUrl = "<?php echo get_uri('projects/modal_form'); ?>";
+            modalData = {id: <?php echo (int)$project_id; ?>};
+        } else if (key === "members") {
+            modalUrl = "<?php echo get_uri('projects/project_member_modal_form'); ?>";
+            modalData = {project_id: <?php echo (int)$project_id; ?>};
+        } else if (key === "milestones") {
+            modalUrl = "<?php echo get_uri('projectanalizer/etapa_modal_form'); ?>";
+            modalData = {project_id: <?php echo (int)$project_id; ?>};
+        } else if (key === "schedule") {
+            modalUrl = "<?php echo get_uri('projectanalizer/execution_schedule_modal_form'); ?>";
+            modalData = {project_id: <?php echo (int)$project_id; ?>};
+        } else if (key === "activity") {
+            modalUrl = "<?php echo get_uri('projectanalizer/timelog_modal_form'); ?>";
+            modalData = {project_id: <?php echo (int)$project_id; ?>};
+        }
+
+        resolverModal.modal("hide");
+
+        if (modalUrl) {
+            var opener = $("<a href='#' data-act='ajax-modal'></a>")
+                .attr("data-action-url", modalUrl)
+                .attr("data-title", $("#journey-resolver-label").text());
+            $.each(modalData, function (name, value) {
+                opener.attr("data-post-" + name, value);
+            });
+            $("body").append(opener);
+            window.setTimeout(function () {
+                opener.trigger("click");
+                window.setTimeout(function () { opener.remove(); }, 500);
+            }, 250);
+            return;
+        }
+
+        if (projectTab) {
+            window.setTimeout(function () {
+                $("#project-tabs a[data-bs-target='" + projectTab + "']").first().trigger("click");
+            }, 250);
+            return;
+        }
+
+        if (localTarget) {
+            window.setTimeout(function () {
+                var target = $(localTarget);
+                target.addClass("journey-highlight");
+                target[0] && target[0].scrollIntoView({behavior: "smooth", block: "center"});
+            }, 250);
+            return;
+        }
+
+        var url = String(action.data("check-url") || "");
+        if (url) window.location.href = url;
+    });
+
+    $(document).ajaxSuccess(function (event, xhr, settings) {
+        var url = String(settings.url || "");
+        if (/projects\\/(save|add_project_member)|projectanalizer\\/(save_task|save_etapa|save_execution_schedule|save_timelog)/.test(url)) {
+            window.setTimeout(function () { window.location.reload(); }, 350);
+        }
+    });
 
     $(document).on("click.projectJourney", "[data-project-tab]", function (event) {
         event.preventDefault();
