@@ -567,9 +567,10 @@ foreach ($material_flow["rows"] as $flowRow) {
 
     var resolverModal = $("#journey-resolver-modal");
     var journeyCurrentPhase = <?php echo (int)$currentPhase; ?>;
-    var journeyPhases = <?php echo json_encode($phases, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
-    var journeyChecks = <?php echo json_encode($checks_by_phase, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
-    var journeyHelpTexts = <?php echo json_encode($checkHelpTexts, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+    var journeyJsonFlags = <?php echo JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT; ?>;
+    var journeyPhases = <?php echo json_encode($phases, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?: "{}"; ?>;
+    var journeyChecks = <?php echo json_encode($checks_by_phase, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?: "{}"; ?>;
+    var journeyHelpTexts = <?php echo json_encode($checkHelpTexts, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?: "{}"; ?>;
     var journeyProjectTabs = {
         milestones:"#project-etapas-section", milestone_weight:"#project-etapas-section",
         tasks:"#project-tasks-section", task_plan:"#project-tasks-section", task_dates:"#project-tasks-section",
@@ -738,7 +739,7 @@ foreach ($material_flow["rows"] as $flowRow) {
 
     $(document).ajaxSuccess(function (event, xhr, settings) {
         var url = String(settings.url || "");
-        if (/projects\\/(save|add_project_member)|projectanalizer\\/(save_task|save_etapa|save_execution_schedule|save_timelog)/.test(url)) {
+        if (/projects\/(save|add_project_member)|projectanalizer\/(save_task|save_etapa|save_execution_schedule|save_timelog)/.test(url)) {
             window.setTimeout(function () { window.location.reload(); }, 350);
         }
     });
