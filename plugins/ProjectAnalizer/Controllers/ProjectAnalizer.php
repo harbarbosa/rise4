@@ -3213,6 +3213,30 @@ class ProjectAnalizer extends Security_Controller {
 
         $project_id = $this->request->getPost('project_id');
 
+        // Projetos que utilizam a jornada só podem receber atividade em tarefas
+        // efetivamente liberadas para execução (planejamento, materiais e agenda prontos).
+        if ($task_id && $project_id) {
+            $journeyService = new \ProjectAnalizer\Libraries\ProjectJourneyService();
+            $journey = $journeyService->getJourney((int) $project_id, (int) $this->login_user->id);
+            if (empty($journey->legacy_unlocked)) {
+                $taskReadyForExecution = false;
+                foreach ($journeyService->getTaskReadiness((int) $project_id) as $taskReadiness) {
+                    if ((int) $taskReadiness["id"] === (int) $task_id) {
+                        $taskReadyForExecution = !empty($taskReadiness["execution_released"]);
+                        break;
+                    }
+                }
+
+                if (!$taskReadyForExecution) {
+                    echo json_encode(array(
+                        "success" => false,
+                        "message" => "Esta tarefa ainda não está liberada para execução. Aprove o planejamento, regularize os materiais, cadastre a programação e libere a tarefa antes de lançar atividades."
+                    ));
+                    return false;
+                }
+            }
+        }
+
         if (!$id && $project_id) {
             $members_query = $this->Project_members_model->get_project_members_dropdown_list($project_id, array(), false, true);
             $project_members = $members_query ? $members_query->getResult() : array();
