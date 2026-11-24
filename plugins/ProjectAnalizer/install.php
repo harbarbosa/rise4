@@ -208,6 +208,25 @@ try {
     $result["errors"][] = $e->getMessage();
 }
 
+// Separa a aprovação do planejamento da liberação real para execução.
+try {
+    $taskJourneyTable = $dbprefix . "pa_task_journey_status";
+    $executionReleaseColumns = array(
+        "execution_released" => "TINYINT(1) NOT NULL DEFAULT 0",
+        "execution_release_notes" => "TEXT NULL",
+        "execution_released_by" => "INT(11) UNSIGNED NULL",
+        "execution_released_at" => "DATETIME NULL"
+    );
+    foreach ($executionReleaseColumns as $column => $definition) {
+        if (!$db->fieldExists($column, $taskJourneyTable)) {
+            $db->query("ALTER TABLE `{$taskJourneyTable}` ADD `{$column}` {$definition}");
+        }
+    }
+} catch (\Throwable $e) {
+    $result["success"] = false;
+    $result["errors"][] = $e->getMessage();
+}
+
 // Campos de aprovação dos lançamentos de atividade (timesheets).
 $projectTimeTable = $dbprefix . "project_time";
 $approvalColumns = array(
