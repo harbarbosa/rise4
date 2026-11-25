@@ -237,7 +237,29 @@
     $('.delete-project-material').on('click',function(){var $button=$(this);if(!confirm('Deseja excluir este material do projeto?'))return;$button.prop('disabled',true);appAjaxRequest({url:'<?php echo_uri('projectanalizer/project_materials/delete_material'); ?>',type:'POST',dataType:'json',data:{project_id:'<?php echo (int)$project_id; ?>',project_material_id:$button.data('material-id')},success:function(r){if(r&&r.success){appAlert.success(r.message);location.reload();}else{appAlert.error((r&&r.message)||'Erro');$button.prop('disabled',false);}},error:function(xhr){appAlert.error((xhr.responseJSON&&xhr.responseJSON.message)||'Erro ao processar.');$button.prop('disabled',false);}});});
     $('#batch-material-check-all').on('change',function(){$('.batch-material-check:not(:disabled)').prop('checked',this.checked).trigger('change');});
     $('.batch-material-check').on('change',function(){var $q=$(this).closest('tr').find('.batch-material-quantity');$q.prop('disabled',!this.checked);if(this.checked&&!$q.val()){$q.val($q.data('max'));}else if(!this.checked){$q.val('');}});
-    $('#project-material-batch-form').on('submit',function(e){e.preventDefault();var $f=$(this),data={project_id:$f.find('[name=project_id]').val(),task_id:$f.find('[name=task_id]').val(),project_material_id:[],quantity:[]};$('.batch-material-check:checked').each(function(){data.project_material_id.push($(this).val());data.quantity.push($(this).closest('tr').find('.batch-material-quantity').val());});send($f,'<?php echo_uri('projectanalizer/project_materials/allocate_batch'); ?>',data);});
+    $('#project-material-batch-form').on('submit',function(e){
+        e.preventDefault();
+        var $f=$(this);
+        var $taskSelect=$f.find('[name=task_id]');
+        var taskId=$taskSelect.val();
+
+        if(!taskId){
+            appAlert.error('Selecione uma tarefa antes de associar os materiais.');
+            if($.fn.select2){
+                $taskSelect.select2('open');
+            }else{
+                $taskSelect.trigger('focus');
+            }
+            return;
+        }
+
+        var data={project_id:$f.find('[name=project_id]').val(),task_id:taskId,project_material_id:[],quantity:[]};
+        $('.batch-material-check:checked').each(function(){
+            data.project_material_id.push($(this).val());
+            data.quantity.push($(this).closest('tr').find('.batch-material-quantity').val());
+        });
+        send($f,'<?php echo_uri('projectanalizer/project_materials/allocate_batch'); ?>',data);
+    });
     $('.direct-request-check').on('change',function(){var $q=$(this).closest('tr').find('.direct-request-quantity');$q.prop('disabled',!this.checked);if(this.checked&&!$q.val()){$q.val($q.data('max'));}else if(!this.checked){$q.val('');}});
     $('#project-material-direct-request-form').on('submit',function(e){e.preventDefault();var $f=$(this),data={project_id:$f.find('[name=project_id]').val(),desired_date:$f.find('[name=desired_date]').val(),project_material_id:[],request_quantity:[]};$('.direct-request-check:checked').each(function(){data.project_material_id.push($(this).val());data.request_quantity.push($(this).closest('tr').find('.direct-request-quantity').val());});send($f,'<?php echo_uri('projectanalizer/project_materials/create_request'); ?>',data);});
     $('.remove-material-allocation').on('click',function(){var $button=$(this);if(!confirm('Deseja desassociar este material da tarefa?'))return;$button.prop('disabled',true);appAjaxRequest({url:'<?php echo_uri('projectanalizer/project_materials/remove_allocation'); ?>',type:'POST',dataType:'json',data:{project_id:'<?php echo (int)$project_id; ?>',allocation_id:$button.data('allocation-id')},success:function(r){if(r&&r.success){appAlert.success(r.message);location.reload();}else{appAlert.error((r&&r.message)||'Erro');$button.prop('disabled',false);}},error:function(xhr){appAlert.error((xhr.responseJSON&&xhr.responseJSON.message)||'Erro ao processar.');$button.prop('disabled',false);}});});
