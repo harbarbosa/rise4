@@ -235,8 +235,21 @@
     $('.project-material-allocation-form').on('submit',function(e){e.preventDefault();send($(this),'<?php echo_uri('projectanalizer/project_materials/allocate'); ?>');});
     $('.edit-project-material').on('click',function(){var $button=$(this),quantity=prompt('Informe a nova quantidade total do material:', $button.data('quantity'));if(quantity===null)return;quantity=$.trim(quantity);if(!quantity){appAlert.error('Informe uma quantidade válida.');return;}$button.prop('disabled',true);appAjaxRequest({url:'<?php echo_uri('projectanalizer/project_materials/update_material'); ?>',type:'POST',dataType:'json',data:{project_id:'<?php echo (int)$project_id; ?>',project_material_id:$button.data('material-id'),quantity:quantity},success:function(r){if(r&&r.success){appAlert.success(r.message);location.reload();}else{appAlert.error((r&&r.message)||'Erro');$button.prop('disabled',false);}},error:function(xhr){appAlert.error((xhr.responseJSON&&xhr.responseJSON.message)||'Erro ao processar.');$button.prop('disabled',false);}});});
     $('.delete-project-material').on('click',function(){var $button=$(this);if(!confirm('Deseja excluir este material do projeto?'))return;$button.prop('disabled',true);appAjaxRequest({url:'<?php echo_uri('projectanalizer/project_materials/delete_material'); ?>',type:'POST',dataType:'json',data:{project_id:'<?php echo (int)$project_id; ?>',project_material_id:$button.data('material-id')},success:function(r){if(r&&r.success){appAlert.success(r.message);location.reload();}else{appAlert.error((r&&r.message)||'Erro');$button.prop('disabled',false);}},error:function(xhr){appAlert.error((xhr.responseJSON&&xhr.responseJSON.message)||'Erro ao processar.');$button.prop('disabled',false);}});});
-    $('#batch-material-check-all').on('change',function(){$('.batch-material-check:not(:disabled)').prop('checked',this.checked).trigger('change');});
-    $('.batch-material-check').on('change',function(){var $q=$(this).closest('tr').find('.batch-material-quantity');$q.prop('disabled',!this.checked);if(this.checked&&!$q.val()){$q.val($q.data('max'));}else if(!this.checked){$q.val('');}});
+    $(document).off('change.projectMaterialBatchAll','#batch-material-check-all').on('change.projectMaterialBatchAll','#batch-material-check-all',function(){
+        $('.batch-material-check:not(:disabled)').prop('checked',this.checked).trigger('change');
+    });
+    $(document).off('change.projectMaterialBatch','.batch-material-check').on('change.projectMaterialBatch','.batch-material-check',function(){
+        var $checkbox=$(this);
+        var $quantity=$checkbox.closest('tr').find('.batch-material-quantity');
+        var checked=$checkbox.is(':checked');
+        $quantity.prop('disabled',!checked).toggleClass('disabled',!checked);
+        if(checked){
+            if(!$quantity.val()) $quantity.val($quantity.data('max'));
+            $quantity.trigger('focus').select();
+        }else{
+            $quantity.val('');
+        }
+    });
     $('#project-material-batch-form').on('submit',function(e){
         e.preventDefault();
         var $f=$(this);
