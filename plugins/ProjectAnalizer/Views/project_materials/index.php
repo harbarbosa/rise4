@@ -130,6 +130,66 @@
     </div>
 </div>
 
+<?php
+$consolidated_request_rows = array();
+foreach ((array) $all_allocations as $allocation) {
+    $remaining_to_request = max(0, (float)$allocation->quantity - (float)$allocation->requested_quantity);
+    if ($remaining_to_request > 0.00001) {
+        $allocation->remaining_to_request = $remaining_to_request;
+        $consolidated_request_rows[] = $allocation;
+    }
+}
+?>
+<?php if ($consolidated_request_rows) { ?>
+<div class="card mt20 consolidated-material-request-card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <div>
+            <strong><i data-feather="shopping-cart" class="icon-16"></i> Requisição consolidada de materiais</strong>
+            <div class="small text-off">Selecione materiais de uma ou mais tarefas para criar uma única requisição de compra.</div>
+        </div>
+        <span class="badge bg-info"><?php echo count($consolidated_request_rows); ?> disponível(is)</span>
+    </div>
+    <form id="consolidated-material-request-form">
+        <input type="hidden" name="project_id" value="<?php echo (int)$project_id; ?>">
+        <div class="table-responsive">
+            <table class="table table-hover mb0">
+                <thead>
+                    <tr>
+                        <th class="w50"><input type="checkbox" id="consolidated-request-check-all" class="form-check-input" title="Selecionar todos"></th>
+                        <th>Tarefa</th>
+                        <th>Material</th>
+                        <th class="text-end">Necessário</th>
+                        <th class="text-end">Já requisitado</th>
+                        <th class="text-end">Disponível</th>
+                        <th class="w180">Solicitar agora</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($consolidated_request_rows as $row) { ?>
+                    <tr>
+                        <td><input type="checkbox" class="form-check-input consolidated-request-check" value="<?php echo (int)$row->id; ?>"></td>
+                        <td><strong><?php echo esc($row->task_title); ?></strong><div class="small text-off">Tarefa #<?php echo (int)$row->task_id; ?></div></td>
+                        <td><?php echo esc($row->description); ?><div class="small text-off"><?php echo esc($row->unit); ?></div></td>
+                        <td class="text-end"><?php echo number_format((float)$row->quantity,3,',','.'); ?></td>
+                        <td class="text-end"><?php echo number_format((float)$row->requested_quantity,3,',','.'); ?></td>
+                        <td class="text-end"><strong><?php echo number_format((float)$row->remaining_to_request,3,',','.'); ?></strong></td>
+                        <td><input class="form-control consolidated-request-quantity" inputmode="decimal" data-max="<?php echo number_format((float)$row->remaining_to_request,4,'.',''); ?>" placeholder="Quantidade" disabled></td>
+                    </tr>
+                <?php } ?>
+                </tbody>
+            </table>
+        </div>
+        <div class="consolidated-request-footer">
+            <div>
+                <label>Data necessária</label>
+                <input type="date" name="desired_date" class="form-control" value="<?php echo date('Y-m-d'); ?>" required>
+            </div>
+            <button class="btn btn-primary" type="submit"><i data-feather="shopping-cart" class="icon-16"></i> Criar uma única requisição</button>
+        </div>
+    </form>
+</div>
+<?php } ?>
+
 <div class="mt20">
 <?php foreach ($tasks as $task) { $rows=$allocations_by_task[(int)$task->id] ?? array(); if (!$rows) continue; ?>
     <div class="card mb15">
@@ -147,6 +207,11 @@
 </div>
 
 <style>
+.consolidated-material-request-card .card-header{gap:15px}
+.consolidated-material-request-card td{vertical-align:middle}
+.consolidated-request-footer{display:flex;justify-content:flex-end;align-items:end;gap:10px;padding:15px;border-top:1px solid #e7e9ec;background:#fafbfc}
+.consolidated-request-footer label{display:block;margin-bottom:5px;font-size:11px;font-weight:600}
+@media(max-width:767px){.consolidated-request-footer{align-items:stretch;flex-direction:column}.consolidated-request-footer .btn{width:100%}}
 .project-material-search-bar{display:flex;align-items:center;gap:12px;padding:12px 15px;border-bottom:1px solid #e7e9ec;background:#fff}
 .project-material-search-bar .input-group{width:min(620px,100%)}
 .project-material-search-bar .input-group-text{background:#f8f9fa;border-color:#e1e5eb}
@@ -278,6 +343,31 @@
     $('.direct-request-check').on('change',function(){var $q=$(this).closest('tr').find('.direct-request-quantity');$q.prop('disabled',!this.checked);if(this.checked&&!$q.val()){$q.val($q.data('max'));}else if(!this.checked){$q.val('');}});
     $('#project-material-direct-request-form').on('submit',function(e){e.preventDefault();var $f=$(this),data={project_id:$f.find('[name=project_id]').val(),desired_date:$f.find('[name=desired_date]').val(),project_material_id:[],request_quantity:[]};$('.direct-request-check:checked').each(function(){data.project_material_id.push($(this).val());data.request_quantity.push($(this).closest('tr').find('.direct-request-quantity').val());});send($f,'<?php echo_uri('projectanalizer/project_materials/create_request'); ?>',data);});
     $('.remove-material-allocation').on('click',function(){var $button=$(this);if(!confirm('Deseja desassociar este material da tarefa?'))return;$button.prop('disabled',true);appAjaxRequest({url:'<?php echo_uri('projectanalizer/project_materials/remove_allocation'); ?>',type:'POST',dataType:'json',data:{project_id:'<?php echo (int)$project_id; ?>',allocation_id:$button.data('allocation-id')},success:function(r){if(r&&r.success){appAlert.success(r.message);location.reload();}else{appAlert.error((r&&r.message)||'Erro');$button.prop('disabled',false);}},error:function(xhr){appAlert.error((xhr.responseJSON&&xhr.responseJSON.message)||'Erro ao processar.');$button.prop('disabled',false);}});});
+    $(document).off('change.consolidatedRequestAll','#consolidated-request-check-all').on('change.consolidatedRequestAll','#consolidated-request-check-all',function(){
+        $('.consolidated-request-check').prop('checked',this.checked).trigger('change');
+    });
+    $(document).off('change.consolidatedRequest','.consolidated-request-check').on('change.consolidatedRequest','.consolidated-request-check',function(){
+        var $quantity=$(this).closest('tr').find('.consolidated-request-quantity');
+        var checked=$(this).is(':checked');
+        $quantity.prop('disabled',!checked);
+        if(checked && !$quantity.val()) $quantity.val($quantity.data('max'));
+        if(!checked) $quantity.val('');
+    });
+    $('#consolidated-material-request-form').on('submit',function(e){
+        e.preventDefault();
+        var $form=$(this);
+        var data={project_id:$form.find('[name=project_id]').val(),desired_date:$form.find('[name=desired_date]').val(),allocation_id:[],request_quantity:[]};
+        $form.find('.consolidated-request-check:checked').each(function(){
+            data.allocation_id.push($(this).val());
+            data.request_quantity.push($(this).closest('tr').find('.consolidated-request-quantity').val());
+        });
+        if(!data.allocation_id.length){
+            appAlert.error('Selecione pelo menos um material para criar a requisição.');
+            return;
+        }
+        send($form,'<?php echo_uri('projectanalizer/project_materials/create_request'); ?>',data);
+    });
+
     $('.project-material-request-form').on('submit',function(e){e.preventDefault();var $f=$(this),data={project_id:$f.find('[name=project_id]').val(),task_id:$f.find('[name=task_id]').val(),desired_date:$f.find('[name=desired_date]').val(),allocation_id:[],request_quantity:[]};$f.find('tbody tr').each(function(){if($(this).find('.request-material-check').is(':checked')){data.allocation_id.push($(this).find('.allocation-id').val());data.request_quantity.push($(this).find('.request-quantity').val());}});send($f,'<?php echo_uri('projectanalizer/project_materials/create_request'); ?>',data);});
     });
 })(0);
