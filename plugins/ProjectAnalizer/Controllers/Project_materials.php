@@ -46,6 +46,7 @@ class Project_materials extends Security_Controller
             'materials' => $materials,
             'tasks' => $tasks,
             'allocations_by_task' => $by_task,
+            'all_allocations' => $allocations,
             'catalog_items' => $items
         ));
     }
@@ -411,8 +412,9 @@ class Project_materials extends Security_Controller
         $desired_date = trim((string)$this->request->getPost('desired_date'));
         $project = $this->_get_project($project_id);
         $direct_from_project = !$task_id && !empty($project_material_ids);
+        $from_task_allocations = !empty($allocation_ids);
 
-        if (!$project || !$desired_date || (!$direct_from_project && !$task_id)) {
+        if (!$project || !$desired_date || (!$direct_from_project && !$from_task_allocations)) {
             return $this->_error('Selecione os materiais e informe a data desejada.');
         }
 
@@ -478,30 +480,31 @@ class Project_materials extends Security_Controller
                 );
             }
         } else {
+            $allocations_table = $db->prefixTable('pa_project_task_materials');
+            $allocation_rows = $this->materials_model->get_allocations($project_id);
+            $allocations_by_id = array();
+            foreach ($allocation_rows as $allocation_row) {
+                $allocations_by_id[(int)$allocation_row->id] = $allocation_row;
+            }
+
             foreach ($selected as $allocation_id => $qty) {
-                $allocations_table = $db->prefixTable('pa_project_task_materials');
                 $lock = $db->query(
-                    "SELECT id FROM $allocations_table WHERE id=? AND project_id=? AND task_id=? AND deleted=0 FOR UPDATE",
-                    array($allocation_id, $project_id, $task_id)
+                    "SELECT id,task_id FROM $allocations_table WHERE id=? AND project_id=? AND deleted=0 FOR UPDATE",
+                    array($allocation_id, $project_id)
                 );
-                if (!$lock || !$lock->getRow()) {
+                $locked_allocation = $lock ? $lock->getRow() : null;
+                if (!$locked_allocation) {
                     $db->transRollback();
                     return $this->_error(app_lang('record_not_found'));
                 }
 
-                $allocation_rows = $this->materials_model->get_allocations($project_id, $task_id);
-                $allocation = null;
-                foreach ($allocation_rows as $candidate) {
-                    if ((int)$candidate->id === $allocation_id) {
-                        $allocation = $candidate;
-                        break;
-                    }
-                }
-                if (!$allocation) {
+                $allocation = $allocations_by_id[$allocation_id] ?? null;
+                if (!$allocation || ($task_id && (int)$allocation->task_id !== $task_id)) {
                     $db->transRollback();
                     return $this->_error(app_lang('record_not_found'));
                 }
 
+                $allocation_task_id = (int)$allocation->task_id;
                 $remaining = (float)$allocation->quantity - (float)$allocation->requested_quantity;
                 if ($qty > $remaining + 0.00001) {
                     $db->transRollback();
@@ -511,12 +514,12 @@ class Project_materials extends Security_Controller
                 $rows[] = array(
                     'project_material_id' => (int)$allocation->project_material_id,
                     'allocation_id' => (int)$allocation->id,
-                    'task_id' => $task_id,
+                    'task_id' => $allocation_task_id,
                     'item_id' => $allocation->item_id ?: null,
                     'description' => $allocation->description,
                     'unit' => $allocation->unit ?: 'UN',
                     'quantity' => $qty,
-                    'note' => 'Tarefa #' . $task_id
+                    'note' => 'Tarefa #' . $allocation_task_id . ' - ' . ($allocation->task_title ?? '')
                 );
             }
         }
@@ -532,7 +535,9 @@ class Project_materials extends Security_Controller
         $task = $task_id ? model('App\\Models\\Tasks_model')->get_one($task_id) : null;
         $request_note = $task_id
             ? 'Materiais da tarefa #' . $task_id . ' - ' . ($task->title ?? '')
-            : 'Materiais solicitados diretamente pelo projeto #' . $project_id;
+            : ($direct_from_project
+                ? 'Materiais solicitados diretamente pelo projeto #' . $project_id
+                : 'Materiais consolidados de várias tarefas do projeto #' . $project_id);
 
         $request_data = array(
             'company_id' => $this->_company_id(),
