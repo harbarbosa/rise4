@@ -55,10 +55,23 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
 #project-journey .journey-panel-header{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:15px 18px;border-bottom:1px solid #e7e9ec;background:#fff}
 #project-journey .journey-panel-header h4{font-size:16px;line-height:1.3;margin:0;font-weight:600;color:#343a40}
 #project-journey .journey-panel-hint{font-size:12px;color:#868e96;text-align:right}
-#project-journey .journey-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
-#project-journey .journey-table{width:100%;margin:0;border-collapse:collapse;background:#fff}
-#project-journey .journey-table th{padding:11px 12px;border-bottom:2px solid #e7e9ec;background:#f8f9fa;color:#495057;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;text-align:left}
-#project-journey .journey-table td{padding:12px;border-bottom:1px solid #edf0f2;color:#343a40;font-size:12px;vertical-align:middle}
+#project-journey .journey-table-wrap{width:100%;overflow-x:hidden}
+#project-journey .journey-table{width:100%;max-width:100%;table-layout:fixed;margin:0;border-collapse:collapse;background:#fff}
+#project-journey .journey-table th{padding:9px 7px;border-bottom:2px solid #e7e9ec;background:#f8f9fa;color:#495057;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.01em;white-space:normal;overflow-wrap:anywhere;text-align:left}
+#project-journey .journey-table td{padding:9px 7px;border-bottom:1px solid #edf0f2;color:#343a40;font-size:11px;line-height:1.35;vertical-align:middle;white-space:normal;overflow-wrap:anywhere}
+#project-journey #journey-task-readiness .journey-table th:nth-child(1){width:16%}
+#project-journey #journey-task-readiness .journey-table th:nth-child(2){width:6%}
+#project-journey #journey-task-readiness .journey-table th:nth-child(3){width:8%}
+#project-journey #journey-task-readiness .journey-table th:nth-child(4){width:7%}
+#project-journey #journey-task-readiness .journey-table th:nth-child(5){width:7%}
+#project-journey #journey-task-readiness .journey-table th:nth-child(6){width:10%}
+#project-journey #journey-task-readiness .journey-table th:nth-child(7){width:10%}
+#project-journey #journey-task-readiness .journey-table th:nth-child(8){width:10%}
+#project-journey #journey-task-readiness .journey-table th:nth-child(9){width:12%}
+#project-journey #journey-task-readiness .journey-table th:nth-child(10){width:14%}
+#project-journey #journey-task-readiness td:last-child{white-space:normal!important}
+#project-journey #journey-task-readiness td:last-child .btn{display:block;width:100%;margin:0 0 5px;padding:5px 6px;font-size:10px;white-space:normal}
+#project-journey #journey-task-readiness td:last-child .btn:last-child{margin-bottom:0}
 #project-journey .journey-table tbody tr:last-child td{border-bottom:0}
 #project-journey .journey-table tbody tr:hover{background:#fbfcfd}
 #project-journey .journey-table .table-warning{background:#fff9db}
@@ -92,7 +105,7 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
 #project-journey .journey-highlight{animation:journey-highlight 1.8s ease}
 @keyframes journey-highlight{0%,100%{box-shadow:none}35%{box-shadow:0 0 0 4px rgba(28,126,214,.2)}}
 @media(max-width:991px){#project-journey .journey-phase-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:767px){#project-journey .journey-title{align-items:flex-start;flex-direction:column}#project-journey .journey-summary{grid-template-columns:1fr}#project-journey .journey-phase-grid{grid-template-columns:1fr}#project-journey .journey-check{align-items:flex-start;flex-direction:column}#project-journey .journey-panel-header{align-items:flex-start;flex-direction:column}#project-journey .journey-panel-hint{text-align:left}#project-journey .journey-filter-row{grid-template-columns:1fr}}
+@media(max-width:767px){#project-journey .journey-title{align-items:flex-start;flex-direction:column}#project-journey .journey-summary{grid-template-columns:1fr}#project-journey .journey-phase-grid{grid-template-columns:1fr}#project-journey .journey-check{align-items:flex-start;flex-direction:column}#project-journey .journey-panel-header{align-items:flex-start;flex-direction:column}#project-journey .journey-panel-hint{text-align:left}#project-journey .journey-filter-row{grid-template-columns:1fr}#project-journey #journey-task-readiness .journey-table{table-layout:auto}#project-journey #journey-task-readiness .journey-table-wrap{overflow-x:auto}#project-journey #journey-task-readiness .journey-table{min-width:920px}}
 </style>
 
 <div id="project-journey">
@@ -316,7 +329,7 @@ $progress = $totalRequired ? round(($passedRequired / $totalRequired) * 100) : 1
                             <?php endif; ?>
                         <?php endif; ?>
                     </td>
-                    <td class="text-end text-nowrap">
+                    <td class="text-end">
                         <?php if ($task["blocked"]): ?>
                             <button class="btn btn-default btn-sm task-unblock" data-task-id="<?php echo $task["id"]; ?>">Remover bloqueio</button>
                         <?php else: ?>
