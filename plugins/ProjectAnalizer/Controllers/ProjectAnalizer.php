@@ -896,6 +896,29 @@ class ProjectAnalizer extends Security_Controller {
         $task_tools_query = model("ProjectAnalizer\\Models\\Task_tools_model")->get_details(array("task_id" => $task_id));
         $view_data["task_tools"] = $task_tools_query ? $task_tools_query->getResult() : array();
 
+        // Materiais gerenciados pela jornada do projeto.
+        $project_materials_model = model("ProjectAnalizer\\Models\\Project_materials_model");
+        $project_material_allocations = $project_materials_model->get_allocations($project_id, $task_id);
+        $allocated_project_material_ids = array();
+        foreach ($project_material_allocations as $allocation) {
+            $allocated_project_material_ids[(int) $allocation->project_material_id] = true;
+        }
+
+        $available_project_materials = array();
+        foreach ($project_materials_model->get_project_materials($project_id) as $project_material) {
+            $project_material_id = (int) $project_material->id;
+            $total_quantity = (float) $project_material->planned_quantity + (float) $project_material->additional_quantity;
+            $available_quantity = max(0, $total_quantity - (float) $project_material->allocated_quantity);
+            if ($available_quantity > 0.00001 && empty($allocated_project_material_ids[$project_material_id])) {
+                $project_material->available_quantity = $available_quantity;
+                $available_project_materials[] = $project_material;
+            }
+        }
+
+        $view_data["project_material_allocations"] = $project_material_allocations;
+        $view_data["available_project_materials"] = $available_project_materials;
+        $view_data["can_manage_project_task_materials"] = (bool) $view_data['can_edit_tasks'];
+
         $view_data['contexts'] = array("project");
         $view_data["checklist_templates"] = $this->Checklist_template_model->get_details()->getResult();
         $view_data["checklist_groups"] = $this->Checklist_groups_model->get_details()->getResult();
