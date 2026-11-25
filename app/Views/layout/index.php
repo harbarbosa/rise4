@@ -38,6 +38,39 @@ if ($is_workspace_frame) {
 
 <body class="<?php echo $left_menu_minimized ? "sidebar-toggled" : ""; ?> <?php echo $dynamic_class; ?>">
 
+    <script type="text/javascript">
+    (function protectFeatherIcons() {
+        if (!window.feather || !window.feather.replace || window.feather.__safeReplaceInstalled) {
+            return;
+        }
+
+        var originalReplace = window.feather.replace;
+        window.feather.replace = function (attrs) {
+            var icons = window.feather.icons || {};
+            document.querySelectorAll("[data-feather]").forEach(function (element) {
+                var iconName = String(element.getAttribute("data-feather") || "").toLowerCase();
+                if (!icons[iconName]) {
+                    if (icons.file) {
+                        element.setAttribute("data-feather", "file");
+                    } else {
+                        element.removeAttribute("data-feather");
+                    }
+                }
+            });
+
+            try {
+                return originalReplace.call(window.feather, attrs);
+            } catch (error) {
+                if (window.console && console.warn) {
+                    console.warn("Não foi possível renderizar um ícone Feather.", error);
+                }
+                return null;
+            }
+        };
+        window.feather.__safeReplaceInstalled = true;
+    })();
+    </script>
+
     <?php
     if ($topbar) {
         echo view($topbar);
