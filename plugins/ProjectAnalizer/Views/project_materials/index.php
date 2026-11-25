@@ -6,7 +6,7 @@
     <div id="add-project-material" class="collapse p15 border-bottom">
         <form id="project-material-add-form" class="row g-2">
             <input type="hidden" name="project_id" value="<?php echo (int)$project_id; ?>">
-            <div class="col-md-4"><label>Material cadastrado</label><select name="item_id" class="form-control select2"><option value="">- Material fora da lista -</option><?php foreach ($catalog_items as $item) { ?><option value="<?php echo (int)$item->id; ?>" data-unit="<?php echo esc($item->unit_type); ?>"><?php echo esc($item->title); ?></option><?php } ?></select></div>
+            <div class="col-md-4"><label for="project-material-catalog-select">Material cadastrado</label><select name="item_id" id="project-material-catalog-select" class="form-control select2 project-material-select2" data-placeholder="Pesquise ou selecione um material"><option value="">- Material fora da lista -</option><?php foreach ($catalog_items as $item) { ?><option value="<?php echo (int)$item->id; ?>" data-unit="<?php echo esc($item->unit_type); ?>"><?php echo esc($item->title); ?></option><?php } ?></select></div>
             <div class="col-md-4"><label>Descrição</label><input name="description" class="form-control" placeholder="Informe para um material fora da lista"></div>
             <div class="col-md-2"><label>Quantidade</label><input name="quantity" class="form-control" inputmode="decimal" required></div>
             <div class="col-md-1"><label>Unidade</label><input name="unit" class="form-control" value="UN"></div>
@@ -19,7 +19,7 @@
         <div class="row align-items-end">
             <div class="col-md-5">
                 <label><strong>Associação em lote</strong></label>
-                <select name="task_id" id="batch-material-task-select" class="form-control select2 project-material-task-select" data-placeholder="Selecione a tarefa" required>
+                <select name="task_id" id="batch-material-task-select" class="form-control select2 project-material-select2 project-material-task-select" data-placeholder="Selecione a tarefa" required>
                     <option value=""></option>
                     <?php foreach ($tasks as $task) { ?>
                         <option value="<?php echo (int)$task->id; ?>"><?php echo esc($task->title); ?></option>
@@ -110,7 +110,7 @@
                     <td class="material-individual-cell">
                         <form class="project-material-allocation-form d-flex gap-1">
                             <input type="hidden" name="project_id" value="<?php echo (int)$project_id; ?>"><input type="hidden" name="project_material_id" value="<?php echo (int)$material->id; ?>">
-                            <select name="task_id" class="form-control select2 project-material-task-select" data-placeholder="Selecione a tarefa" required><option value=""></option><?php foreach ($tasks as $task) { ?><option value="<?php echo (int)$task->id; ?>"><?php echo esc($task->title); ?></option><?php } ?></select>
+                            <select name="task_id" class="form-control select2 project-material-select2 project-material-task-select" data-placeholder="Selecione a tarefa" required><option value=""></option><?php foreach ($tasks as $task) { ?><option value="<?php echo (int)$task->id; ?>"><?php echo esc($task->title); ?></option><?php } ?></select>
                             <input name="quantity" class="form-control w100" placeholder="Qtd." inputmode="decimal" required>
                             <button class="btn btn-default" type="submit">Associar</button>
                         </form>
@@ -178,6 +178,8 @@
 .project-material-allocation-form .form-control{width:100%!important}
 @media(max-width:1200px){.project-materials-main-table{min-width:1050px}}
 
+#add-project-material .select2-container{width:100%!important}
+#add-project-material .select2-choice{height:38px;line-height:36px}
 #project-material-batch-form .select2-container,
 .project-material-allocation-form .select2-container{width:100%!important}
 #project-material-batch-form .select2-choice{height:38px;line-height:36px}
@@ -193,7 +195,7 @@
     var $ = window.jQuery;
     $(function(){
     if ($.fn.select2) {
-        $('#project-materials .select2, .project-material-task-select').each(function(){
+        $('.project-material-select2').each(function(){
             var $select = $(this);
             if (!$select.data('select2') && !$select.hasClass('select2-hidden-accessible')) {
                 $select.select2({width:'100%', placeholder:$select.data('placeholder') || ''});
