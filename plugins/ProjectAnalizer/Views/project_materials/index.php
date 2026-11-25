@@ -19,8 +19,8 @@
         <div class="row align-items-end">
             <div class="col-md-5">
                 <label><strong>Associação em lote</strong></label>
-                <select name="task_id" class="form-control" required>
-                    <option value="">Selecione a tarefa</option>
+                <select name="task_id" id="batch-material-task-select" class="form-control select2 project-material-task-select" data-placeholder="Selecione a tarefa" required>
+                    <option value=""></option>
                     <?php foreach ($tasks as $task) { ?>
                         <option value="<?php echo (int)$task->id; ?>"><?php echo esc($task->title); ?></option>
                     <?php } ?>
@@ -73,7 +73,7 @@
                     <td>
                         <form class="project-material-allocation-form d-flex gap-1">
                             <input type="hidden" name="project_id" value="<?php echo (int)$project_id; ?>"><input type="hidden" name="project_material_id" value="<?php echo (int)$material->id; ?>">
-                            <select name="task_id" class="form-control" required><option value="">Tarefa</option><?php foreach ($tasks as $task) { ?><option value="<?php echo (int)$task->id; ?>"><?php echo esc($task->title); ?></option><?php } ?></select>
+                            <select name="task_id" class="form-control select2 project-material-task-select" data-placeholder="Selecione a tarefa" required><option value=""></option><?php foreach ($tasks as $task) { ?><option value="<?php echo (int)$task->id; ?>"><?php echo esc($task->title); ?></option><?php } ?></select>
                             <input name="quantity" class="form-control w100" placeholder="Qtd." inputmode="decimal" required>
                             <button class="btn btn-default" type="submit">Associar</button>
                         </form>
@@ -108,9 +108,29 @@
 <?php } ?>
 </div>
 
+<style>
+#project-material-batch-form .select2-container,
+.project-material-allocation-form .select2-container{width:100%!important}
+#project-material-batch-form .select2-choice{height:38px;line-height:36px}
+.project-material-allocation-form{align-items:flex-start}
+.project-material-allocation-form .select2-container{min-width:190px;flex:1 1 190px}
+</style>
 <script>
-$(function(){
-    if ($.fn.select2) $('.select2').select2();
+(function initializeProjectMaterials(attempt){
+    if (!window.jQuery || !window.jQuery.fn) {
+        if (attempt < 100) window.setTimeout(function(){ initializeProjectMaterials(attempt + 1); }, 50);
+        return;
+    }
+    var $ = window.jQuery;
+    $(function(){
+    if ($.fn.select2) {
+        $('#project-materials .select2, .project-material-task-select').each(function(){
+            var $select = $(this);
+            if (!$select.data('select2') && !$select.hasClass('select2-hidden-accessible')) {
+                $select.select2({width:'100%', placeholder:$select.data('placeholder') || ''});
+            }
+        });
+    }
     function send($form,url,data){var $b=$form.find('button[type=submit]');$b.prop('disabled',true);appAjaxRequest({url:url,type:'POST',dataType:'json',data:data||$form.serialize(),success:function(r){if(r&&r.success){if(r.redirect_to){window.location.href=r.redirect_to;}else{location.reload();}}else{appAlert.error((r&&r.message)||'Erro');$b.prop('disabled',false);}},error:function(){appAlert.error('Erro ao processar.');$b.prop('disabled',false);}});}
     $('#project-material-add-form').on('submit',function(e){e.preventDefault();send($(this),'<?php echo_uri('projectanalizer/project_materials/add'); ?>');});
     $('.project-material-allocation-form').on('submit',function(e){e.preventDefault();send($(this),'<?php echo_uri('projectanalizer/project_materials/allocate'); ?>');});
@@ -123,5 +143,6 @@ $(function(){
     $('#project-material-direct-request-form').on('submit',function(e){e.preventDefault();var $f=$(this),data={project_id:$f.find('[name=project_id]').val(),desired_date:$f.find('[name=desired_date]').val(),project_material_id:[],request_quantity:[]};$('.direct-request-check:checked').each(function(){data.project_material_id.push($(this).val());data.request_quantity.push($(this).closest('tr').find('.direct-request-quantity').val());});send($f,'<?php echo_uri('projectanalizer/project_materials/create_request'); ?>',data);});
     $('.remove-material-allocation').on('click',function(){var $button=$(this);if(!confirm('Deseja desassociar este material da tarefa?'))return;$button.prop('disabled',true);appAjaxRequest({url:'<?php echo_uri('projectanalizer/project_materials/remove_allocation'); ?>',type:'POST',dataType:'json',data:{project_id:'<?php echo (int)$project_id; ?>',allocation_id:$button.data('allocation-id')},success:function(r){if(r&&r.success){appAlert.success(r.message);location.reload();}else{appAlert.error((r&&r.message)||'Erro');$button.prop('disabled',false);}},error:function(xhr){appAlert.error((xhr.responseJSON&&xhr.responseJSON.message)||'Erro ao processar.');$button.prop('disabled',false);}});});
     $('.project-material-request-form').on('submit',function(e){e.preventDefault();var $f=$(this),data={project_id:$f.find('[name=project_id]').val(),task_id:$f.find('[name=task_id]').val(),desired_date:$f.find('[name=desired_date]').val(),allocation_id:[],request_quantity:[]};$f.find('tbody tr').each(function(){if($(this).find('.request-material-check').is(':checked')){data.allocation_id.push($(this).find('.allocation-id').val());data.request_quantity.push($(this).find('.request-quantity').val());}});send($f,'<?php echo_uri('projectanalizer/project_materials/create_request'); ?>',data);});
-});
+    });
+})(0);
 </script>
