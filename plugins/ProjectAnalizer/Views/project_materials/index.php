@@ -51,6 +51,18 @@
         </div>
     </form>
     <?php } ?>
+    <?php if ($materials) { ?>
+    <div class="project-material-search-bar">
+        <div class="input-group">
+            <span class="input-group-text"><i data-feather="search" class="icon-16"></i></span>
+            <input type="search" id="project-material-search" class="form-control" placeholder="Pesquisar material por nome, unidade ou origem..." autocomplete="off">
+            <button type="button" id="clear-project-material-search" class="btn btn-default" title="Limpar pesquisa">
+                <i data-feather="x" class="icon-16"></i>
+            </button>
+        </div>
+        <div id="project-material-search-count" class="small text-off"></div>
+    </div>
+    <?php } ?>
     <div class="table-responsive">
         <table class="table table-hover mb0 project-materials-main-table">
             <thead>
@@ -66,7 +78,7 @@
             </thead>
             <tbody>
             <?php foreach ($materials as $material) { $total=(float)$material->planned_quantity+(float)$material->additional_quantity; $available=max(0,$total-(float)$material->allocated_quantity); $request_available=max(0,$total-(float)$material->requested_quantity); ?>
-                <tr>
+                <tr class="project-material-row" data-material-search="<?php echo esc(strtolower($material->description.' '.$material->unit.' '.($material->source === 'proposal' ? 'proposta' : 'adicional'))); ?>">
                     <td class="material-check-cell"><input type="checkbox" class="form-check-input batch-material-check" value="<?php echo (int)$material->id; ?>" <?php echo $available>0?'':'disabled'; ?>></td>
                     <td class="material-name-cell">
                         <div class="material-title"><?php echo esc($material->description); ?></div>
@@ -112,6 +124,7 @@
                 </tr>
             <?php } ?>
             <?php if (!$materials) { ?><tr><td colspan="7" class="text-center p30 text-off">Nenhum material planejado para este projeto.</td></tr><?php } ?>
+            <tr id="project-material-search-empty" class="hide"><td colspan="7" class="text-center p30 text-off"><i data-feather="search" class="icon-18"></i> Nenhum material encontrado para esta pesquisa.</td></tr>
             </tbody>
         </table>
     </div>
@@ -134,6 +147,11 @@
 </div>
 
 <style>
+.project-material-search-bar{display:flex;align-items:center;gap:12px;padding:12px 15px;border-bottom:1px solid #e7e9ec;background:#fff}
+.project-material-search-bar .input-group{width:min(620px,100%)}
+.project-material-search-bar .input-group-text{background:#f8f9fa;border-color:#e1e5eb}
+.project-material-search-bar .form-control{height:40px}
+#project-material-search-count{white-space:nowrap}
 .project-materials-main-table{table-layout:fixed;width:100%;min-width:1080px}
 .project-materials-main-table th{font-size:11px;white-space:normal;vertical-align:bottom}
 .project-materials-main-table td{vertical-align:top;padding:14px 10px}
@@ -181,6 +199,37 @@
             }
         });
     }
+    function normalizeMaterialSearch(value){
+        value = String(value || '').toLowerCase();
+        if (value.normalize) value = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return value;
+    }
+
+    function filterProjectMaterials(){
+        var query = normalizeMaterialSearch($('#project-material-search').val());
+        var visible = 0;
+        var total = 0;
+
+        $('.project-materials-main-table tbody .project-material-row').each(function(){
+            total++;
+            var $row = $(this);
+            var searchable = normalizeMaterialSearch($row.attr('data-material-search') || $row.find('.material-name-cell').text());
+            var show = !query || searchable.indexOf(query) !== -1;
+            $row.toggle(show);
+            if (show) visible++;
+        });
+
+        $('#project-material-search-empty').toggleClass('hide', visible > 0 || !total);
+        $('#project-material-search-count').text(query ? visible + ' de ' + total + ' material(is)' : total + ' material(is)');
+        if (window.feather) feather.replace();
+    }
+
+    $('#project-material-search').on('input', filterProjectMaterials);
+    $('#clear-project-material-search').on('click', function(){
+        $('#project-material-search').val('').trigger('input').trigger('focus');
+    });
+    filterProjectMaterials();
+
     function send($form,url,data){var $b=$form.find('button[type=submit]');$b.prop('disabled',true);appAjaxRequest({url:url,type:'POST',dataType:'json',data:data||$form.serialize(),success:function(r){if(r&&r.success){if(r.redirect_to){window.location.href=r.redirect_to;}else{location.reload();}}else{appAlert.error((r&&r.message)||'Erro');$b.prop('disabled',false);}},error:function(){appAlert.error('Erro ao processar.');$b.prop('disabled',false);}});}
     $('#project-material-add-form').on('submit',function(e){e.preventDefault();send($(this),'<?php echo_uri('projectanalizer/project_materials/add'); ?>');});
     $('.project-material-allocation-form').on('submit',function(e){e.preventDefault();send($(this),'<?php echo_uri('projectanalizer/project_materials/allocate'); ?>');});
