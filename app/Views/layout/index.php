@@ -39,8 +39,14 @@ if ($is_workspace_frame) {
 <body class="<?php echo $left_menu_minimized ? "sidebar-toggled" : ""; ?> <?php echo $dynamic_class; ?>">
 
     <script type="text/javascript">
-    (function protectFeatherIcons() {
-        if (!window.feather || !window.feather.replace || window.feather.__safeReplaceInstalled) {
+    (function protectFeatherIcons(attempt) {
+        if (!window.feather || !window.feather.replace) {
+            if (attempt < 100) {
+                window.setTimeout(function () { protectFeatherIcons(attempt + 1); }, 20);
+            }
+            return;
+        }
+        if (window.feather.__safeReplaceInstalled) {
             return;
         }
 
@@ -68,7 +74,7 @@ if ($is_workspace_frame) {
             }
         };
         window.feather.__safeReplaceInstalled = true;
-    })();
+    })(0);
     </script>
 
     <?php
