@@ -54,10 +54,10 @@
     <?php if ($materials) { ?>
     <div class="project-material-search-bar">
         <div class="input-group">
-            <span class="input-group-text"><i data-feather="search" class="icon-16"></i></span>
+            <span class="input-group-text project-material-search-icon" aria-hidden="true">&#128269;</span>
             <input type="search" id="project-material-search" class="form-control" placeholder="Pesquisar material por nome, unidade ou origem..." autocomplete="off">
             <button type="button" id="clear-project-material-search" class="btn btn-default" title="Limpar pesquisa">
-                <i data-feather="x" class="icon-16"></i>
+                <span aria-hidden="true">&times;</span>
             </button>
         </div>
         <div id="project-material-search-count" class="small text-off"></div>
@@ -124,7 +124,7 @@
                 </tr>
             <?php } ?>
             <?php if (!$materials) { ?><tr><td colspan="7" class="text-center p30 text-off">Nenhum material planejado para este projeto.</td></tr><?php } ?>
-            <tr id="project-material-search-empty" class="hide"><td colspan="7" class="text-center p30 text-off"><i data-feather="search" class="icon-18"></i> Nenhum material encontrado para esta pesquisa.</td></tr>
+            <tr id="project-material-search-empty" class="hide"><td colspan="7" class="text-center p30 text-off"><span class="project-material-search-empty-icon" aria-hidden="true">&#128269;</span> Nenhum material encontrado para esta pesquisa.</td></tr>
             </tbody>
         </table>
     </div>
@@ -150,6 +150,7 @@
 .project-material-search-bar{display:flex;align-items:center;gap:12px;padding:12px 15px;border-bottom:1px solid #e7e9ec;background:#fff}
 .project-material-search-bar .input-group{width:min(620px,100%)}
 .project-material-search-bar .input-group-text{background:#f8f9fa;border-color:#e1e5eb}
+.project-material-search-icon,.project-material-search-empty-icon{font-family:"Segoe UI Emoji","Segoe UI Symbol",sans-serif;font-size:14px;line-height:1}
 .project-material-search-bar .form-control{height:40px}
 #project-material-search-count{white-space:nowrap}
 .project-materials-main-table{table-layout:fixed;width:100%;min-width:1080px}
@@ -220,8 +221,7 @@
         });
 
         $('#project-material-search-empty').toggleClass('hide', visible > 0 || !total);
-        $('#project-material-search-count').text(query ? visible + ' de ' + total + ' material(is)' : total + ' material(is)');
-        if (window.feather) feather.replace();
+        $('#project-material-search-count').text(query ? visible + ' de ' + total + ' material(is)' : total + ' material(is)'); 
     }
 
     $('#project-material-search').on('input', filterProjectMaterials);
