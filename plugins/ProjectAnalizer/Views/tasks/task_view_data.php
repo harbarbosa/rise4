@@ -203,24 +203,73 @@ if ($total_sub_tasks) {
                         </div>
                     <?php } ?>
 
-                    <?php
-                    $task_materials_grouped = array();
-                    foreach ((array) $task_materials as $resource) {
-                        $resource_key = ($resource->item_type ?: "material") . ":" . ($resource->item_id ?: $resource->proposal_item_id);
-                        if (!isset($task_materials_grouped[$resource_key])) {
-                            $task_materials_grouped[$resource_key] = $resource;
-                            $task_materials_grouped[$resource_key]->quantity = 0;
-                        }
-                        $task_materials_grouped[$resource_key]->quantity += (float) $resource->quantity;
-                    }
-                    ?>
-                    <?php if (!empty($task_materials_grouped) || !empty($task_tools)) { ?>
-                        <div class="col-md-12 mb15 b-t pt15">
-                            <strong><?php echo app_lang("task_resources"); ?></strong>
-                            <?php if (!empty($task_materials_grouped)) { ?><div class="mt10"><strong><?php echo app_lang("materials"); ?>:</strong><ul class="mb0"><?php foreach ($task_materials_grouped as $resource) { ?><li><?php echo esc($resource->material_description ?: ("#" . $resource->item_id)); ?> — <?php echo esc(rtrim(rtrim(number_format($resource->quantity, 3, ".", ""), "0"), ".")); ?> <?php echo esc($resource->item_unit); ?></li><?php } ?></ul></div><?php } ?>
-                            <?php if (!empty($task_tools)) { ?><div class="mt10"><strong><?php echo app_lang("tools"); ?>:</strong><ul class="mb0"><?php foreach ($task_tools as $resource) { ?><li><?php echo esc($resource->tool_name); ?> — <?php echo esc($resource->quantity); ?><?php if ($resource->requirement) { ?> (<?php echo esc($resource->requirement); ?>)<?php } ?></li><?php } ?></ul></div><?php } ?>
+                    <div class="col-md-12 mb15 b-t pt15 task-project-materials-section">
+                        <div class="task-materials-heading">
+                            <strong><i data-feather="package" class="icon-16"></i> Materiais da tarefa</strong>
+                            <span class="badge bg-light text-dark"><?php echo count((array) $project_material_allocations); ?></span>
                         </div>
-                    <?php } ?>
+
+                        <?php if (!empty($project_material_allocations)) { ?>
+                            <div class="table-responsive mt10">
+                                <table class="table table-sm task-materials-table mb0">
+                                    <thead><tr><th>Material</th><th class="text-end">Necessário</th><th class="text-end">Requisitado</th><th class="text-end">Pendente</th><?php if ($can_manage_project_task_materials) { ?><th class="text-end">Ações</th><?php } ?></tr></thead>
+                                    <tbody>
+                                    <?php foreach ($project_material_allocations as $allocation) {
+                                        $requested_quantity = (float) $allocation->requested_quantity;
+                                        $required_quantity = (float) $allocation->quantity;
+                                        $pending_quantity = max(0, $required_quantity - $requested_quantity);
+                                    ?>
+                                        <tr>
+                                            <td><strong><?php echo esc($allocation->description); ?></strong><div class="small text-off"><?php echo esc($allocation->unit); ?></div></td>
+                                            <td class="text-end"><?php echo number_format($required_quantity, 3, ",", "."); ?></td>
+                                            <td class="text-end"><?php echo number_format($requested_quantity, 3, ",", "."); ?></td>
+                                            <td class="text-end"><span class="badge bg-<?php echo $pending_quantity > 0 ? "warning" : "success"; ?>"><?php echo number_format($pending_quantity, 3, ",", "."); ?></span></td>
+                                            <?php if ($can_manage_project_task_materials) { ?>
+                                                <td class="text-end">
+                                                    <button type="button" class="btn btn-default btn-sm remove-task-project-material" data-allocation-id="<?php echo (int) $allocation->id; ?>" <?php echo $requested_quantity > 0 ? 'disabled title="Cancele a requisição antes de remover"' : 'title="Remover material da tarefa"'; ?>>
+                                                        <i data-feather="unlink" class="icon-14"></i> Remover
+                                                    </button>
+                                                </td>
+                                            <?php } ?>
+                                        </tr>
+                                    <?php } ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php } else { ?>
+                            <div class="task-materials-empty mt10"><i data-feather="package" class="icon-18"></i> Nenhum material associado a esta tarefa.</div>
+                        <?php } ?>
+
+                        <?php if ($can_manage_project_task_materials && !empty($available_project_materials)) { ?>
+                            <form id="task-project-material-add-form" class="task-material-add-form mt15">
+                                <input type="hidden" name="project_id" value="<?php echo (int) $project_id; ?>">
+                                <input type="hidden" name="task_id" value="<?php echo (int) $task_id; ?>">
+                                <div class="task-material-select">
+                                    <label>Adicionar material</label>
+                                    <select name="project_material_id" id="task-project-material-select" class="form-control select2" data-placeholder="Selecione um material" required>
+                                        <option value=""></option>
+                                        <?php foreach ($available_project_materials as $project_material) { ?>
+                                            <option value="<?php echo (int) $project_material->id; ?>" data-available="<?php echo number_format((float) $project_material->available_quantity, 4, ".", ""); ?>" data-unit="<?php echo esc($project_material->unit); ?>">
+                                                <?php echo esc($project_material->description); ?> — disponível: <?php echo number_format((float) $project_material->available_quantity, 3, ",", "."); ?> <?php echo esc($project_material->unit); ?>
+                                            </option>
+                                        <?php } ?>
+                                    </select>
+                                </div>
+                                <div class="task-material-quantity">
+                                    <label>Quantidade necessária</label>
+                                    <input type="text" name="quantity" class="form-control" inputmode="decimal" placeholder="0,000" required>
+                                    <div id="task-material-available-hint" class="small text-off"></div>
+                                </div>
+                                <div class="task-material-add-button"><button type="submit" class="btn btn-primary"><i data-feather="plus-circle" class="icon-16"></i> Adicionar</button></div>
+                            </form>
+                        <?php } elseif ($can_manage_project_task_materials && empty($available_project_materials)) { ?>
+                            <div class="small text-off mt10">Todos os materiais disponíveis do projeto já estão associados ou não possuem saldo.</div>
+                        <?php } ?>
+
+                        <?php if (!empty($task_tools)) { ?>
+                            <div class="mt15"><strong><?php echo app_lang("tools"); ?>:</strong><ul class="mb0"><?php foreach ($task_tools as $resource) { ?><li><?php echo esc($resource->tool_name); ?> — <?php echo esc($resource->quantity); ?><?php if ($resource->requirement) { ?> (<?php echo esc($resource->requirement); ?>)<?php } ?></li><?php } ?></ul></div>
+                        <?php } ?>
+                    </div>
 
                     <?php if ($model_info->project_id) { ?>
                         <div class="col-md-12 mb15">
@@ -485,3 +534,83 @@ if ($total_sub_tasks) {
         <?php echo activity_logs_widget(array("limit" => 20, "offset" => 0, "log_type" => "task", "log_type_id" => $model_info->id)); ?>
     </div>
 <?php } ?>
+
+<style>
+.task-materials-heading{display:flex;align-items:center;gap:8px}
+.task-materials-table th{font-size:11px;color:#667085}
+.task-materials-table td{vertical-align:middle}
+.task-materials-empty{padding:14px;border:1px dashed #d9dee5;border-radius:6px;background:#fafbfc;color:#7b8490}
+.task-material-add-form{display:grid;grid-template-columns:minmax(260px,1fr) 170px auto;gap:10px;align-items:end;padding:12px;border:1px solid #e5e9ef;border-radius:7px;background:#f8f9fa}
+.task-material-add-form label{display:block;margin-bottom:5px;font-size:11px;font-weight:600}
+.task-material-add-button .btn{height:38px}
+#task-project-material-select+.select2-container{width:100%!important}
+@media(max-width:767px){.task-material-add-form{grid-template-columns:1fr}.task-material-add-button .btn{width:100%}}
+</style>
+<script>
+(function initializeTaskProjectMaterials(attempt) {
+    if (!window.jQuery || !window.jQuery.fn) {
+        if (attempt < 100) window.setTimeout(function () { initializeTaskProjectMaterials(attempt + 1); }, 50);
+        return;
+    }
+    var $ = window.jQuery;
+    var $materialSelect = $("#task-project-material-select");
+
+    if ($materialSelect.length && $.fn.select2 && !$materialSelect.data("select2") && !$materialSelect.hasClass("select2-hidden-accessible")) {
+        $materialSelect.select2({width: "100%", dropdownParent: $("#ajaxModal")});
+    }
+
+    $materialSelect.off("change.taskMaterials").on("change.taskMaterials", function () {
+        var $option = $(this).find("option:selected");
+        var available = $option.data("available");
+        var unit = $option.data("unit") || "";
+        $("#task-material-available-hint").text(available ? "Disponível no projeto: " + available + " " + unit : "");
+    });
+
+    $("#task-project-material-add-form").off("submit.taskMaterials").on("submit.taskMaterials", function (event) {
+        event.preventDefault();
+        var $form = $(this), $button = $form.find("button[type=submit]");
+        $button.prop("disabled", true);
+        appAjaxRequest({
+            url: "<?php echo get_uri('projectanalizer/project_materials/allocate'); ?>",
+            type: "POST", dataType: "json", data: $form.serialize(),
+            success: function (result) {
+                if (result && result.success) {
+                    appAlert.success(result.message);
+                    window.location.reload();
+                } else {
+                    appAlert.error((result && result.message) || "Não foi possível adicionar o material.");
+                    $button.prop("disabled", false);
+                }
+            },
+            error: function (xhr) {
+                appAlert.error((xhr.responseJSON && xhr.responseJSON.message) || "Não foi possível adicionar o material.");
+                $button.prop("disabled", false);
+            }
+        });
+    });
+
+    $(".remove-task-project-material").off("click.taskMaterials").on("click.taskMaterials", function () {
+        var $button = $(this);
+        if (!confirm("Deseja remover este material da tarefa?")) return;
+        $button.prop("disabled", true);
+        appAjaxRequest({
+            url: "<?php echo get_uri('projectanalizer/project_materials/remove_allocation'); ?>",
+            type: "POST", dataType: "json",
+            data: {project_id: "<?php echo (int) $project_id; ?>", allocation_id: $button.data("allocation-id")},
+            success: function (result) {
+                if (result && result.success) {
+                    appAlert.success(result.message);
+                    window.location.reload();
+                } else {
+                    appAlert.error((result && result.message) || "Não foi possível remover o material.");
+                    $button.prop("disabled", false);
+                }
+            },
+            error: function (xhr) {
+                appAlert.error((xhr.responseJSON && xhr.responseJSON.message) || "Não foi possível remover o material.");
+                $button.prop("disabled", false);
+            }
+        });
+    });
+})(0);
+</script>
