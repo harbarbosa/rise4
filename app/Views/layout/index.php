@@ -170,6 +170,58 @@ if ($is_workspace_frame) {
 
     </div>
 
+    <?php if ($is_workspace_frame) { ?>
+    <script type="text/javascript">
+    (function () {
+        "use strict";
+
+        function workspaceApi() {
+            try {
+                return window.parent && window.parent !== window && window.parent.appWorkspaceTabs
+                    ? window.parent.appWorkspaceTabs
+                    : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        window.openSystemModuleTab = function (url, title, icon) {
+            var api = workspaceApi();
+            if (api && api.open) {
+                return api.open(url, title || "", icon || "");
+            }
+            window.location.href = url;
+            return true;
+        };
+
+        $(document).on("click.workspaceModuleNavigation", "a[href]", function (event) {
+            var $link = $(this);
+            var href = $link.attr("href");
+            if (!href || href === "#" || href.indexOf("javascript:") === 0 ||
+                $link.attr("target") === "_blank" || $link.attr("download") ||
+                $link.attr("data-bs-toggle") || $link.attr("data-toggle") ||
+                $link.attr("data-act") || event.ctrlKey || event.metaKey ||
+                event.shiftKey || event.altKey) {
+                return;
+            }
+
+            var api = workspaceApi();
+            if (!api || !api.open || !api.moduleOf) return;
+
+            var currentModule = api.moduleOf(window.location.href);
+            var targetModule = api.moduleOf(href);
+            if (!targetModule || targetModule === currentModule) return;
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
+            var title = $.trim($link.attr("data-workspace-title") || $link.attr("title") || $link.text());
+            api.open(href, title, $link.attr("data-workspace-icon") || "");
+        });
+    })();
+    </script>
+    <?php } ?>
+
 </body>
 
 </html>
