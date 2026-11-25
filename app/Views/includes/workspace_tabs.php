@@ -257,6 +257,36 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
         return matchedIcon;
     }
 
+    function routeModule(rawUrl) {
+        var normalizedUrl = safeUrl(rawUrl);
+        if (!normalizedUrl) return "";
+        try {
+            var path = new URL(normalizedUrl).pathname.replace(/^\/+|\/+$/g, "");
+            var parts = path.split("/").filter(Boolean);
+            var indexPosition = parts.indexOf("index.php");
+            var route = indexPosition >= 0 ? (parts[indexPosition + 1] || "") : (parts[0] || "");
+            if (route === "projects" || route === "projectanalizer") return "projects";
+            return route.toLowerCase();
+        } catch (e) {
+            return "";
+        }
+    }
+
+    function menuMetaForUrl(url) {
+        var targetModule = routeModule(url);
+        var meta = {title: "", icon: "file"};
+        $(".sidebar a[href]").each(function () {
+            var $link = $(this);
+            if (routeModule($link.attr("href")) === targetModule) {
+                meta.title = $.trim($link.find(".menu-text").text()) ||
+                    $.trim($link.clone().find("i,svg").remove().end().text());
+                meta.icon = menuIconName($link);
+                return false;
+            }
+        });
+        return meta;
+    }
+
     function tabIdForUrl(url) {
         var value = url.replace(window.location.origin, "").replace(/[^a-zA-Z0-9]/g, "_");
         var hash = 0;
@@ -565,6 +595,20 @@ $workspace_home_url = $workspace_home_url ?? get_uri('dashboard');
                 $("body").removeClass("sidebar-open");
             }
         });
+
+        window.appWorkspaceTabs = {
+            open: function (url, title, icon) {
+                var normalizedUrl = safeUrl(url);
+                if (!normalizedUrl) return false;
+                if (isHomeDestination(normalizedUrl)) {
+                    activateTab(homeTabId);
+                    return true;
+                }
+                var meta = menuMetaForUrl(normalizedUrl);
+                return addTab(normalizedUrl, title || meta.title || "Nova aba", icon || meta.icon || "file", true);
+            },
+            moduleOf: routeModule
+        };
 
         restoreTabs();
     });
