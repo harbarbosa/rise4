@@ -1,3 +1,11 @@
+<ul class="nav nav-tabs bg-white project-material-tabs" role="tablist">
+    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#project-materials-management-tab" type="button" role="tab"><i data-feather="box" class="icon-16"></i> Materiais e associações</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#project-materials-direct-request-tab" type="button" role="tab"><i data-feather="shopping-cart" class="icon-16"></i> Compra pelo projeto</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#project-materials-consolidated-tab" type="button" role="tab"><i data-feather="layers" class="icon-16"></i> Requisição consolidada</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#project-materials-task-request-tab" type="button" role="tab"><i data-feather="check-square" class="icon-16"></i> Solicitação por tarefa</button></li>
+</ul>
+<div class="tab-content project-material-tab-content">
+<div class="tab-pane fade show active" id="project-materials-management-tab" role="tabpanel">
 <div class="card">
     <div class="page-title clearfix">
         <h1><?php echo app_lang('project_materials'); ?></h1>
@@ -34,24 +42,6 @@
     </form>
     <?php } ?>
     <?php if ($materials) { ?>
-    <form id="project-material-direct-request-form" class="p15 border-bottom">
-        <input type="hidden" name="project_id" value="<?php echo (int)$project_id; ?>">
-        <div class="row align-items-end">
-            <div class="col-md-6">
-                <label><strong>Solicitar compra diretamente pelo projeto</strong></label>
-                <div class="text-off">Marque os materiais na coluna “Solicitar” e informe a quantidade de cada item.</div>
-            </div>
-            <div class="col-md-3">
-                <label>Data necessária</label>
-                <input type="date" name="desired_date" class="form-control" value="<?php echo date('Y-m-d'); ?>" required>
-            </div>
-            <div class="col-md-3 text-end">
-                <button class="btn btn-primary" type="submit"><i data-feather="shopping-cart" class="icon-16"></i> Criar requisição</button>
-            </div>
-        </div>
-    </form>
-    <?php } ?>
-    <?php if ($materials) { ?>
     <div class="project-material-search-bar">
         <div class="input-group">
             <span class="input-group-text project-material-search-icon" aria-hidden="true">&#128269;</span>
@@ -70,7 +60,6 @@
                     <th class="material-check-column"><input type="checkbox" id="batch-material-check-all" class="form-check-input" title="Selecionar todos para associação"></th>
                     <th class="material-name-column">Material</th>
                     <th class="material-quantity-column">Quantidades</th>
-                    <th class="material-purchase-column">Solicitar compra</th>
                     <th class="material-batch-column">Associação em lote</th>
                     <th class="material-individual-column">Associar individualmente</th>
                     <th class="material-actions-column text-end">Ações</th>
@@ -95,14 +84,6 @@
                             <div class="is-available"><span>Disponível</span><strong><?php echo number_format($available, 3, ',', '.'); ?></strong></div>
                         </div>
                     </td>
-                    <td class="material-purchase-cell">
-                        <label class="material-inline-check">
-                            <input type="checkbox" class="form-check-input direct-request-check" value="<?php echo (int)$material->id; ?>" <?php echo $request_available>0?'':'disabled'; ?>>
-                            <span>Selecionar</span>
-                        </label>
-                        <input class="form-control direct-request-quantity" inputmode="decimal" placeholder="Quantidade" data-max="<?php echo number_format($request_available,4,'.',''); ?>" disabled>
-                        <div class="small text-off">Saldo: <?php echo number_format($request_available,3,',','.'); ?> <?php echo esc($material->unit); ?></div>
-                    </td>
                     <td class="material-batch-cell">
                         <input class="form-control batch-material-quantity" inputmode="decimal" placeholder="Quantidade" data-max="<?php echo number_format($available,4,'.',''); ?>" disabled>
                         <div class="small text-off">Marque a caixa no início da linha.</div>
@@ -123,11 +104,50 @@
                     </td>
                 </tr>
             <?php } ?>
-            <?php if (!$materials) { ?><tr><td colspan="7" class="text-center p30 text-off">Nenhum material planejado para este projeto.</td></tr><?php } ?>
-            <tr id="project-material-search-empty" class="hide"><td colspan="7" class="text-center p30 text-off"><span class="project-material-search-empty-icon" aria-hidden="true">&#128269;</span> Nenhum material encontrado para esta pesquisa.</td></tr>
+            <?php if (!$materials) { ?><tr><td colspan="6" class="text-center p30 text-off">Nenhum material planejado para este projeto.</td></tr><?php } ?>
+            <tr id="project-material-search-empty" class="hide"><td colspan="6" class="text-center p30 text-off"><span class="project-material-search-empty-icon" aria-hidden="true">&#128269;</span> Nenhum material encontrado para esta pesquisa.</td></tr>
             </tbody>
         </table>
     </div>
+</div>
+</div>
+
+<div class="tab-pane fade" id="project-materials-direct-request-tab" role="tabpanel">
+<div class="card">
+    <div class="card-header">
+        <strong><i data-feather="shopping-cart" class="icon-16"></i> Solicitar compra diretamente pelo projeto</strong>
+        <div class="small text-off mt5">Selecione os materiais do projeto e informe quanto deseja comprar agora.</div>
+    </div>
+    <?php if ($materials) { ?>
+    <form id="project-material-direct-request-form">
+        <input type="hidden" name="project_id" value="<?php echo (int)$project_id; ?>">
+        <div class="table-responsive">
+            <table class="table table-hover mb0 project-material-request-table">
+                <thead><tr><th class="w50"></th><th>Material</th><th>Origem</th><th class="text-end">Total</th><th class="text-end">Já requisitado</th><th class="text-end">Disponível</th><th class="w200">Solicitar agora</th></tr></thead>
+                <tbody>
+                <?php foreach ($materials as $material) { $total=(float)$material->planned_quantity+(float)$material->additional_quantity; $request_available=max(0,$total-(float)$material->requested_quantity); ?>
+                    <tr>
+                        <td><input type="checkbox" class="form-check-input direct-request-check" value="<?php echo (int)$material->id; ?>" <?php echo $request_available>0?'':'disabled'; ?>></td>
+                        <td><strong><?php echo esc($material->description); ?></strong><div class="small text-off"><?php echo esc($material->unit); ?></div></td>
+                        <td><span class="badge bg-<?php echo $material->source === 'proposal' ? 'info' : 'secondary'; ?>"><?php echo $material->source === 'proposal' ? 'Proposta' : 'Adicional'; ?></span></td>
+                        <td class="text-end"><?php echo number_format($total,3,',','.'); ?></td>
+                        <td class="text-end"><?php echo number_format((float)$material->requested_quantity,3,',','.'); ?></td>
+                        <td class="text-end"><strong><?php echo number_format($request_available,3,',','.'); ?></strong></td>
+                        <td><input class="form-control direct-request-quantity" inputmode="decimal" placeholder="Quantidade" data-max="<?php echo number_format($request_available,4,'.',''); ?>" disabled></td>
+                    </tr>
+                <?php } ?>
+                </tbody>
+            </table>
+        </div>
+        <div class="project-material-request-footer">
+            <div><label>Data necessária</label><input type="date" name="desired_date" class="form-control" value="<?php echo date('Y-m-d'); ?>" required></div>
+            <button class="btn btn-primary" type="submit"><i data-feather="shopping-cart" class="icon-16"></i> Criar requisição</button>
+        </div>
+    </form>
+    <?php } else { ?>
+        <div class="p30 text-center text-off">Nenhum material disponível para solicitação.</div>
+    <?php } ?>
+</div>
 </div>
 
 <?php
@@ -140,8 +160,9 @@ foreach ((array) $all_allocations as $allocation) {
     }
 }
 ?>
+<div class="tab-pane fade" id="project-materials-consolidated-tab" role="tabpanel">
 <?php if ($consolidated_request_rows) { ?>
-<div class="card mt20 consolidated-material-request-card">
+<div class="card consolidated-material-request-card">
     <div class="card-header d-flex align-items-center justify-content-between">
         <div>
             <strong><i data-feather="shopping-cart" class="icon-16"></i> Requisição consolidada de materiais</strong>
@@ -188,9 +209,13 @@ foreach ((array) $all_allocations as $allocation) {
         </div>
     </form>
 </div>
+<?php } else { ?>
+<div class="card"><div class="p30 text-center text-off">Não há materiais associados às tarefas disponíveis para requisição consolidada.</div></div>
 <?php } ?>
+</div>
 
-<div class="mt20">
+<div class="tab-pane fade" id="project-materials-task-request-tab" role="tabpanel">
+<div>
 <?php foreach ($tasks as $task) { $rows=$allocations_by_task[(int)$task->id] ?? array(); if (!$rows) continue; ?>
     <div class="card mb15">
         <div class="card-header"><strong><?php echo esc($task->title); ?></strong><span class="text-off ml10">Materiais desta tarefa</span></div>
@@ -204,14 +229,24 @@ foreach ((array) $all_allocations as $allocation) {
         </form>
     </div>
 <?php } ?>
+<?php if (!$tasks) { ?><div class="card"><div class="p30 text-center text-off">Nenhuma tarefa cadastrada para este projeto.</div></div><?php } ?>
+</div>
+</div>
 </div>
 
 <style>
+.project-material-tabs{padding:0 15px;border-bottom:1px solid #e7e9ec;overflow-x:auto;flex-wrap:nowrap}
+.project-material-tabs .nav-link{display:flex;align-items:center;gap:6px;white-space:nowrap;padding:13px 16px}
+.project-material-tab-content{padding-top:15px}
+.project-material-tab-content>.tab-pane>.card{margin-bottom:0}
+.project-material-request-table td{vertical-align:middle}
+.project-material-request-footer{display:flex;justify-content:flex-end;align-items:end;gap:10px;padding:15px;border-top:1px solid #e7e9ec;background:#fafbfc}
+.project-material-request-footer label{display:block;margin-bottom:5px;font-size:11px;font-weight:600}
 .consolidated-material-request-card .card-header{gap:15px}
 .consolidated-material-request-card td{vertical-align:middle}
 .consolidated-request-footer{display:flex;justify-content:flex-end;align-items:end;gap:10px;padding:15px;border-top:1px solid #e7e9ec;background:#fafbfc}
 .consolidated-request-footer label{display:block;margin-bottom:5px;font-size:11px;font-weight:600}
-@media(max-width:767px){.consolidated-request-footer{align-items:stretch;flex-direction:column}.consolidated-request-footer .btn{width:100%}}
+@media(max-width:767px){.consolidated-request-footer,.project-material-request-footer{align-items:stretch;flex-direction:column}.consolidated-request-footer .btn,.project-material-request-footer .btn{width:100%}.project-material-tab-content{padding-top:10px}}
 .project-material-search-bar{display:flex;align-items:center;gap:12px;padding:12px 15px;border-bottom:1px solid #e7e9ec;background:#fff}
 .project-material-search-bar .input-group{width:min(620px,100%)}
 .project-material-search-bar .input-group-text{background:#f8f9fa;border-color:#e1e5eb}
@@ -223,10 +258,9 @@ foreach ((array) $all_allocations as $allocation) {
 .project-materials-main-table td{vertical-align:top;padding:14px 10px}
 .project-materials-main-table .material-check-column{width:3%}
 .project-materials-main-table .material-name-column{width:22%}
-.project-materials-main-table .material-quantity-column{width:18%}
-.project-materials-main-table .material-purchase-column{width:13%}
-.project-materials-main-table .material-batch-column{width:11%}
-.project-materials-main-table .material-individual-column{width:28%}
+.project-materials-main-table .material-quantity-column{width:22%}
+.project-materials-main-table .material-batch-column{width:16%}
+.project-materials-main-table .material-individual-column{width:32%}
 .project-materials-main-table .material-actions-column{width:5%}
 .material-title{font-size:13px;font-weight:600;line-height:1.4;color:#2c3e50;overflow-wrap:anywhere}
 .material-meta{display:flex;align-items:center;gap:8px;margin-top:7px;color:#6c757d;font-size:11px}
